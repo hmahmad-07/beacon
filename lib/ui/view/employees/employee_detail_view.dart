@@ -67,13 +67,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
       padding: EdgeInsets.symmetric(vertical: 1.5.h),
       decoration: BoxDecoration(
         color: AppColor.white,
-        boxShadow: [
-          BoxShadow(
-            color: AppColor.grey.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppShadow.soft,
       ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -93,7 +87,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
             ),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              width: 15.w,
+              width: 13.w,
               margin: EdgeInsets.only(right: 3.w),
               decoration: BoxDecoration(
                 gradient: isSelected
@@ -106,16 +100,8 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                 color: isSelected
                     ? null
                     : AppColor.scaffold.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColor.appColor1.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
+                borderRadius: BorderRadius.circular(2.r),
+                boxShadow: isSelected ? AppShadow.soft : null,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:centrex/core/resources/app_images.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -29,14 +30,14 @@ class Utils {
         content: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Container(
-            //   decoration: BoxDecoration(
-            //     color: AppColor.white,
-            //     shape: BoxShape.circle,
-            //   ),
-            //   child: Icon(Icons.info_outline, color: AppColor.appColor1),
-            // ),
-            // 4.width,
+            Container(
+              decoration: BoxDecoration(
+                color: AppColor.white,
+                shape: BoxShape.circle,
+              ),
+              child: Image.asset(height: 5.w, width: 5.w, ImageAssets.appIcon),
+            ),
+            4.width,
             Expanded(
               child: Text(
                 message,
