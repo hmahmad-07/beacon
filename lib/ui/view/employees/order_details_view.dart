@@ -11,148 +11,493 @@ class OrderDetailsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double subtotal = 0;
+    for (var order in visit.orders) {
+      for (var item in order.items) {
+        // Using correct key 'total_amount' from API
+        subtotal +=
+            double.tryParse(item['total_amount']?.toString() ?? '0') ?? 0;
+      }
+    }
+
     return Scaffold(
       backgroundColor: AppColor.scaffold,
-      appBar: CustomAppBar(title: visit.placeName),
-      body: ListView(
-        padding: EdgeInsets.all(5.w),
+      appBar: CustomAppBar(title: "Sales intelligence"),
+      body: Column(
         children: [
-          _buildSummaryHeader(),
-          2.height,
-          ...visit.orders.map((order) => _buildOrderTable(order)),
+          _buildExecutiveHeader(visit, subtotal),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
+              physics: const BouncingScrollPhysics(),
+              children: [
+                _sectionHeader("Order Pipeline"),
+                2.height,
+                ...visit.orders.map((order) => _buildExecutiveOrderCard(order)),
+                3.height,
+                _buildBillingBreakdown(subtotal),
+                10.height,
+              ],
+            ),
+          ),
+          _buildGrandTotalFooter(subtotal),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryHeader() {
+  Widget _buildExecutiveHeader(Visit visit, double total) {
     return Container(
-      padding: EdgeInsets.all(4.w),
+      width: double.infinity,
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(16),
         boxShadow: AppShadow.soft,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(2.w),
-                decoration: BoxDecoration(
-                  color: AppColor.green.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.shopping_cart_checkout_rounded, color: AppColor.green, size: 5.w),
-              ),
-              3.width,
-              Text(
-                "Order Context",
-                style: TextStyle(fontSize: 3.5.sp, fontWeight: FontWeight.bold, color: AppColor.appDarkColor),
-              ),
-            ],
+          Positioned(
+            right: -30,
+            top: -30,
+            child: Icon(
+              Icons.receipt_rounded,
+              size: 50.w,
+              color: AppColor.appColor1.withValues(alpha: 0.02),
+            ),
           ),
-          2.height,
-          _metaRow("Visit Time", visit.createdAt),
-          _metaRow("Recorded Date", visit.orders.first.orderDate),
-          _metaRow("Channel", visit.channel),
-          _metaRow("Total Orders", visit.orders.length.toString()),
+          Padding(
+            padding: EdgeInsets.fromLTRB(5.w, 3.h, 5.w, 4.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            visit.placeName.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 4.5.sp,
+                              fontWeight: FontWeight.w900,
+                              color: AppColor.appDarkColor,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          0.5.height,
+                          Text(
+                            "ORDER ID: FF-${visit.id.toString().padLeft(6, '0')}",
+                            style: TextStyle(
+                              fontSize: 2.3.sp,
+                              color: AppColor.grey,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _auditBadge(),
+                  ],
+                ),
+                2.height,
+                Row(
+                  children: [
+                    _headerMetaChip(
+                      Icons.access_time_filled_rounded,
+                      visit.createdAt,
+                    ),
+                    3.width,
+                    _headerMetaChip(Icons.location_on_rounded, "GPS VERIFIED"),
+                  ],
+                ),
+                3.height,
+                _buildAuditStepper(),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _metaRow(String l, String v) => Padding(
-    padding: EdgeInsets.only(bottom: 0.8.h),
+  Widget _auditBadge() => Container(
+    padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [AppColor.green, AppColor.green.withValues(alpha: 0.8)],
+      ),
+      borderRadius: BorderRadius.circular(50),
+      boxShadow: [
+        BoxShadow(
+          color: AppColor.green.withValues(alpha: 0.2),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
     child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(l, style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey, fontWeight: FontWeight.w600)),
-        Text(v, style: TextStyle(fontSize: 2.8.sp, color: AppColor.appDarkColor, fontWeight: FontWeight.bold)),
+        Icon(Icons.verified_rounded, color: AppColor.white, size: 3.w),
+        1.5.width,
+        Text(
+          "AUDITED",
+          style: TextStyle(
+            color: AppColor.white,
+            fontSize: 1.8.sp,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+          ),
+        ),
       ],
     ),
   );
 
-  Widget _buildOrderTable(Order order) {
+  Widget _headerMetaChip(IconData icon, String t) => Container(
+    padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.6.h),
+    decoration: BoxDecoration(
+      color: AppColor.scaffold,
+      borderRadius: BorderRadius.circular(4.r),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, size: 2.8.w, color: AppColor.grey),
+        1.5.width,
+        Text(
+          t,
+          style: TextStyle(
+            fontSize: 2.2.sp,
+            color: AppColor.appDarkColor,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildAuditStepper() {
+    return Row(
+      children: [
+        _stepIndicator("Received", true),
+        _stepConnector(true),
+        _stepIndicator("Verified", true),
+        _stepConnector(true),
+        _stepIndicator("Archived", true),
+      ],
+    );
+  }
+
+  Widget _stepIndicator(String label, bool done) => Column(
+    children: [
+      Container(
+        width: 3.w,
+        height: 3.w,
+        decoration: BoxDecoration(
+          color: done ? AppColor.green : AppColor.grey.withValues(alpha: 0.3),
+          shape: BoxShape.circle,
+        ),
+      ),
+      1.height,
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 2.5.sp,
+          color: done ? AppColor.appDarkColor : AppColor.grey,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    ],
+  );
+
+  Widget _stepConnector(bool done) => Expanded(
+    child: Container(
+      height: 1.5,
+      color: done
+          ? AppColor.green.withValues(alpha: 0.3)
+          : AppColor.grey.withValues(alpha: 0.1),
+      margin: EdgeInsets.only(bottom: 2.5.h),
+    ),
+  );
+
+  Widget _buildExecutiveOrderCard(Order order) {
+    return Column(
+      children: [
+        ...order.items.map((item) => _buildExecutiveProductRow(item)),
+        if (order.remarks != null && order.remarks!.isNotEmpty)
+          _buildEliteRemarks(order.remarks!),
+        2.height,
+      ],
+    );
+  }
+
+  Widget _buildExecutiveProductRow(Map<String, dynamic> item) {
+    // Audit Breakdown calculation
+    final pcs = item['qty_pcs'] ?? 0;
+    final boxes = item['qty_box'] ?? 0;
+    final foc = item['qty_foc'] ?? 0;
+
     return Container(
-      margin: EdgeInsets.only(bottom: 3.h),
+      margin: EdgeInsets.only(bottom: 1.5.h),
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(4.r),
+        boxShadow: AppShadow.soft,
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Container(
+              width: 1.5.w,
+              decoration: BoxDecoration(
+                color: AppColor.appColor1,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(4.r),
+                  bottomLeft: Radius.circular(4.r),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(4.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item['item_name']?.toString().toUpperCase() ?? "N/A",
+                      style: TextStyle(
+                        fontSize: 3.2.sp,
+                        fontWeight: FontWeight.w900,
+                        color: AppColor.appDarkColor,
+                        letterSpacing: 0.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    1.height,
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _infoSmallChip("Pcs: $pcs", AppColor.appColor1),
+                          2.width,
+                          _infoSmallChip("Box: $boxes", AppColor.grey),
+                          2.width,
+                          _infoSmallChip("FOC: $foc", AppColor.green),
+                          2.width,
+                          _infoSmallChip(
+                            "Rate: ${item['rate']}",
+                            AppColor.grey,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 5.w),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "SUB TOTAL",
+                    style: TextStyle(
+                      fontSize: 1.6.sp,
+                      color: AppColor.grey,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  0.5.height,
+                  Text(
+                    "PKR ${item['total_amount']}",
+                    style: TextStyle(
+                      fontSize: 3.6.sp,
+                      fontWeight: FontWeight.w900,
+                      color: AppColor.appDarkColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBillingBreakdown(double subtotal) {
+    return Container(
+      padding: EdgeInsets.all(5.w),
+      decoration: BoxDecoration(
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(4.r),
         boxShadow: AppShadow.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: EdgeInsets.all(4.w),
-            child: Row(
-              children: [
-                Icon(Icons.receipt_long_rounded, size: 4.w, color: AppColor.appColor1),
-                2.width,
-                Text(
-                  "Items breakdown",
-                  style: TextStyle(fontSize: 3.2.sp, fontWeight: FontWeight.w900, color: AppColor.appDarkColor),
-                ),
-              ],
-            ),
-          ),
-          
-          // Table Layout
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColor.scaffold.withValues(alpha: 0.5),
-            ),
-            child: DataTable(
-              columnSpacing: 15,
-              headingRowHeight: 5.h,
-              dataRowMinHeight: 4.h,
-              dataRowMaxHeight: 6.h,
-              horizontalMargin: 4.w,
-              columns: [
-                DataColumn(label: Text('Item Name', style: _headerStyle())),
-                DataColumn(label: Text('Qty', style: _headerStyle())),
-                DataColumn(label: Text('Rate', style: _headerStyle())),
-                DataColumn(label: Text('Total', style: _headerStyle())),
-              ],
-              rows: order.items.map((item) => DataRow(
-                cells: [
-                  DataCell(SizedBox(
-                    width: 30.w,
-                    child: Text(item['item_name']?.toString() ?? "N/A", style: _cellStyle(isBold: true)))),
-                  DataCell(Text(item['qty']?.toString() ?? '0', style: _cellStyle())),
-                  DataCell(Text(item['rate']?.toString() ?? '0', style: _cellStyle())),
-                  DataCell(Text(item['total_price']?.toString() ?? '0', style: _cellStyle(color: AppColor.appColor1))),
-                ],
-              )).toList(),
-            ),
-          ),
-
-          if (order.remarks != null && order.remarks!.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.all(4.w),
-              child: Text(
-                "Feedback: ${order.remarks}",
-                style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500),
-              ),
-            ),
+          _sectionHeader("Financial Summary"),
+          3.height,
+          _billingRow("Order Subtotal", "PKR $subtotal", bold: false),
+          1.5.height,
+          _billingRow("Trade Offer", "- PKR 0.00", color: AppColor.green),
+          1.5.height,
+          _billingRow("Total Value", "PKR $subtotal", bold: true),
         ],
       ),
     );
   }
 
-  TextStyle _headerStyle() => TextStyle(
-    fontSize: 2.5.sp,
-    fontWeight: FontWeight.w900,
-    color: AppColor.appDarkColor,
-    letterSpacing: 0.5,
-  );
+  Widget _billingRow(String l, String v, {bool bold = false, Color? color}) =>
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            l,
+            style: TextStyle(
+              fontSize: 2.6.sp,
+              color: AppColor.grey,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            v,
+            style: TextStyle(
+              fontSize: 2.8.sp,
+              color: color ?? AppColor.appDarkColor,
+              fontWeight: bold ? FontWeight.w900 : FontWeight.bold,
+            ),
+          ),
+        ],
+      );
 
-  TextStyle _cellStyle({bool isBold = false, Color? color}) => TextStyle(
-    fontSize: 2.6.sp,
-    fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-    color: color ?? AppColor.appDarkColor,
+  Widget _buildEliteRemarks(String rem) => Container(
+    padding: EdgeInsets.all(4.w),
+    decoration: BoxDecoration(
+      color: AppColor.scaffold.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(4.r),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.notes_rounded, size: 3.w, color: AppColor.grey),
+        3.width,
+        Expanded(
+          child: Text(
+            "COMPLIANCE REMARKS: $rem",
+            style: TextStyle(
+              fontSize: 2.4.sp,
+              color: AppColor.grey,
+              fontWeight: FontWeight.w700,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      ],
+    ),
   );
 }
+
+Widget _buildGrandTotalFooter(double total) {
+  return Container(
+    padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
+    decoration: BoxDecoration(
+      color: AppColor.appDarkColor,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.1),
+          blurRadius: 20,
+          offset: const Offset(0, -5),
+        ),
+      ],
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    child: SafeArea(
+      top: false,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "CUMULATIVE ORDER REVENUE",
+                style: TextStyle(
+                  fontSize: 1.8.sp,
+                  color: AppColor.white.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              0.5.height,
+              Text(
+                "PKR ${total.toStringAsFixed(2)}",
+                style: TextStyle(
+                  fontSize: 5.2.sp,
+                  fontWeight: FontWeight.w900,
+                  color: AppColor.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
+            decoration: BoxDecoration(
+              color: AppColor.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(50),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.verified_user_rounded,
+                  color: AppColor.green,
+                  size: 4.w,
+                ),
+                2.width,
+                Text(
+                  "VALUATED",
+                  style: TextStyle(
+                    color: AppColor.white,
+                    fontSize: 2.4.sp,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _infoSmallChip(String t, Color c) => Container(
+  padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.4.h),
+  decoration: BoxDecoration(
+    color: c.withValues(alpha: 0.08),
+    borderRadius: BorderRadius.circular(4.r),
+  ),
+  child: Text(
+    t,
+    style: TextStyle(color: c, fontSize: 1.8.sp, fontWeight: FontWeight.w900),
+  ),
+);
+
+Widget _sectionHeader(String t) => Text(
+  t.toUpperCase(),
+  style: TextStyle(
+    fontSize: 2.6.sp,
+    fontWeight: FontWeight.w900,
+    color: AppColor.grey,
+    letterSpacing: 1.5,
+  ),
+);

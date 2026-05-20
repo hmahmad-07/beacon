@@ -1,12 +1,16 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:centrex/core/models/emp_working_detail_model.dart';
 import 'package:centrex/core/resources/app_colors.dart';
 import 'package:centrex/ui/components/custom_appbar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:centrex/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
 
 import '../../components/app_constants.dart';
+import '../../../core/constants/constants.dart';
 
 class EmployeeRouteMapView extends StatefulWidget {
   final EmployesWorkingDetailModel detail;
@@ -25,11 +29,17 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
   final Set<Polygon> _polygons = {};
   final List<LatLng> _points = [];
   bool _isSheetVisible = false;
+  bool _isLoadingRoutes = false;
 
   @override
   void initState() {
     super.initState();
-    _prepareData();
+    _initMapData();
+  }
+
+  Future<void> _initMapData() async {
+    _prepareStaticMarkers();
+    await _fetchRoadRoutes();
   }
 
   String _formatTo12Hour(String timeString) {
@@ -42,7 +52,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
     }
   }
 
-  void _prepareData() {
+  void _prepareStaticMarkers() {
     setState(() {
       _points.clear();
       _markers.clear();
@@ -137,31 +147,86 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
         }
       }
 
-      // 4. Create Polyline
+      // Initial straight line fallback until road routes load
       _polylines.add(
         Polyline(
-          polylineId: const PolylineId('route'),
+          polylineId: const PolylineId('route_initial'),
           points: _points,
-          color: AppColor.appColor1,
-          width: 5,
-          geodesic: true,
-          jointType: JointType.round,
+          color: AppColor.appColor1.withValues(alpha: 0.3),
+          width: 3,
         ),
       );
+    });
+  }
 
-      // 5. Create Polygon
-      if (_points.length > 2) {
-        _polygons.add(
-          Polygon(
-            polygonId: const PolygonId('coverage'),
-            points: _points,
-            fillColor: AppColor.appColor1.withValues(alpha: 0.1),
-            strokeColor: AppColor.appColor1.withValues(alpha: 0.3),
-            strokeWidth: 2,
+  Future<void> _fetchRoadRoutes() async {
+    if (_points.length < 2) return;
+
+    setState(() => _isLoadingRoutes = true);
+
+    try {
+      PolylinePoints polylinePoints = PolylinePoints(
+        apiKey: Constants.GOOGLE_MAPS_API_KEY,
+      );
+      List<LatLng> roadJourneyPoints = [];
+
+      // Calculate route between each consecutive pair of points
+      for (int i = 0; i < _points.length - 1; i++) {
+        PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+          request: PolylineRequest(
+            origin: PointLatLng(_points[i].latitude, _points[i].longitude),
+            destination: PointLatLng(
+              _points[i + 1].latitude,
+              _points[i + 1].longitude,
+            ),
+            mode: TravelMode.driving,
           ),
         );
+
+        if (result.points.isNotEmpty) {
+          roadJourneyPoints.addAll(
+            result.points.map((p) => LatLng(p.latitude, p.longitude)),
+          );
+        } else {
+          // Fallback to straight line if segment fetch fails
+          roadJourneyPoints.add(_points[i]);
+          roadJourneyPoints.add(_points[i + 1]);
+        }
       }
-    });
+
+      if (mounted) {
+        setState(() {
+          _polylines.clear();
+          _polylines.add(
+            Polyline(
+              polylineId: const PolylineId('road_journey'),
+              points: roadJourneyPoints,
+              color: AppColor.appColor1,
+              width: 5,
+              jointType: JointType.round,
+            ),
+          );
+
+          // 5. Update Coverage Polygon with richer data
+          if (roadJourneyPoints.length > 2) {
+            _polygons.clear();
+            _polygons.add(
+              Polygon(
+                polygonId: const PolygonId('coverage'),
+                points: roadJourneyPoints,
+                fillColor: AppColor.appColor1.withValues(alpha: 0.08),
+                strokeColor: AppColor.appColor1.withValues(alpha: 0.2),
+                strokeWidth: 1,
+              ),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Road Route Error: $e");
+    } finally {
+      if (mounted) setState(() => _isLoadingRoutes = false);
+    }
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -192,9 +257,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
   }
 
   void _toggleSheet() {
-    setState(() {
-      _isSheetVisible = !_isSheetVisible;
-    });
+    setState(() => _isSheetVisible = !_isSheetVisible);
     if (_isSheetVisible) {
       _sheetController.animateTo(
         0.3,
@@ -214,7 +277,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColor.white,
-      appBar: const CustomAppBar(title: 'Intelligent Map'),
+      appBar: const CustomAppBar(title: 'Activity Route Intelligence'),
       body: Stack(
         children: [
           GoogleMap(
@@ -233,6 +296,43 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               if (_isSheetVisible) _toggleSheet();
             },
           ),
+
+          if (_isLoadingRoutes)
+            Positioned(
+              top: 10.h,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                  decoration: BoxDecoration(
+                    color: AppColor.white,
+                    borderRadius: BorderRadius.circular(50),
+                    boxShadow: AppShadow.soft,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 3.w,
+                        height: 3.w,
+                        child: const CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      2.width,
+                      Text(
+                        "Synthesizing Road Routes...",
+                        style: TextStyle(
+                          fontSize: 2.5.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColor.appDarkColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
           _buildMapControls(),
           _buildTripMonitor(),
           _buildTimelineToggleButton(),
@@ -249,11 +349,14 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
       child: Column(
         children: [
           FloatingActionButton.small(
-            onPressed: _fitBounds,
+            onPressed: () {
+              _fitBounds();
+              _fetchRoadRoutes(); // Refresh routes on request
+            },
             heroTag: "fit",
             backgroundColor: AppColor.white,
             foregroundColor: AppColor.appDarkColor,
-            child: const Icon(Icons.zoom_out_map_rounded),
+            child: const Icon(Icons.refresh_rounded),
           ),
           1.height,
           FloatingActionButton.small(
@@ -294,7 +397,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
         child: Column(
           children: [
             _monitorRow(
-              "In",
+              "Start",
               isCheckinDone
                   ? _formatTo12Hour(widget.detail.checkin!.time)
                   : "Pending",
@@ -302,7 +405,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
             ),
             1.height,
             _monitorRow(
-              "Out",
+              "End",
               isCheckoutDone
                   ? _formatTo12Hour(widget.detail.checkout!['time'])
                   : "Pending",
@@ -373,7 +476,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                 Icon(Icons.timeline_rounded, color: Colors.white, size: 5.w),
                 2.width,
                 Text(
-                  "Activity Timeline",
+                  "Field Journey Timeline",
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
@@ -421,7 +524,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "Activity Intelligence",
+                        "Journey Intelligence",
                         style: TextStyle(
                           fontSize: 4.2.sp,
                           fontWeight: FontWeight.w900,
@@ -514,7 +617,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                       ),
                       0.5.height,
                       Text(
-                        v.createdAt,
+                        "Reached at: ${v.createdAt}",
                         style: TextStyle(
                           fontSize: 2.8.sp,
                           color: AppColor.grey,

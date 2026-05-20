@@ -1,4 +1,5 @@
 import 'package:centrex/core/controllers/employes_controller.dart';
+import 'package:centrex/core/extensions/routes.dart';
 import 'package:centrex/core/models/emp_working_detail_model.dart';
 import 'package:centrex/core/models/employes_model.dart';
 import 'package:centrex/core/resources/app_colors.dart';
@@ -6,6 +7,7 @@ import 'package:centrex/ui/components/custom_appbar.dart';
 import 'package:centrex/ui/components/app_constants.dart';
 import 'package:centrex/ui/view/employees/employee_route_map_view.dart';
 import 'package:centrex/ui/view/employees/visit_details_list_view.dart';
+import 'package:centrex/ui/view/employees/full_screen_image_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:centrex/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
@@ -100,7 +102,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                 color: isSelected
                     ? null
                     : AppColor.scaffold.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(2.r),
+                borderRadius: BorderRadius.circular(4.r),
                 boxShadow: isSelected ? AppShadow.soft : null,
               ),
               child: Column(
@@ -110,9 +112,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     DateFormat('E').format(date).toUpperCase(),
                     style: TextStyle(
                       fontSize: 2.sp,
-                      color: isSelected
-                          ? AppColor.white.withValues(alpha: 0.8)
-                          : AppColor.grey,
+                      color: isSelected ? AppColor.white : AppColor.grey,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.5,
                     ),
@@ -153,17 +153,17 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
       padding: EdgeInsets.all(5.w),
       physics: const BouncingScrollPhysics(),
       children: [
-        _buildUserSummaryCard(),
+        _buildEnhancedUserCard(),
         3.height,
         if (detail != null && detail.totalVisits > 0) ...[
-          _buildSectionTitle("Performance Overview"),
+          _buildSectionTitle("Performance Intelligence"),
           2.height,
-          _buildAnalyticsCard(detail),
+          _buildRichAnalyticsCard(detail),
           3.height,
         ],
-        _buildSectionTitle("Daily Timeline"),
+        _buildSectionTitle("Daily Journey"),
         2.height,
-        _buildCheckinCheckoutModern(context, detail),
+        _buildCheckinCheckoutPremium(context, detail),
 
         3.height,
         if ((hasVisits || hasCheckin) &&
@@ -179,12 +179,8 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               "${detail.totalVisits} customer touchpoints recorded",
               Icons.fact_check_rounded,
               AppColor.appColor1,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => VisitDetailsListView(visits: detail.visits),
-                ),
-              ),
+              onTap: () =>
+                  AppRoutes.push(VisitDetailsListView(visits: detail.visits)),
             ),
             1.5.height,
           ],
@@ -195,42 +191,42 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               "Territory exploration & route intelligence",
               Icons.map_rounded,
               AppColor.appDarkColor,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EmployeeRouteMapView(detail: detail!),
-                ),
-              ),
+              onTap: () =>
+                  AppRoutes.push(EmployeeRouteMapView(detail: detail!)),
             ),
         ],
+        5.height,
       ],
     );
   }
 
-  Widget _buildUserSummaryCard() {
+  Widget _buildEnhancedUserCard() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(4.r),
+        borderRadius: BorderRadius.circular(5.r),
         boxShadow: AppShadow.soft,
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -10,
-            top: -10,
-            child: Icon(
-              Icons.badge_rounded,
-              size: 30.w,
-              color: AppColor.appColor1.withValues(alpha: 0.03),
+            right: -20,
+            top: -20,
+            child: Container(
+              width: 40.w,
+              height: 40.w,
+              decoration: BoxDecoration(
+                color: AppColor.appColor1.withValues(alpha: 0.03),
+                shape: BoxShape.circle,
+              ),
             ),
           ),
           Padding(
             padding: EdgeInsets.all(5.w),
             child: Row(
               children: [
-                _buildProfileAvatar(),
+                _buildProfileAvatarPremium(),
                 5.width,
                 Expanded(
                   child: Column(
@@ -239,22 +235,22 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                       Text(
                         widget.user.userName ?? 'Employee',
                         style: TextStyle(
-                          fontSize: 4.8.sp,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 5.sp,
+                          fontWeight: FontWeight.w900,
                           color: AppColor.appDarkColor,
-                          letterSpacing: -0.8,
+                          letterSpacing: -0.5,
                         ),
                       ),
-                      1.height,
+                      0.8.height,
                       Row(
                         children: [
-                          _badge(
-                            widget.user.designation ?? 'N/A',
+                          _smallBadge(
+                            widget.user.designation?.toUpperCase() ?? 'N/A',
                             AppColor.appColor1,
                           ),
                           2.width,
-                          _badge(
-                            widget.user.department ?? 'N/A',
+                          _smallBadge(
+                            widget.user.department?.toUpperCase() ?? 'N/A',
                             AppColor.grey,
                           ),
                         ],
@@ -262,7 +258,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     ],
                   ),
                 ),
-                _statusIndicator(),
+                _statusIndicatorPremium(),
               ],
             ),
           ),
@@ -271,15 +267,14 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     );
   }
 
-  Widget _badge(String text, Color color) => Container(
-    padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
+  Widget _smallBadge(String text, Color color) => Container(
+    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.4.h),
     decoration: BoxDecoration(
       color: color.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(4.r),
-      border: Border.all(color: color.withValues(alpha: 0.15), width: 0.5),
     ),
     child: Text(
-      text.toUpperCase(),
+      text,
       style: TextStyle(
         fontSize: 1.8.sp,
         color: color,
@@ -289,11 +284,11 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     ),
   );
 
-  Widget _statusIndicator() => Container(
+  Widget _statusIndicatorPremium() => Container(
     padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
     decoration: BoxDecoration(
-      color: AppColor.green.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(4.r),
+      color: AppColor.green.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(50),
       border: Border.all(color: AppColor.green.withValues(alpha: 0.2)),
     ),
     child: Row(
@@ -312,7 +307,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
           "ONLINE",
           style: TextStyle(
             color: AppColor.green,
-            fontSize: 2.sp,
+            fontSize: 1.8.sp,
             fontWeight: FontWeight.w900,
             letterSpacing: 1,
           ),
@@ -321,27 +316,30 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     ),
   );
 
-  Widget _buildProfileAvatar() {
+  Widget _buildProfileAvatarPremium() {
     return Container(
-      width: 16.w,
-      height: 16.w,
+      width: 18.w,
+      height: 18.w,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4.r),
+        shape: BoxShape.circle,
         border: Border.all(
-          color: AppColor.appColor1.withValues(alpha: 0.2),
-          width: 2,
+          color: AppColor.appColor1.withValues(alpha: 0.1),
+          width: 3,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(3.r),
+        borderRadius: BorderRadius.circular(100),
         child: widget.user.profilePic != null
             ? CachedNetworkImage(
                 imageUrl: widget.user.profilePic!,
                 fit: BoxFit.cover,
-                placeholder: (c, u) => _shimmerWidget(
-                  shape: BoxShape.rectangle,
-                  borderRadius: 3.r,
-                ),
                 errorWidget: (c, u, e) => Icon(
                   Icons.person_rounded,
                   color: AppColor.appColor1,
@@ -353,7 +351,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     );
   }
 
-  Widget _buildAnalyticsCard(EmployesWorkingDetailModel? detail) {
+  Widget _buildRichAnalyticsCard(EmployesWorkingDetailModel? detail) {
     final productive =
         detail?.visits
             .where((v) => v.orders.any((o) => o.isProductive))
@@ -366,26 +364,26 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
       padding: EdgeInsets.all(5.w),
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(4.r),
+        borderRadius: BorderRadius.circular(5.r),
         boxShadow: AppShadow.soft,
       ),
       child: Row(
         children: [
           SizedBox(
-            height: 12.h,
-            width: 12.h,
+            height: 14.h,
+            width: 14.h,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 PieChart(
                   PieChartData(
                     sectionsSpace: 0,
-                    centerSpaceRadius: 32,
+                    centerSpaceRadius: 36,
                     sections: [
                       PieChartSectionData(
                         color: AppColor.green,
                         value: percent > 0 ? percent : 0.1,
-                        radius: 10,
+                        radius: 12,
                         showTitle: false,
                       ),
                       PieChartSectionData(
@@ -403,7 +401,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     Text(
                       "${percent.toStringAsFixed(0)}%",
                       style: TextStyle(
-                        fontSize: 4.sp,
+                        fontSize: 4.5.sp,
                         fontWeight: FontWeight.w900,
                         color: AppColor.appDarkColor,
                       ),
@@ -413,7 +411,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                       style: TextStyle(
                         fontSize: 1.8.sp,
                         color: AppColor.grey,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
@@ -421,27 +419,30 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               ],
             ),
           ),
-          5.width,
+          6.width,
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _analyticRow(
-                  "Total Visits",
+                _analyticRowPremium(
+                  "Total Market Visits",
                   total.toString(),
-                  AppColor.appColor1,
+                  AppColor.appDarkColor,
+                  Icons.store_rounded,
                 ),
-                1.5.height,
-                _analyticRow(
+                1.height,
+                _analyticRowPremium(
                   "Successful Orders",
                   productive.toString(),
                   AppColor.green,
+                  Icons.task_alt_rounded,
                 ),
-                1.5.height,
-                _analyticRow(
-                  "Market Coverage",
+                1.height,
+                _analyticRowPremium(
+                  "Coverage Score",
                   "${percent.toStringAsFixed(1)}%",
-                  AppColor.appDarkColor,
+                  AppColor.appColor1,
+                  Icons.auto_graph_rounded,
                 ),
               ],
             ),
@@ -451,31 +452,51 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     );
   }
 
-  Widget _analyticRow(String l, String v, Color c) => Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _analyticRowPremium(String l, String v, Color c, IconData icon) => Row(
     children: [
-      Text(
-        l,
-        style: TextStyle(
-          fontSize: 2.8.sp,
-          color: AppColor.grey,
-          fontWeight: FontWeight.w600,
+      Container(
+        padding: EdgeInsets.all(2.r),
+        decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10.r),
         ),
+        child: Icon(icon, size: 3.w, color: c),
       ),
-      Text(
-        v,
-        style: TextStyle(fontSize: 3.sp, color: c, fontWeight: FontWeight.w900),
+      3.width,
+      Expanded(
+        child: Row(
+          mainAxisAlignment: .spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l,
+              style: TextStyle(
+                fontSize: 2.5.sp,
+                color: AppColor.grey,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              v,
+              style: TextStyle(
+                fontSize: 3.5.sp,
+                color: c,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
       ),
     ],
   );
 
-  Widget _buildCheckinCheckoutModern(
+  Widget _buildCheckinCheckoutPremium(
     BuildContext context,
     EmployesWorkingDetailModel? detail,
   ) {
     return Row(
       children: [
-        _timelineCard(
+        _timelineCardPremium(
           context,
           "CHECK IN",
           detail?.checkin?.time ?? "Pending",
@@ -486,7 +507,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               : null,
         ),
         4.width,
-        _timelineCard(
+        _timelineCardPremium(
           context,
           "CHECK OUT",
           detail?.checkout?['time'] ?? "Pending",
@@ -500,7 +521,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     );
   }
 
-  Widget _timelineCard(
+  Widget _timelineCardPremium(
     BuildContext context,
     String title,
     String val,
@@ -525,15 +546,30 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: isPending ? AppColor.grey : color, size: 5.w),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(
+                    icon,
+                    color: isPending ? AppColor.grey : color,
+                    size: 5.w,
+                  ),
+                  if (!isPending)
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: AppColor.grey.withValues(alpha: 0.2),
+                      size: 3.w,
+                    ),
+                ],
+              ),
               2.height,
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 2.2.sp,
+                  fontSize: 2.sp,
                   color: AppColor.grey,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
+                  letterSpacing: 0.8,
                 ),
               ),
               0.5.height,
@@ -557,65 +593,69 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     String sub,
     IconData icon,
     Color color, {
-    bool isActive = true,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 300),
-        opacity: isActive ? 1.0 : 0.5,
-        child: Container(
-          padding: EdgeInsets.all(5.w),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(4.r),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ]
-                : null,
+      child: Container(
+        padding: EdgeInsets.all(5.w),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color, color.withValues(alpha: 0.85)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          child: Row(
-            children: [
-              Icon(icon, color: AppColor.white, size: 7.w),
-              4.width,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 3.5.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColor.white,
-                      ),
-                    ),
-                    0.3.height,
-                    Text(
-                      sub,
-                      style: TextStyle(
-                        fontSize: 2.6.sp,
-                        color: AppColor.white.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+          borderRadius: BorderRadius.circular(5.r),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(3.w),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
               ),
-              if (isActive)
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 3.5.sp,
-                  color: AppColor.white.withValues(alpha: 0.6),
-                ),
-            ],
-          ),
+              child: Icon(icon, color: AppColor.white, size: 7.w),
+            ),
+            5.width,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 3.8.sp,
+                      fontWeight: FontWeight.w900,
+                      color: AppColor.white,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  0.5.height,
+                  Text(
+                    sub,
+                    style: TextStyle(
+                      fontSize: 2.6.sp,
+                      color: AppColor.white.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 3.2.sp,
+              color: AppColor.white.withValues(alpha: 0.6),
+            ),
+          ],
         ),
       ),
     );
@@ -626,10 +666,10 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     child: Text(
       t.toUpperCase(),
       style: TextStyle(
-        fontSize: 3.2.sp,
-        fontWeight: FontWeight.bold,
+        fontSize: 2.8.sp,
+        fontWeight: FontWeight.w900,
         color: AppColor.grey,
-        letterSpacing: 1.2,
+        letterSpacing: 1.5,
       ),
     ),
   );
@@ -662,30 +702,6 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // Common Shimmer Widget
-  Widget _shimmerWidget({
-    double? width,
-    double? height,
-    double borderRadius = 0,
-    BoxShape shape = BoxShape.rectangle,
-  }) {
-    return Shimmer.fromColors(
-      baseColor: AppColor.grey.withValues(alpha: 0.1),
-      highlightColor: AppColor.white.withValues(alpha: 0.4),
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: AppColor.white,
-          shape: shape,
-          borderRadius: shape == BoxShape.circle
-              ? null
-              : BorderRadius.circular(borderRadius),
-        ),
       ),
     );
   }
@@ -777,63 +793,56 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: CachedNetworkImage(
-                    imageUrl: data.imageUrl,
-                    width: 24.w,
-                    height: 24.w,
-                    fit: BoxFit.cover,
-                    placeholder: (c, u) => _shimmerWidget(
+                GestureDetector(
+                  onTap: () => AppRoutes.push(
+                    FullScreenImageViewer(images: [data.imageUrl]),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: CachedNetworkImage(
+                      imageUrl: data.imageUrl,
                       width: 24.w,
                       height: 24.w,
-                      borderRadius: 16,
-                    ),
-                    errorWidget: (c, u, e) => Container(
-                      width: 24.w,
-                      height: 24.w,
-                      decoration: BoxDecoration(
-                        color: AppColor.scaffold,
-                        borderRadius: BorderRadius.circular(16),
+                      fit: BoxFit.cover,
+                      placeholder: (c, u) => Shimmer.fromColors(
+                        baseColor: AppColor.grey.withValues(alpha: 0.1),
+                        highlightColor: AppColor.white,
+                        child: Container(
+                          width: 24.w,
+                          height: 24.w,
+                          color: AppColor.white,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.broken_image_rounded,
-                        size: 8.w,
-                        color: AppColor.grey,
+                      errorWidget: (c, u, e) => Container(
+                        width: 24.w,
+                        height: 24.w,
+                        color: AppColor.scaffold,
+                        child: Icon(Icons.broken_image, color: AppColor.grey),
                       ),
                     ),
                   ),
                 ),
-                4.width,
+                5.width,
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _sheetDetailItem(
-                        Icons.access_time_rounded,
-                        "Time",
+                        Icons.access_time_filled_rounded,
+                        "Timestamp",
                         data.time,
                       ),
-                      2.height,
+                      1.5.height,
                       _sheetDetailItem(
                         Icons.location_on_rounded,
                         "Coordinates",
                         "${data.latitude}, ${data.longitude}",
                       ),
-                      if (data.reason != null) ...[
-                        2.height,
-                        _sheetDetailItem(
-                          Icons.notes_rounded,
-                          "Remarks",
-                          data.reason!,
-                        ),
-                      ],
                     ],
                   ),
                 ),
               ],
             ),
-            3.height,
+            4.height,
           ],
         ),
       ),
@@ -872,7 +881,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               ),
             ),
             Text(
-              "Checkout insight",
+              "Shift Conclusion",
               style: TextStyle(
                 fontSize: 4.5.sp,
                 fontWeight: FontWeight.w700,
@@ -882,17 +891,17 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
             ),
             2.5.height,
             _sheetDetailItem(
-              Icons.access_time_rounded,
-              "Time",
-              data['time'] ?? "N/A",
+              Icons.access_time_filled_rounded,
+              "Sign-out Time",
+              data['time'] ?? 'N/A',
             ),
-            2.height,
+            1.5.height,
             _sheetDetailItem(
               Icons.location_on_rounded,
-              "Location",
+              "Final Location",
               "${data['latitude']}, ${data['longitude']}",
             ),
-            3.height,
+            4.height,
           ],
         ),
       ),

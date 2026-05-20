@@ -1,3 +1,4 @@
+import 'package:centrex/core/extensions/routes.dart';
 import 'package:centrex/core/models/employes_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:centrex/core/controllers/employes_controller.dart';
@@ -84,14 +85,9 @@ class EmployeeListView extends StatelessWidget {
         onTap:
             (user.department?.toLowerCase().contains("sales") == true ||
                 user.department?.toLowerCase().contains("marketing") == true)
-            ? () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EmployeeDetailView(user: user),
-                ),
-              )
+            ? () => AppRoutes.push(EmployeeDetailView(user: user))
             : null,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(6.r),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

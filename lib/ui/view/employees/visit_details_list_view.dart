@@ -1,12 +1,15 @@
 import 'package:centrex/core/models/emp_working_detail_model.dart';
 import 'package:centrex/core/resources/app_colors.dart';
+import 'package:centrex/core/utils/utils.dart';
 import 'package:centrex/ui/components/custom_appbar.dart';
 import 'package:centrex/ui/components/app_constants.dart';
 import 'package:centrex/ui/view/employees/order_details_view.dart';
+import 'package:centrex/ui/view/employees/full_screen_image_viewer.dart';
+import 'package:centrex/ui/view/employees/visit_navigation_map_view.dart';
 import 'package:flutter/material.dart';
 import 'package:centrex/core/extensions/sizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
+import '../../../core/extensions/routes.dart';
 
 class VisitDetailsListView extends StatelessWidget {
   final List<Visit> visits;
@@ -47,7 +50,7 @@ class VisitDetailsListView extends StatelessWidget {
 
   Widget _buildList() {
     return ListView.builder(
-      padding: EdgeInsets.all(5.w),
+      padding: EdgeInsets.all(4.w),
       physics: const BouncingScrollPhysics(),
       itemCount: visits.length,
       itemBuilder: (context, index) => _buildVisitCard(context, visits[index]),
@@ -57,189 +60,101 @@ class VisitDetailsListView extends StatelessWidget {
   Widget _buildVisitCard(BuildContext context, Visit visit) {
     bool isProductive = visit.orders.any((o) => o.isProductive);
 
-    return GestureDetector(
-      onTap: isProductive
-          ? () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => OrderDetailsView(visit: visit)),
-            )
-          : null,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 2.5.h),
-        decoration: BoxDecoration(
-          color: AppColor.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppShadow.soft,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Card Header
-            Padding(
-              padding: EdgeInsets.all(4.w),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          visit.placeName,
-                          style: TextStyle(
-                            fontSize: 4.sp,
-                            fontWeight: FontWeight.bold,
-                            color: AppColor.appDarkColor,
-                          ),
-                        ),
-                        0.5.height,
-                        Text(
-                          "${visit.ownerName} | ${visit.channel}",
-                          style: TextStyle(
-                            fontSize: 2.8.sp,
-                            color: AppColor.grey,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _statusBadge(isProductive),
-                ],
-              ),
-            ),
-
-            // Metadata
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4.w),
-              child: Column(
-                children: [
-                  _infoRow(Icons.access_time_rounded, visit.createdAt),
-                  0.8.height,
-                  _infoRow(
-                    Icons.location_on_rounded,
-                    visit.address,
-                    maxLines: 1,
-                  ),
-                ],
-              ),
-            ),
-
-            1.5.height,
-
-            // Bottom Action Bar (Productive visits only)
-            if (isProductive)
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-                decoration: BoxDecoration(
-                  color: AppColor.appColor1.withValues(alpha: 0.05),
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Tap to view ${visit.orders.length} order details",
-                      style: TextStyle(
-                        fontSize: 2.6.sp,
-                        color: AppColor.appColor1,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 3.5.w,
-                      color: AppColor.appColor1,
-                    ),
-                  ],
-                ),
-              ),
-
-            // Photos Section (if any)
-            if (visit.photos.isNotEmpty) _buildPhotosSection(visit.photos),
-
-            // Remarks (Non-productive only)
-            if (!isProductive &&
-                visit.remarks != null &&
-                visit.remarks!.isNotEmpty)
-              _buildNonProductiveRemarks(visit.remarks!),
-
-            if (!isProductive) 2.height,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statusBadge(bool productive) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
+      margin: EdgeInsets.only(bottom: 2.h),
       decoration: BoxDecoration(
-        color: (productive ? AppColor.green : AppColor.red).withValues(
-          alpha: 0.08,
-        ),
-        borderRadius: BorderRadius.circular(8),
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(4.r),
+        boxShadow: AppShadow.soft,
       ),
-      child: Text(
-        productive ? "Productive" : "Non-Productive",
-        style: TextStyle(
-          color: productive ? AppColor.green : AppColor.red,
-          fontSize: 2.2.sp,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(3.w),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Left Image with Counter
+                _buildImageThumbnail(context, visit.photos),
 
-  Widget _infoRow(IconData icon, String val, {int? maxLines}) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 3.5.w,
-          color: AppColor.appColor1.withValues(alpha: 0.6),
-        ),
-        2.width,
-        Expanded(
-          child: Text(
-            val,
-            maxLines: maxLines,
-            overflow: maxLines != null ? TextOverflow.ellipsis : null,
-            style: TextStyle(
-              fontSize: 2.8.sp,
-              color: AppColor.appDarkColor,
-              fontWeight: FontWeight.w500,
+                4.width,
+
+                // Vertical Divider
+                Container(width: 1.5, height: 12.h, color: AppColor.scaffold),
+
+                4.width,
+
+                // Details Column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        visit.placeName.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 3.8.sp,
+                          fontWeight: FontWeight.w900,
+                          color: AppColor.appDarkColor,
+                          letterSpacing: -0.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      0.8.height,
+                      _detailRow(Icons.person_rounded, visit.ownerName),
+                      0.5.height,
+                      _detailRow(Icons.category_rounded, visit.channel),
+                      0.5.height,
+                      _detailRow(
+                        Icons.event_note_rounded,
+                        Utils.formatDate(visit.createdAt),
+                      ),
+                      0.5.height,
+                      _detailRow(
+                        Icons.location_on_rounded,
+                        visit.address,
+                        isAddress: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildNonProductiveRemarks(String remarks) {
-    return Container(
-      width: double.infinity,
-      margin: EdgeInsets.all(4.w),
-      padding: EdgeInsets.all(3.w),
-      decoration: BoxDecoration(
-        color: AppColor.scaffold,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColor.red.withValues(alpha: 0.1)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline_rounded, size: 3.8.w, color: AppColor.red),
-          2.width,
-          Expanded(
-            child: Text(
-              remarks,
-              style: TextStyle(
-                fontSize: 2.8.sp,
-                color: AppColor.appDarkColor,
-                fontStyle: FontStyle.italic,
-              ),
+          Divider(height: 1, color: AppColor.scaffold, thickness: 1),
+
+          // Bottom Action Grid
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.w),
+            child: Row(
+              children: [
+                _statusBadge(isProductive),
+                const Spacer(),
+                _actionButton(
+                  icon: Icons.map_rounded,
+                  label: "Route",
+                  color: AppColor.appDarkColor,
+                  onTap: () =>
+                      AppRoutes.push(VisitNavigationMapView(visit: visit)),
+                ),
+                3.width,
+                _actionButton(
+                  icon: Icons.phone_rounded,
+                  label: "Call",
+                  color: AppColor.appColor1,
+                  onTap: () => Utils.launchURL("tel:${visit.phoneNumber}"),
+                ),
+                if (isProductive) ...[
+                  3.width,
+                  _actionButton(
+                    icon: Icons.shopping_cart_rounded,
+                    label: "Order",
+                    color: AppColor.green,
+                    onTap: () => AppRoutes.push(OrderDetailsView(visit: visit)),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -247,37 +162,130 @@ class VisitDetailsListView extends StatelessWidget {
     );
   }
 
-  Widget _buildPhotosSection(List<String> photos) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 1.5.h),
-      child: SizedBox(
-        height: 8.h,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.only(left: 4.w),
-          itemCount: photos.length,
-          itemBuilder: (context, i) => Container(
-            margin: EdgeInsets.only(right: 3.w),
-            width: 20.w,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColor.scaffold),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: photos[i],
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Shimmer.fromColors(
-                  baseColor: AppColor.grey.withValues(alpha: .3),
-                  highlightColor: AppColor.white.withValues(alpha: 0.6),
-                  child: Container(color: AppColor.grey.withValues(alpha: 0.3)),
+  Widget _buildImageThumbnail(BuildContext context, List<String> photos) {
+    bool hasPhotos = photos.isNotEmpty;
+    return GestureDetector(
+      onTap: hasPhotos
+          ? () => AppRoutes.push(FullScreenImageViewer(images: photos))
+          : null,
+      child: Container(
+        width: 25.w,
+        height: 12.h,
+        decoration: BoxDecoration(
+          color: AppColor.scaffold,
+          borderRadius: BorderRadius.circular(4.r),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4.r),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (hasPhotos)
+                CachedNetworkImage(
+                  imageUrl: photos[0],
+                  fit: BoxFit.cover,
+                  errorWidget: (c, u, e) =>
+                      Icon(Icons.broken_image, color: AppColor.grey),
+                )
+              else
+                Icon(
+                  Icons.image_not_supported_rounded,
+                  color: AppColor.grey,
+                  size: 8.w,
                 ),
-                errorWidget: (c, u, e) =>
-                    Icon(Icons.broken_image, color: AppColor.grey, size: 5.w),
-              ),
+
+              if (photos.length > 1)
+                Container(
+                  color: Colors.black45,
+                  child: Center(
+                    child: Text(
+                      "+${photos.length - 1}",
+                      style: TextStyle(
+                        color: AppColor.white,
+                        fontSize: 3.5.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String text, {bool isAddress = false}) {
+    return Row(
+      children: [
+        Icon(icon, size: 2.8.w, color: AppColor.grey.withValues(alpha: 0.7)),
+        1.5.width,
+        Expanded(
+          child: Text(
+            text,
+            maxLines: isAddress ? 1 : 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 2.4.sp,
+              color: isAddress ? AppColor.grey : AppColor.appDarkColor,
+              fontWeight: isAddress ? FontWeight.w500 : FontWeight.w700,
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusBadge(bool productive) {
+    Color color = productive ? AppColor.green : AppColor.red;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4.r),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        productive ? "PRODUCTIVE" : "NON-PRODUCTIVE",
+        style: TextStyle(
+          color: color,
+          fontSize: 1.8.sp,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4.r),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 1.w),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(4.r),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 3.2.w, color: color),
+            1.5.width,
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 2.sp,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -294,10 +294,11 @@ class ProfileView extends StatelessWidget {
         actions: [
           CupertinoDialogAction(
             child: Text(
-              "Stay Signed In",
+              "Stay",
               style: TextStyle(
-                color: AppColor.grey,
-                fontWeight: FontWeight.normal,
+                fontSize: 5.sp,
+                color: AppColor.green,
+                fontWeight: FontWeight.bold,
               ),
             ),
             onPressed: () => Navigator.pop(context),
@@ -308,7 +309,14 @@ class ProfileView extends StatelessWidget {
               Navigator.pop(context);
               context.read<AuthController>().logout(context);
             },
-            child: const Text("Sign Out"),
+            child: Text(
+              "Log Out",
+              style: TextStyle(
+                fontSize: 5.sp,
+                color: AppColor.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
