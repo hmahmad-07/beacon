@@ -182,4 +182,51 @@ class EmployesController extends ChangeNotifier {
     selectedDate = date;
     fetchWorkingDetails(context, userId);
   }
+
+  // ============================================= Master Audit Batch Fetching =============================================
+
+  Future<List<EmployesWorkingDetailModel>> fetchMasterAuditData(
+    BuildContext context,
+    List<User> users,
+    DateTime date,
+    Function(int progress, int total) onProgress,
+  ) async {
+    List<EmployesWorkingDetailModel> reports = [];
+    final dio = Dio();
+    final targetDate = DateFormat('yyyy-MM-dd').format(date);
+
+    for (int i = 0; i < users.length; i++) {
+      try {
+        onProgress(i + 1, users.length);
+        final url =
+            '${Constants.baseUrl}tsm_daily_report.php?user_id=${users[i].userId}&date=$targetDate';
+        final response = await dio.get(url);
+
+        if (response.statusCode == 200) {
+          reports.add(EmployesWorkingDetailModel.fromJson(response.data));
+        } else {
+          reports.add(
+            EmployesWorkingDetailModel(
+              error: 1,
+              errorMsg: "Server Error",
+              visits: [],
+              date: date,
+              totalVisits: 0,
+            ),
+          );
+        }
+      } catch (e) {
+        reports.add(
+          EmployesWorkingDetailModel(
+            error: 1,
+            errorMsg: e.toString(),
+            visits: [],
+            date: date,
+            totalVisits: 0,
+          ),
+        );
+      }
+    }
+    return reports;
+  }
 }

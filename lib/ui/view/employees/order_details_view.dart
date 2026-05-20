@@ -11,21 +11,28 @@ class OrderDetailsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double subtotal = 0;
+    // Implementing LOCAL calculations strictly using API raw values
+    double calculatedSubtotal = 0;
     for (var order in visit.orders) {
       for (var item in order.items) {
-        // Using correct key 'total_amount' from API
-        subtotal +=
-            double.tryParse(item['total_amount']?.toString() ?? '0') ?? 0;
+        final double rate =
+            double.tryParse(item['rate']?.toString() ?? '0') ?? 0;
+        final double pcs =
+            double.tryParse(item['qty_pcs']?.toString() ?? '0') ?? 0;
+        final double box =
+            double.tryParse(item['qty_box']?.toString() ?? '0') ?? 0;
+
+        // Exact formula based on your requirement: (Rate * Total Quantity)
+        calculatedSubtotal += (pcs + box) * rate;
       }
     }
 
     return Scaffold(
       backgroundColor: AppColor.scaffold,
-      appBar: CustomAppBar(title: "Sales intelligence"),
+      appBar: const CustomAppBar(title: "Sales Intelligence"),
       body: Column(
         children: [
-          _buildExecutiveHeader(visit, subtotal),
+          _buildExecutiveHeader(visit, calculatedSubtotal),
           Expanded(
             child: ListView(
               padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
@@ -35,12 +42,12 @@ class OrderDetailsView extends StatelessWidget {
                 2.height,
                 ...visit.orders.map((order) => _buildExecutiveOrderCard(order)),
                 3.height,
-                _buildBillingBreakdown(subtotal),
+                _buildBillingBreakdown(calculatedSubtotal),
                 10.height,
               ],
             ),
           ),
-          _buildGrandTotalFooter(subtotal),
+          _buildGrandTotalFooter(calculatedSubtotal),
         ],
       ),
     );
@@ -90,7 +97,7 @@ class OrderDetailsView extends StatelessWidget {
                           Text(
                             "ORDER ID: FF-${visit.id.toString().padLeft(6, '0')}",
                             style: TextStyle(
-                              fontSize: 2.3.sp,
+                              fontSize: 3.sp,
                               color: AppColor.grey,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1,
@@ -99,7 +106,10 @@ class OrderDetailsView extends StatelessWidget {
                         ],
                       ),
                     ),
-                    _auditBadge(),
+                    _auditStatusBadge(
+                      visit.orders.isNotEmpty &&
+                          visit.orders.first.isProductive,
+                    ),
                   ],
                 ),
                 2.height,
@@ -123,7 +133,7 @@ class OrderDetailsView extends StatelessWidget {
     );
   }
 
-  Widget _auditBadge() => Container(
+  Widget _auditStatusBadge(bool isProductive) => Container(
     padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
     decoration: BoxDecoration(
       gradient: LinearGradient(
@@ -141,14 +151,14 @@ class OrderDetailsView extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.verified_rounded, color: AppColor.white, size: 3.w),
+        Icon(Icons.verified_rounded, color: AppColor.white, size: 4.w),
         1.5.width,
         Text(
-          "AUDITED",
+          isProductive ? "PRODUCTIVE" : "NON PRODUCTIVE",
           style: TextStyle(
             color: AppColor.white,
-            fontSize: 1.8.sp,
-            fontWeight: FontWeight.w900,
+            fontSize: 3.sp,
+            fontWeight: FontWeight.bold,
             letterSpacing: 0.5,
           ),
         ),
@@ -169,7 +179,7 @@ class OrderDetailsView extends StatelessWidget {
         Text(
           t,
           style: TextStyle(
-            fontSize: 2.2.sp,
+            fontSize: 2.5.sp,
             color: AppColor.appDarkColor,
             fontWeight: FontWeight.w800,
           ),
@@ -234,10 +244,13 @@ class OrderDetailsView extends StatelessWidget {
   }
 
   Widget _buildExecutiveProductRow(Map<String, dynamic> item) {
-    // Audit Breakdown calculation
-    final pcs = item['qty_pcs'] ?? 0;
-    final boxes = item['qty_box'] ?? 0;
-    final foc = item['qty_foc'] ?? 0;
+    final double rate = double.tryParse(item['rate']?.toString() ?? '0') ?? 0;
+    final double pcs = double.tryParse(item['qty_pcs']?.toString() ?? '0') ?? 0;
+    final double box = double.tryParse(item['qty_box']?.toString() ?? '0') ?? 0;
+    final double foc = double.tryParse(item['qty_foc']?.toString() ?? '0') ?? 0;
+
+    // LOCAL CALCULATION: (Rate * (Pcs + Box))
+    final double itemValuation = (pcs + box) * rate;
 
     return Container(
       margin: EdgeInsets.only(bottom: 1.5.h),
@@ -281,16 +294,16 @@ class OrderDetailsView extends StatelessWidget {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _infoSmallChip("Pcs: $pcs", AppColor.appColor1),
-                          2.width,
-                          _infoSmallChip("Box: $boxes", AppColor.grey),
-                          2.width,
-                          _infoSmallChip("FOC: $foc", AppColor.green),
-                          2.width,
                           _infoSmallChip(
-                            "Rate: ${item['rate']}",
-                            AppColor.grey,
+                            "Pcs: ${pcs.toInt()}",
+                            AppColor.appColor1,
                           ),
+                          2.width,
+                          _infoSmallChip("Box: ${box.toInt()}", AppColor.grey),
+                          2.width,
+                          _infoSmallChip("FOC: ${foc.toInt()}", AppColor.green),
+                          2.width,
+                          _infoSmallChip("Rate: $rate", AppColor.grey),
                         ],
                       ),
                     ),
@@ -305,17 +318,17 @@ class OrderDetailsView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "SUB TOTAL",
+                    "VALUATION",
                     style: TextStyle(
-                      fontSize: 1.6.sp,
+                      fontSize: 2.sp,
                       color: AppColor.grey,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.normal,
                       letterSpacing: 1.2,
                     ),
                   ),
                   0.5.height,
                   Text(
-                    "PKR ${item['total_amount']}",
+                    "PKR ${itemValuation.toStringAsFixed(0)}",
                     style: TextStyle(
                       fontSize: 3.6.sp,
                       fontWeight: FontWeight.w900,
@@ -344,11 +357,18 @@ class OrderDetailsView extends StatelessWidget {
         children: [
           _sectionHeader("Financial Summary"),
           3.height,
-          _billingRow("Order Subtotal", "PKR $subtotal", bold: false),
+          _billingRow(
+            "Cart Subtotal",
+            "PKR ${subtotal.toStringAsFixed(2)}",
+            bold: false,
+          ),
           1.5.height,
-          _billingRow("Trade Offer", "- PKR 0.00", color: AppColor.green),
-          1.5.height,
-          _billingRow("Total Value", "PKR $subtotal", bold: true),
+          _billingRow(
+            "Verified Revenue",
+            "PKR ${subtotal.toStringAsFixed(2)}",
+            bold: true,
+            color: AppColor.appColor1,
+          ),
         ],
       ),
     );
@@ -361,7 +381,7 @@ class OrderDetailsView extends StatelessWidget {
           Text(
             l,
             style: TextStyle(
-              fontSize: 2.6.sp,
+              fontSize: 2.8.sp,
               color: AppColor.grey,
               fontWeight: FontWeight.w600,
             ),
@@ -369,7 +389,7 @@ class OrderDetailsView extends StatelessWidget {
           Text(
             v,
             style: TextStyle(
-              fontSize: 2.8.sp,
+              fontSize: 3.sp,
               color: color ?? AppColor.appDarkColor,
               fontWeight: bold ? FontWeight.w900 : FontWeight.bold,
             ),
@@ -402,102 +422,102 @@ class OrderDetailsView extends StatelessWidget {
       ],
     ),
   );
-}
 
-Widget _buildGrandTotalFooter(double total) {
-  return Container(
-    padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
-    decoration: BoxDecoration(
-      color: AppColor.appDarkColor,
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.1),
-          blurRadius: 20,
-          offset: const Offset(0, -5),
-        ),
-      ],
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    child: SafeArea(
-      top: false,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "CUMULATIVE ORDER REVENUE",
-                style: TextStyle(
-                  fontSize: 1.8.sp,
-                  color: AppColor.white.withValues(alpha: 0.6),
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              0.5.height,
-              Text(
-                "PKR ${total.toStringAsFixed(2)}",
-                style: TextStyle(
-                  fontSize: 5.2.sp,
-                  fontWeight: FontWeight.w900,
-                  color: AppColor.white,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ],
+  Widget _buildGrandTotalFooter(double total) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
+      decoration: BoxDecoration(
+        color: AppColor.appDarkColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
           ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-            decoration: BoxDecoration(
-              color: AppColor.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: Row(
+        ],
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.verified_user_rounded,
-                  color: AppColor.green,
-                  size: 4.w,
-                ),
-                2.width,
                 Text(
-                  "VALUATED",
+                  "TOTAL VALUATED REVENUE",
                   style: TextStyle(
-                    color: AppColor.white,
-                    fontSize: 2.4.sp,
+                    fontSize: 1.8.sp,
+                    color: AppColor.white.withValues(alpha: 0.6),
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                0.5.height,
+                Text(
+                  "PKR ${total.toStringAsFixed(2)}",
+                  style: TextStyle(
+                    fontSize: 5.2.sp,
+                    fontWeight: FontWeight.w900,
+                    color: AppColor.white,
+                    letterSpacing: -0.5,
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
+              decoration: BoxDecoration(
+                color: AppColor.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(50),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.verified_user_rounded,
+                    color: AppColor.green,
+                    size: 4.w,
+                  ),
+                  2.width,
+                  Text(
+                    "VALUATED",
+                    style: TextStyle(
+                      color: AppColor.white,
+                      fontSize: 3.sp,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _infoSmallChip(String t, Color c) => Container(
+    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.4.h),
+    decoration: BoxDecoration(
+      color: c.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(4.r),
+    ),
+    child: Text(
+      t,
+      style: TextStyle(color: c, fontSize: 2.5.sp, fontWeight: FontWeight.bold),
+    ),
+  );
+
+  Widget _sectionHeader(String t) => Text(
+    t.toUpperCase(),
+    style: TextStyle(
+      fontSize: 3.sp,
+      fontWeight: FontWeight.bold,
+      color: AppColor.grey,
+      letterSpacing: 1.5,
     ),
   );
 }
-
-Widget _infoSmallChip(String t, Color c) => Container(
-  padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.4.h),
-  decoration: BoxDecoration(
-    color: c.withValues(alpha: 0.08),
-    borderRadius: BorderRadius.circular(4.r),
-  ),
-  child: Text(
-    t,
-    style: TextStyle(color: c, fontSize: 1.8.sp, fontWeight: FontWeight.w900),
-  ),
-);
-
-Widget _sectionHeader(String t) => Text(
-  t.toUpperCase(),
-  style: TextStyle(
-    fontSize: 2.6.sp,
-    fontWeight: FontWeight.w900,
-    color: AppColor.grey,
-    letterSpacing: 1.5,
-  ),
-);
