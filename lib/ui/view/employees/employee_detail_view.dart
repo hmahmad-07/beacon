@@ -12,10 +12,10 @@ import 'package:flutter/material.dart';
 import 'package:centrex/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class EmployeeDetailView extends StatefulWidget {
   final User user;
@@ -49,12 +49,16 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
           ),
           body: Column(
             children: [
-              _buildModernDateSelector(controller),
+              controller.isWorkingDetailLoading
+                  ? SizedBox.shrink()
+                  : _buildModernDateSelector(controller),
               Expanded(
-                child: Skeletonizer(
-                  enabled: controller.isWorkingDetailLoading,
-                  child: _buildDashboardContent(context, controller, detail),
-                ),
+                child: controller.isWorkingDetailLoading
+                    ? Skeletonizer(
+                        enabled: true,
+                        child: _buildSkeletonLoading(),
+                      )
+                    : _buildDashboardContent(context, controller, detail),
               ),
             ],
           ),
@@ -666,13 +670,71 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     child: Text(
       t.toUpperCase(),
       style: TextStyle(
-        fontSize: 2.8.sp,
-        fontWeight: FontWeight.w900,
-        color: AppColor.grey,
+        fontSize: 3.2.sp,
+        fontWeight: FontWeight.bold,
+        color: AppColor.appDarkColor,
         letterSpacing: 1.5,
       ),
     ),
   );
+
+  Widget _buildSkeletonLoading() {
+    return ListView(
+      padding: EdgeInsets.all(5.w),
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        Row(
+          spacing: 2.w,
+          children: List.generate(7, (index) {
+            return Expanded(
+              child: _skeletonBox(height: 10.h, width: 5.w),
+            );
+          }),
+        ),
+        2.height,
+        _skeletonBox(height: 12.h, width: double.infinity),
+        3.height,
+        _skeletonBox(height: 2.h, width: 45.w),
+        2.height,
+        _skeletonBox(height: 18.h, width: double.infinity),
+        3.height,
+        _skeletonBox(height: 2.h, width: 35.w),
+        2.height,
+        Row(
+          children: [
+            Expanded(child: _skeletonBox(height: 12.h)),
+            4.width,
+            Expanded(child: _skeletonBox(height: 12.h)),
+          ],
+        ),
+        3.height,
+        _skeletonBox(height: 2.h, width: 50.w),
+        2.height,
+        _skeletonBox(height: 10.h, width: double.infinity),
+        1.5.height,
+        _skeletonBox(height: 10.h, width: double.infinity),
+        1.height,
+        _skeletonBox(height: 3.h, width: double.infinity),
+        1.height,
+        _skeletonBox(height: 3.h, width: double.infinity),
+      ],
+    );
+  }
+
+  Widget _skeletonBox({required double height, double? width}) {
+    return Shimmer.fromColors(
+      baseColor: AppColor.grey.withValues(alpha: 0.1),
+      highlightColor: AppColor.white.withValues(alpha: 0.5),
+      child: Container(
+        height: height,
+        width: width,
+        decoration: BoxDecoration(
+          color: AppColor.white,
+          borderRadius: BorderRadius.circular(4.r),
+        ),
+      ),
+    );
+  }
 
   Widget _buildEmptyState() {
     return Center(

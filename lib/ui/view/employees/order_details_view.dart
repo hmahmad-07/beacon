@@ -191,11 +191,11 @@ class OrderDetailsView extends StatelessWidget {
   Widget _buildAuditStepper() {
     return Row(
       children: [
-        _stepIndicator("Received", true),
+        _stepIndicator("Shop Visited", true),
         _stepConnector(true),
-        _stepIndicator("Verified", true),
+        _stepIndicator("Order Booked", true),
         _stepConnector(true),
-        _stepIndicator("Archived", true),
+        _stepIndicator("Visit Completed", true),
       ],
     );
   }
@@ -318,7 +318,7 @@ class OrderDetailsView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "VALUATION",
+                    "ITEM VALUE",
                     style: TextStyle(
                       fontSize: 2.sp,
                       color: AppColor.grey,
@@ -447,7 +447,7 @@ class OrderDetailsView extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  "TOTAL VALUATED REVENUE",
+                  "TOTAL BOOKED VALUE",
                   style: TextStyle(
                     fontSize: 1.8.sp,
                     color: AppColor.white.withValues(alpha: 0.6),
@@ -482,7 +482,7 @@ class OrderDetailsView extends StatelessWidget {
                   ),
                   2.width,
                   Text(
-                    "VALUATED",
+                    "BOOKED",
                     style: TextStyle(
                       color: AppColor.white,
                       fontSize: 3.sp,
