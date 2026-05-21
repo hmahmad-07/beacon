@@ -98,8 +98,8 @@ class VisitDetailsListView extends StatelessWidget {
                       Text(
                         visit.placeName.toUpperCase(),
                         style: TextStyle(
-                          fontSize: 3.8.sp,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 4.sp,
+                          fontWeight: FontWeight.bold,
                           color: AppColor.appDarkColor,
                           letterSpacing: -0.2,
                         ),
@@ -229,7 +229,7 @@ class VisitDetailsListView extends StatelessWidget {
             maxLines: isAddress ? 1 : 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 2.4.sp,
+              fontSize: 3.sp,
               color: isAddress ? AppColor.grey : AppColor.appDarkColor,
               fontWeight: isAddress ? FontWeight.w500 : FontWeight.w700,
             ),
@@ -252,8 +252,8 @@ class VisitDetailsListView extends StatelessWidget {
         productive ? "PRODUCTIVE" : "NON-PRODUCTIVE",
         style: TextStyle(
           color: color,
-          fontSize: 1.8.sp,
-          fontWeight: FontWeight.w900,
+          fontSize: 2.5.sp,
+          fontWeight: FontWeight.bold,
           letterSpacing: 0.5,
         ),
       ),
@@ -278,14 +278,14 @@ class VisitDetailsListView extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 3.2.w, color: color),
+            Icon(icon, size: 4.r, color: color),
             1.5.width,
             Text(
               label,
               style: TextStyle(
                 color: color,
-                fontSize: 2.sp,
-                fontWeight: FontWeight.w900,
+                fontSize: 3.sp,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],

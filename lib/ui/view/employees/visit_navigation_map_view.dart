@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:centrex/core/controllers/employes_controller.dart';
 import 'package:centrex/core/models/emp_working_detail_model.dart';
 import 'package:centrex/core/resources/app_colors.dart';
 import 'package:centrex/ui/components/custom_appbar.dart';
@@ -10,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:centrex/core/constants/constants.dart';
 import 'package:centrex/ui/components/app_constants.dart';
+import 'package:provider/provider.dart';
 
 class VisitNavigationMapView extends StatefulWidget {
   final Visit visit;
@@ -21,23 +23,24 @@ class VisitNavigationMapView extends StatefulWidget {
 
 class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
   late GoogleMapController _controller;
-  final Set<Marker> _markers = {};
-  final Set<Polyline> _polylines = {};
   LatLng? _currentPosition;
-  bool _isNavigating = false;
 
   @override
   void initState() {
     super.initState();
-    _addVisitMarker();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<EmployesController>().clearMapData();
+      _addVisitMarker();
+    });
   }
 
   void _addVisitMarker() {
+    final controller = context.read<EmployesController>();
     final visitPos = LatLng(
       double.parse(widget.visit.latitude),
       double.parse(widget.visit.longitude),
     );
-    _markers.add(
+    final Set<Marker> initialMarkers = {
       Marker(
         markerId: const MarkerId('destination'),
         position: visitPos,
@@ -46,15 +49,16 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
           snippet: widget.visit.address,
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      ),
-    );
+      )
+    };
+    controller.updateMarkers(initialMarkers);
   }
 
   Future<void> _startNavigation() async {
-    setState(() => _isNavigating = true);
+    final controller = context.read<EmployesController>();
+    controller.setNavigating(true);
 
     try {
-      // 1. Get Current Location
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -66,9 +70,9 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
 
       _currentPosition = LatLng(position.latitude, position.longitude);
 
-      // 2. Clear previous polylines & Add Current Location Marker
-      _markers.removeWhere((m) => m.markerId == const MarkerId('user_pos'));
-      _markers.add(
+      final Set<Marker> currentMarkers = Set.from(controller.markers);
+      currentMarkers.removeWhere((m) => m.markerId == const MarkerId('user_pos'));
+      currentMarkers.add(
         Marker(
           markerId: const MarkerId('user_pos'),
           position: _currentPosition!,
@@ -76,8 +80,8 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         ),
       );
+      controller.updateMarkers(currentMarkers);
 
-      // 3. Fetch Real Road Polyline
       PolylinePoints polylinePoints = PolylinePoints(
         apiKey: Constants.GOOGLE_MAPS_API_KEY,
       );
@@ -95,13 +99,13 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
         ),
       );
 
+      final Set<Polyline> newPolylines = {};
       if (result.points.isNotEmpty) {
         List<LatLng> roadPoints = result.points
             .map((p) => LatLng(p.latitude, p.longitude))
             .toList();
 
-        _polylines.clear();
-        _polylines.add(
+        newPolylines.add(
           Polyline(
             polylineId: const PolylineId("nav_route"),
             points: roadPoints,
@@ -112,9 +116,7 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
           ),
         );
       } else {
-        // Fallback to straight line if API fails or key missing
-        _polylines.clear();
-        _polylines.add(
+        newPolylines.add(
           Polyline(
             polylineId: const PolylineId("nav_route"),
             points: [
@@ -129,13 +131,12 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
           ),
         );
       }
-
-      // 4. Zoom to fit both points
+      controller.updatePolylines(newPolylines);
       _fitBounds();
     } catch (e) {
       debugPrint("Navigation Error: $e");
     } finally {
-      setState(() => _isNavigating = false);
+      controller.setNavigating(false);
     }
   }
 
@@ -177,23 +178,26 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
       appBar: CustomAppBar(title: widget.visit.placeName),
       body: Stack(
         children: [
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: LatLng(
-                double.parse(widget.visit.latitude),
-                double.parse(widget.visit.longitude),
-              ),
-              zoom: 15,
-            ),
-            markers: _markers,
-            polylines: _polylines,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            onMapCreated: (c) => _controller = c,
+          Consumer<EmployesController>(
+            builder: (context, controller, child) {
+              return GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: LatLng(
+                    double.parse(widget.visit.latitude),
+                    double.parse(widget.visit.longitude),
+                  ),
+                  zoom: 15,
+                ),
+                markers: controller.markers,
+                polylines: controller.polylines,
+                myLocationEnabled: true,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                onMapCreated: (c) => _controller = c,
+              );
+            },
           ),
 
-          // Bottom Navigation Card
           Positioned(
             bottom: 4.h,
             left: 5.w,
@@ -208,7 +212,7 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
+                   Row(
                     children: [
                       Container(
                         padding: EdgeInsets.all(2.w),
@@ -250,32 +254,36 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
                     ],
                   ),
                   3.height,
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isNavigating ? null : _startNavigation,
-                      icon: _isNavigating
-                          ? SizedBox(
-                              width: 4.w,
-                              height: 4.w,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.near_me_rounded),
-                      label: Text(
-                        _isNavigating ? "CALCULATING..." : "START NAVIGATION",
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColor.appDarkColor,
-                        foregroundColor: AppColor.white,
-                        padding: EdgeInsets.symmetric(vertical: 2.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  Consumer<EmployesController>(
+                    builder: (context, controller, child) {
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: controller.isNavigating ? null : _startNavigation,
+                          icon: controller.isNavigating
+                              ? SizedBox(
+                                  width: 4.w,
+                                  height: 4.w,
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.near_me_rounded),
+                          label: Text(
+                            controller.isNavigating ? "CALCULATING..." : "START NAVIGATION",
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColor.appDarkColor,
+                            foregroundColor: AppColor.white,
+                            padding: EdgeInsets.symmetric(vertical: 2.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),

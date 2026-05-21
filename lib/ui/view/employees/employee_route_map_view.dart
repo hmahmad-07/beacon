@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:centrex/core/controllers/employes_controller.dart';
 import 'package:centrex/core/models/emp_working_detail_model.dart';
 import 'package:centrex/core/resources/app_colors.dart';
 import 'package:centrex/ui/components/custom_appbar.dart';
@@ -9,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:centrex/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
 import 'package:centrex/core/utils/utils.dart';
+import 'package:provider/provider.dart';
 import '../../components/app_constants.dart';
 import '../../../core/constants/constants.dart';
 
@@ -24,17 +26,16 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
   late GoogleMapController _controller;
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
-  final Set<Marker> _markers = {};
-  final Set<Polyline> _polylines = {};
-  final Set<Polygon> _polygons = {};
   final List<LatLng> _points = [];
-  bool _isSheetVisible = false;
-  bool _isLoadingRoutes = false;
 
   @override
   void initState() {
     super.initState();
-    _initMapData();
+    // Clear old map data when entering
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<EmployesController>().clearMapData();
+      _initMapData();
+    });
   }
 
   Future<void> _initMapData() async {
@@ -53,118 +54,124 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
   }
 
   void _prepareStaticMarkers() {
-    setState(() {
-      _points.clear();
-      _markers.clear();
-      // Sort visits chronologically by parsing date
-      widget.detail.visits.sort((a, b) => Utils.parseDateTime(a.createdAt)
-          .compareTo(Utils.parseDateTime(b.createdAt)),);
+    final controller = context.read<EmployesController>();
+    final Set<Marker> localMarkers = {};
+    final Set<Polyline> localPolylines = {};
 
-      if (widget.detail.checkin != null &&
-          widget.detail.checkin!.latitude.isNotEmpty &&
-          widget.detail.checkin!.longitude.isNotEmpty) {
-        try {
-          final checkinPos = LatLng(
-            double.parse(widget.detail.checkin!.latitude.toString()),
-            double.parse(widget.detail.checkin!.longitude.toString()),
-          );
-          if (checkinPos.latitude != 0.0) {
-            _points.add(checkinPos);
-            _markers.add(
-              Marker(
-                markerId: const MarkerId('checkin'),
-                position: checkinPos,
-                infoWindow: InfoWindow(
-                  title: "Start Point (Check-in)",
-                  snippet:
-                      "Time: ${_formatTo12Hour(widget.detail.checkin!.time)}",
-                ),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueGreen,
-                ),
+    _points.clear();
+
+    // Sort visits chronologically
+    widget.detail.visits.sort(
+      (a, b) => Utils.parseDateTime(
+        a.createdAt,
+      ).compareTo(Utils.parseDateTime(b.createdAt)),
+    );
+
+    if (widget.detail.checkin != null &&
+        widget.detail.checkin!.latitude.isNotEmpty &&
+        widget.detail.checkin!.longitude.isNotEmpty) {
+      try {
+        final checkinPos = LatLng(
+          double.parse(widget.detail.checkin!.latitude.toString()),
+          double.parse(widget.detail.checkin!.longitude.toString()),
+        );
+        if (checkinPos.latitude != 0.0) {
+          _points.add(checkinPos);
+          localMarkers.add(
+            Marker(
+              markerId: const MarkerId('checkin'),
+              position: checkinPos,
+              infoWindow: InfoWindow(
+                title: "Start Point (Check-in)",
+                snippet:
+                    "Time: ${_formatTo12Hour(widget.detail.checkin!.time)}",
               ),
-            );
-          }
-        } catch (e) {
-          debugPrint("Checkin parse error: $e");
-        }
-      }
-
-      // 2. Add Visits safely
-      for (var visit in widget.detail.visits) {
-        try {
-          final pos = LatLng(
-            double.parse(visit.latitude.toString()),
-            double.parse(visit.longitude.toString()),
-          );
-          if (pos.latitude != 0.0) {
-            _points.add(pos);
-            _markers.add(
-              Marker(
-                markerId: MarkerId('visit_${visit.id}'),
-                position: pos,
-                infoWindow: InfoWindow(
-                  title: visit.placeName,
-                  snippet: "Visit Time: ${visit.createdAt}",
-                ),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueAzure,
-                ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueGreen,
               ),
-            );
-          }
-        } catch (e) {
-          debugPrint("Visit parse error: $e");
-        }
-      }
-
-      // 3. Add Check-out safely
-      if (widget.detail.checkout != null &&
-          widget.detail.checkout!['latitude'] != null &&
-          widget.detail.checkout!['longitude'] != null) {
-        try {
-          final checkoutPos = LatLng(
-            double.parse(widget.detail.checkout!['latitude'].toString()),
-            double.parse(widget.detail.checkout!['longitude'].toString()),
+            ),
           );
-          if (checkoutPos.latitude != 0.0) {
-            _points.add(checkoutPos);
-            _markers.add(
-              Marker(
-                markerId: const MarkerId('checkout'),
-                position: checkoutPos,
-                infoWindow: InfoWindow(
-                  title: "End Point (Check-out)",
-                  snippet:
-                      "Time: ${_formatTo12Hour(widget.detail.checkout!['time'])}",
-                ),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueRed,
-                ),
-              ),
-            );
-          }
-        } catch (e) {
-          debugPrint("Checkout parse error: $e");
         }
+      } catch (e) {
+        debugPrint("Checkin parse error: $e");
       }
+    }
 
-      // Initial straight line fallback until road routes load
-      _polylines.add(
-        Polyline(
-          polylineId: const PolylineId('route_initial'),
-          points: _points,
-          color: AppColor.appColor1.withValues(alpha: 0.3),
-          width: 3,
-        ),
-      );
-    });
+    for (var visit in widget.detail.visits) {
+      try {
+        final pos = LatLng(
+          double.parse(visit.latitude.toString()),
+          double.parse(visit.longitude.toString()),
+        );
+        if (pos.latitude != 0.0) {
+          _points.add(pos);
+          localMarkers.add(
+            Marker(
+              markerId: MarkerId('visit_${visit.id}'),
+              position: pos,
+              infoWindow: InfoWindow(
+                title: visit.placeName,
+                snippet: "Visit Time: ${visit.createdAt}",
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueAzure,
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint("Visit parse error: $e");
+      }
+    }
+
+    if (widget.detail.checkout != null &&
+        widget.detail.checkout!['latitude'] != null &&
+        widget.detail.checkout!['longitude'] != null) {
+      try {
+        final checkoutPos = LatLng(
+          double.parse(widget.detail.checkout!['latitude'].toString()),
+          double.parse(widget.detail.checkout!['longitude'].toString()),
+        );
+        if (checkoutPos.latitude != 0.0) {
+          _points.add(checkoutPos);
+          localMarkers.add(
+            Marker(
+              markerId: const MarkerId('checkout'),
+              position: checkoutPos,
+              infoWindow: InfoWindow(
+                title: "End Point (Check-out)",
+                snippet:
+                    "Time: ${_formatTo12Hour(widget.detail.checkout!['time'])}",
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueRed,
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint("Checkout parse error: $e");
+      }
+    }
+
+    localPolylines.add(
+      Polyline(
+        polylineId: const PolylineId('route_initial'),
+        points: List.from(_points),
+        color: AppColor.appColor1.withValues(alpha: 0.3),
+        width: 3,
+      ),
+    );
+
+    controller.updateMarkers(localMarkers);
+    controller.updatePolylines(localPolylines);
   }
 
   Future<void> _fetchRoadRoutes() async {
     if (_points.length < 2) return;
 
-    setState(() => _isLoadingRoutes = true);
+    final controller = context.read<EmployesController>();
+    controller.setLoadingRoutes(true);
 
     try {
       PolylinePoints polylinePoints = PolylinePoints(
@@ -172,7 +179,6 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
       );
       List<LatLng> roadJourneyPoints = [];
 
-      // Calculate route between each consecutive pair of points
       for (int i = 0; i < _points.length - 1; i++) {
         PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
           request: PolylineRequest(
@@ -190,44 +196,40 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
             result.points.map((p) => LatLng(p.latitude, p.longitude)),
           );
         } else {
-          // Fallback to straight line if segment fetch fails
           roadJourneyPoints.add(_points[i]);
           roadJourneyPoints.add(_points[i + 1]);
         }
       }
 
-      if (mounted) {
-        setState(() {
-          _polylines.clear();
-          _polylines.add(
-            Polyline(
-              polylineId: const PolylineId('road_journey'),
-              points: roadJourneyPoints,
-              color: AppColor.appColor1,
-              width: 5,
-              jointType: JointType.round,
-            ),
-          );
+      final Set<Polyline> newPolylines = {
+        Polyline(
+          polylineId: const PolylineId('road_journey'),
+          points: roadJourneyPoints,
+          color: AppColor.appColor1,
+          width: 5,
+          jointType: JointType.round,
+        ),
+      };
 
-          // 5. Update Coverage Polygon with richer data
-          if (roadJourneyPoints.length > 2) {
-            _polygons.clear();
-            _polygons.add(
-              Polygon(
-                polygonId: const PolygonId('coverage'),
-                points: roadJourneyPoints,
-                fillColor: AppColor.appColor1.withValues(alpha: 0.08),
-                strokeColor: AppColor.appColor1.withValues(alpha: 0.2),
-                strokeWidth: 1,
-              ),
-            );
-          }
-        });
+      final Set<Polygon> newPolygons = {};
+      if (roadJourneyPoints.length > 2) {
+        newPolygons.add(
+          Polygon(
+            polygonId: const PolygonId('coverage'),
+            points: roadJourneyPoints,
+            fillColor: AppColor.appColor1.withValues(alpha: 0.08),
+            strokeColor: AppColor.appColor1.withValues(alpha: 0.2),
+            strokeWidth: 1,
+          ),
+        );
       }
+
+      controller.updatePolylines(newPolylines);
+      controller.updatePolygons(newPolygons);
     } catch (e) {
       debugPrint("Road Route Error: $e");
     } finally {
-      if (mounted) setState(() => _isLoadingRoutes = false);
+      controller.setLoadingRoutes(false);
     }
   }
 
@@ -237,7 +239,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
   }
 
   void _fitBounds() {
-    if (_points.isEmpty || !mounted) return;
+    if (_points.isEmpty) return;
 
     double? minLat, maxLat, minLng, maxLng;
     for (final p in _points) {
@@ -259,10 +261,11 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
   }
 
   void _toggleSheet() {
-    setState(() => _isSheetVisible = !_isSheetVisible);
-    if (_isSheetVisible) {
+    final controller = context.read<EmployesController>();
+    controller.toggleSheetVisible();
+    if (controller.isSheetVisible) {
       _sheetController.animateTo(
-        0.3,
+        0.5,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeOut,
       );
@@ -282,62 +285,79 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
       appBar: const CustomAppBar(title: 'Activity Route Intelligence'),
       body: Stack(
         children: [
-          GoogleMap(
-            onMapCreated: _onMapCreated,
-            initialCameraPosition: CameraPosition(
-              target: _points.isNotEmpty ? _points.first : const LatLng(0, 0),
-              zoom: 12,
-              tilt: 40,
-            ),
-            markers: _markers,
-            polylines: _polylines,
-            polygons: _polygons,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            onTap: (_) {
-              if (_isSheetVisible) _toggleSheet();
+          Consumer<EmployesController>(
+            builder: (context, controller, child) {
+              return GoogleMap(
+                onMapCreated: _onMapCreated,
+                initialCameraPosition: CameraPosition(
+                  target: _points.isNotEmpty
+                      ? _points.first
+                      : const LatLng(0, 0),
+                  zoom: 12,
+                  tilt: 40,
+                ),
+                markers: controller.markers,
+                polylines: controller.polylines,
+                polygons: controller.polygons,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                onTap: (_) {
+                  if (controller.isSheetVisible) _toggleSheet();
+                },
+              );
             },
           ),
 
-          if (_isLoadingRoutes)
-            Positioned(
-              top: 10.h,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-                  decoration: BoxDecoration(
-                    color: AppColor.white,
-                    borderRadius: BorderRadius.circular(50),
-                    boxShadow: AppShadow.soft,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 3.w,
-                        height: 3.w,
-                        child: const CircularProgressIndicator(strokeWidth: 2),
+          Consumer<EmployesController>(
+            builder: (context, controller, child) {
+              if (controller.isLoadingRoutes) {
+                return Positioned(
+                  top: 10.h,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4.w,
+                        vertical: 1.h,
                       ),
-                      2.width,
-                      Text(
-                        "Synthesizing Road Routes...",
-                        style: TextStyle(
-                          fontSize: 2.5.sp,
-                          fontWeight: FontWeight.bold,
-                          color: AppColor.appDarkColor,
-                        ),
+                      decoration: BoxDecoration(
+                        color: AppColor.white,
+                        borderRadius: BorderRadius.circular(50),
+                        boxShadow: AppShadow.soft,
                       ),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 3.w,
+                            height: 3.w,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                          2.width,
+                          Text(
+                            "Synthesizing Road Routes...",
+                            style: TextStyle(
+                              fontSize: 2.5.sp,
+                              fontWeight: FontWeight.bold,
+                              color: AppColor.appDarkColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
 
           _buildMapControls(),
           _buildTripMonitor(),
-          _buildTimelineToggleButton(),
+          if (widget.detail.visits.isNotEmpty) _buildTimelineToggleButton(),
           _buildDraggableSheet(),
         ],
       ),
@@ -353,7 +373,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
           FloatingActionButton.small(
             onPressed: () {
               _fitBounds();
-              _fetchRoadRoutes(); // Refresh routes on request
+              _fetchRoadRoutes();
             },
             heroTag: "fit",
             backgroundColor: AppColor.white,
@@ -498,7 +518,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
       controller: _sheetController,
       initialChildSize: 0.0,
       minChildSize: 0.0,
-      maxChildSize: 0.85,
+      maxChildSize: 0.5,
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
@@ -511,46 +531,50 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               ),
             ],
           ),
-          child: ListView.builder(
-            controller: scrollController,
-            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
-            itemCount: widget.detail.visits.length + 1,
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 1.w,
-                    vertical: 1.5.h,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Journey Intelligence",
-                        style: TextStyle(
-                          fontSize: 4.2.sp,
-                          fontWeight: FontWeight.w900,
-                          color: AppColor.appDarkColor,
-                        ),
+          child: Column(
+            children: [
+              // Fixed Header
+              Padding(
+                padding: EdgeInsets.fromLTRB(6.w, 1.5.h, 6.w, 0.5.h),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Journey Intelligence",
+                      style: TextStyle(
+                        fontSize: 4.2.sp,
+                        fontWeight: FontWeight.w900,
+                        color: AppColor.appDarkColor,
                       ),
-                      IconButton(
-                        onPressed: _toggleSheet,
-                        icon: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: AppColor.grey,
-                        ),
+                    ),
+                    IconButton(
+                      onPressed: _toggleSheet,
+                      icon: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: AppColor.grey,
                       ),
-                    ],
-                  ),
-                );
-              }
-              final v = widget.detail.visits[index - 1];
-              return _buildTimelineItem(
-                v,
-                index - 1,
-                index - 1 == widget.detail.visits.length - 1,
-              );
-            },
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Scrollable Content
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
+                  itemCount: widget.detail.visits.length,
+                  itemBuilder: (context, index) {
+                    final v = widget.detail.visits[index];
+                    return _buildTimelineItem(
+                      v,
+                      index,
+                      index == widget.detail.visits.length - 1,
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         );
       },

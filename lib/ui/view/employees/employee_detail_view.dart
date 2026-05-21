@@ -280,9 +280,9 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     child: Text(
       text,
       style: TextStyle(
-        fontSize: 1.8.sp,
+        fontSize: 2.5.sp,
         color: color,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.bold,
         letterSpacing: 0.5,
       ),
     ),
@@ -311,8 +311,8 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
           "ONLINE",
           style: TextStyle(
             color: AppColor.green,
-            fontSize: 1.8.sp,
-            fontWeight: FontWeight.w900,
+            fontSize: 3.sp,
+            fontWeight: FontWeight.bold,
             letterSpacing: 1,
           ),
         ),
@@ -374,20 +374,20 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
       child: Row(
         children: [
           SizedBox(
-            height: 14.h,
-            width: 14.h,
+            height: 15.h,
+            width: 15.h,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 PieChart(
                   PieChartData(
                     sectionsSpace: 0,
-                    centerSpaceRadius: 36,
+                    centerSpaceRadius: 12.r,
                     sections: [
                       PieChartSectionData(
                         color: AppColor.green,
                         value: percent > 0 ? percent : 0.1,
-                        radius: 12,
+                        radius: 10,
                         showTitle: false,
                       ),
                       PieChartSectionData(
@@ -413,7 +413,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     Text(
                       "Productive",
                       style: TextStyle(
-                        fontSize: 1.8.sp,
+                        fontSize: 2.sp,
                         color: AppColor.grey,
                         fontWeight: FontWeight.w800,
                       ),
@@ -464,7 +464,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
           color: c.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(10.r),
         ),
-        child: Icon(icon, size: 3.w, color: c),
+        child: Icon(icon, size: 3.5.r, color: c),
       ),
       3.width,
       Expanded(
@@ -475,17 +475,17 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
             Text(
               l,
               style: TextStyle(
-                fontSize: 2.5.sp,
-                color: AppColor.grey,
-                fontWeight: FontWeight.w700,
+                fontSize: 3.5.sp,
+                color: AppColor.appDarkColor,
+                fontWeight: FontWeight.normal,
               ),
             ),
             Text(
               v,
               style: TextStyle(
-                fontSize: 3.5.sp,
+                fontSize: 4.sp,
                 color: c,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
@@ -562,7 +562,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     Icon(
                       Icons.arrow_forward_rounded,
                       color: AppColor.grey.withValues(alpha: 0.2),
-                      size: 3.w,
+                      size: 5.w,
                     ),
                 ],
               ),
@@ -570,9 +570,9 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 2.sp,
+                  fontSize: 2.5.sp,
                   color: AppColor.grey,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.bold,
                   letterSpacing: 0.8,
                 ),
               ),
@@ -580,8 +580,8 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               Text(
                 val,
                 style: TextStyle(
-                  fontSize: 3.8.sp,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 4.sp,
+                  fontWeight: FontWeight.bold,
                   color: isPending ? AppColor.grey : AppColor.appDarkColor,
                 ),
               ),
@@ -636,8 +636,8 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 3.8.sp,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 4.sp,
+                      fontWeight: FontWeight.bold,
                       color: AppColor.white,
                       letterSpacing: 0.3,
                     ),
@@ -646,9 +646,9 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                   Text(
                     sub,
                     style: TextStyle(
-                      fontSize: 2.6.sp,
+                      fontSize: 3.sp,
                       color: AppColor.white.withValues(alpha: 0.8),
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.normal,
                     ),
                   ),
                 ],

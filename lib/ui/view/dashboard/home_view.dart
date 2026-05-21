@@ -1,12 +1,14 @@
 import 'package:centrex/core/controllers/employes_controller.dart';
 import 'package:centrex/core/extensions/routes.dart';
 import 'package:centrex/ui/components/app_constants.dart';
-import 'package:centrex/ui/view/profile/profile_view.dart';
 import 'package:centrex/ui/view/employees/employee_list_view.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:provider/provider.dart';
+import '../../../core/controllers/auth_controller.dart';
+import '../../../core/constants/constants.dart';
 import '../../../core/extensions/sizer.dart';
 import '../../../core/resources/app_colors.dart';
 
@@ -93,7 +95,7 @@ class _HomeViewState extends State<HomeView> {
                             ),
                           ),
                           InkWell(
-                            onTap: () => context.push(const ProfileView()),
+                            onTap: () => _showLogoutDialog(context),
                             child: Container(
                               padding: EdgeInsets.all(0.8.w),
                               decoration: BoxDecoration(
@@ -104,9 +106,11 @@ class _HomeViewState extends State<HomeView> {
                               ),
                               child: CircleAvatar(
                                 radius: 4.w,
-                                backgroundColor: AppColor.appColor2,
+                                backgroundColor: AppColor.red.withValues(
+                                  alpha: 0.8,
+                                ),
                                 child: Icon(
-                                  Icons.person_rounded,
+                                  Icons.logout_rounded,
                                   color: AppColor.white,
                                   size: 5.w,
                                 ),
@@ -189,6 +193,39 @@ class _HomeViewState extends State<HomeView> {
             },
           ),
         ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(
+          "CENTREX",
+          style: TextStyle(color: AppColor.appColor1, fontSize: 8.sp),
+        ),
+        content: Padding(
+          padding: EdgeInsets.only(top: 1.h),
+          child: Text(
+            "Hey ${Constants.name}, Are you sure you want to log out from the system?",
+            style: TextStyle(fontSize: 4.sp, color: AppColor.appDarkColor),
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: Text("Cancel", style: TextStyle(color: AppColor.green)),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+              context.read<AuthController>().logout(context);
+            },
+            child: const Text("Logout"),
+          ),
+        ],
       ),
     );
   }

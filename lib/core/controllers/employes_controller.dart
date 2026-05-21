@@ -3,6 +3,7 @@
 import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../constants/constants.dart';
 import 'package:intl/intl.dart';
 import '../models/emp_working_detail_model.dart';
@@ -228,5 +229,59 @@ class EmployesController extends ChangeNotifier {
       }
     }
     return reports;
+  }
+
+  // ============================================= Map & Navigation States =============================================
+
+  final Set<Marker> markers = {};
+  final Set<Polyline> polylines = {};
+  final Set<Polygon> polygons = {};
+
+  void clearMapData() {
+    markers.clear();
+    polylines.clear();
+    polygons.clear();
+    notifyListeners();
+  }
+
+  void updateMarkers(Set<Marker> newMarkers) {
+    markers.clear();
+    markers.addAll(newMarkers);
+    notifyListeners();
+  }
+
+  void updatePolylines(Set<Polyline> newPolylines) {
+    polylines.clear();
+    polylines.addAll(newPolylines);
+    notifyListeners();
+  }
+
+  void updatePolygons(Set<Polygon> newPolygons) {
+    polygons.clear();
+    polygons.addAll(newPolygons);
+    notifyListeners();
+  }
+
+  bool isLoadingRoutes = false;
+  void setLoadingRoutes(bool val) {
+    isLoadingRoutes = val;
+    notifyListeners();
+  }
+
+  bool isSheetVisible = false;
+  void setSheetVisible(bool val) {
+    isSheetVisible = val;
+    notifyListeners();
+  }
+
+  void toggleSheetVisible() {
+    isSheetVisible = !isSheetVisible;
+    notifyListeners();
+  }
+
+  bool isNavigating = false;
+  void setNavigating(bool val) {
+    isNavigating = val;
+    notifyListeners();
   }
 }
