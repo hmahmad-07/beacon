@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:centrex/core/models/emp_working_detail_model.dart';
 import 'package:centrex/core/resources/app_colors.dart';
 import 'package:centrex/core/utils/utils.dart';
@@ -17,10 +19,19 @@ class VisitDetailsListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sortedVisits = List<Visit>.from(visits)
+      ..sort(
+        (a, b) => Utils.parseDateTime(
+          a.createdAt,
+        ).compareTo(Utils.parseDateTime(b.createdAt)),
+      );
+
     return Scaffold(
       backgroundColor: AppColor.scaffold,
       appBar: const CustomAppBar(title: 'Field Activity Logs'),
-      body: visits.isEmpty ? _buildEmptyState() : _buildList(),
+      body: sortedVisits.isEmpty
+          ? _buildEmptyState()
+          : _buildList(sortedVisits),
     );
   }
 
@@ -48,18 +59,20 @@ class VisitDetailsListView extends StatelessWidget {
     );
   }
 
-  Widget _buildList() {
+  Widget _buildList(List<Visit> sortedVisits) {
+    log(sortedVisits.first.createdAt);
     return ListView.builder(
       padding: EdgeInsets.all(4.w),
       physics: const BouncingScrollPhysics(),
-      itemCount: visits.length,
-      itemBuilder: (context, index) => _buildVisitCard(context, visits[index]),
+      itemCount: sortedVisits.length,
+      itemBuilder: (context, index) =>
+          _buildVisitCard(context, sortedVisits[index]),
     );
   }
 
   Widget _buildVisitCard(BuildContext context, Visit visit) {
     bool isProductive = visit.orders.any((o) => o.isProductive);
-
+    log(visit.createdAt);
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
       decoration: BoxDecoration(
@@ -74,17 +87,10 @@ class VisitDetailsListView extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Left Image with Counter
                 _buildImageThumbnail(context, visit.photos),
-
-                4.width,
-
-                // Vertical Divider
+                3.width,
                 Container(width: 1.5, height: 12.h, color: AppColor.scaffold),
-
-                4.width,
-
-                // Details Column
+                3.width,
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,10 +111,7 @@ class VisitDetailsListView extends StatelessWidget {
                       0.5.height,
                       _detailRow(Icons.category_rounded, visit.channel),
                       0.5.height,
-                      _detailRow(
-                        Icons.event_note_rounded,
-                        Utils.formatDate(visit.createdAt),
-                      ),
+                      _detailRow(Icons.event_note_rounded, visit.createdAt),
                       0.5.height,
                       _detailRow(
                         Icons.location_on_rounded,

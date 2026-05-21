@@ -706,7 +706,6 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     );
   }
 
-  // Reuse existing detail item for bottom sheets
   Widget _sheetDetailItem(IconData icon, String title, String val) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

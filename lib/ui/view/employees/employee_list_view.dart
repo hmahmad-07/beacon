@@ -7,6 +7,7 @@ import 'package:centrex/core/controllers/employes_controller.dart';
 import 'package:centrex/core/extensions/sizer.dart';
 import 'package:centrex/core/resources/app_colors.dart';
 import 'package:centrex/ui/components/custom_appbar.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
@@ -28,7 +29,6 @@ class EmployeeListView extends StatefulWidget {
 
 class _EmployeeListViewState extends State<EmployeeListView> {
   DateTime selectedAuditDate = DateTime.now();
-
   Future<void> _handleGenerateAuditReport(
     BuildContext context,
     EmployesController controller,
@@ -51,7 +51,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                   Icon(Icons.analytics_rounded, color: AppColor.appColor1),
                   2.width,
                   Text(
-                    "Audit Configuration",
+                    "Sales Report",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 4.5.sp,
@@ -64,7 +64,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Select the target date for the executive audit report.",
+                    "Generate a daily performance and activity audit report for the sales team.",
                     style: TextStyle(color: AppColor.grey, fontSize: 3.2.sp),
                   ),
                   2.height,
@@ -118,7 +118,6 @@ class _EmployeeListViewState extends State<EmployeeListView> {
 
     if (shouldGenerate != true) return;
 
-    // 2. Show Progress Dialog
     int currentProgress = 0;
     int totalCount = departmentUsers.length;
     StateSetter? updateDialog;
@@ -129,30 +128,42 @@ class _EmployeeListViewState extends State<EmployeeListView> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           updateDialog = setDialogState;
+
           return AlertDialog(
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(18),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(color: AppColor.appColor1),
+                CupertinoActivityIndicator(
+                  radius: 7.r,
+                  color: AppColor.appColor1,
+                ),
                 3.height,
                 Text(
-                  "Synthesizing Master Audit...",
+                  "Preparing Report...",
+                  textAlign: TextAlign.center,
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 4.sp),
                 ),
+
                 1.5.height,
+
                 Text(
-                  "Fetching data for $currentProgress / $totalCount employees",
+                  "Collecting attendance, visits, orders and activity logs for $currentProgress / $totalCount sales employees.",
+                  textAlign: TextAlign.center,
                   style: TextStyle(color: AppColor.grey, fontSize: 3.sp),
                 ),
-                1.height,
+
+                2.height,
+
                 LinearProgressIndicator(
                   value: totalCount == 0 ? 0 : currentProgress / totalCount,
                   backgroundColor: AppColor.scaffold,
                   color: AppColor.appColor2,
+                  borderRadius: BorderRadius.circular(20),
+                  minHeight: 7,
                 ),
               ],
             ),
@@ -163,6 +174,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
 
     try {
       final List<EmployesWorkingDetailModel> reports = [];
+
       for (int i = 0; i < departmentUsers.length; i++) {
         final r = await controller.fetchMasterAuditData(
           context,
@@ -170,6 +182,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
           selectedAuditDate,
           (p, t) {},
         );
+
         reports.add(r.first);
 
         if (updateDialog != null) {
@@ -189,11 +202,13 @@ class _EmployeeListViewState extends State<EmployeeListView> {
       );
 
       final fileName =
-          "Audit_${widget.department}_${DateFormat('dd_MM_yy').format(selectedAuditDate)}.pdf";
+          "Daily_Sales_Audit_${DateFormat('dd_MM_yy').format(selectedAuditDate)}.pdf";
+
       AppRoutes.push(PdfPreviewView(pdfBytes: bytes, fileName: fileName));
     } catch (e) {
       if (Navigator.canPop(context)) Navigator.pop(context);
-      Utils.showSnackBar(context, "Error generating report: $e");
+
+      Utils.showSnackBar(context, "Error generating daily sales report: $e");
     }
   }
 
@@ -205,8 +220,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
         title: widget.department,
         actions: [
           if (widget.department.toLowerCase().contains("sales") ||
-              widget.department.toLowerCase().contains("marketing") ||
-              widget.department.toLowerCase().contains("it"))
+              widget.department.toLowerCase().contains("marketing"))
             IconButton(
               icon: Icon(Icons.assessment_rounded, color: AppColor.white),
               tooltip: "Generate Audit Report",

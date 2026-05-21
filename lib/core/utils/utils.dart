@@ -66,10 +66,46 @@ class Utils {
   static String formatDate(String dateStr) {
     if (dateStr.isEmpty) return '';
     try {
-      DateTime dt = DateTime.parse(dateStr);
+      DateTime dt = parseDateTime(dateStr);
       return DateFormat('dd MMM, yyyy • hh:mm a').format(dt);
     } catch (e) {
       return dateStr;
+    }
+  }
+
+  static DateTime parseDateTime(String dateStr) {
+    if (dateStr.isEmpty) return DateTime(2000);
+    
+    String cleanDate = dateStr.trim().toUpperCase();
+    
+    try {
+      // 1. Try standard ISO parse
+      return DateTime.parse(cleanDate);
+    } catch (_) {
+      try {
+        // 2. Handle 20-MAY-26 02:24 PM
+        // Map months manually for robustness
+        final months = {
+          'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
+          'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
+          'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+        };
+        
+        String temp = cleanDate;
+        for (var entry in months.entries) {
+          if (temp.contains(entry.key)) {
+            temp = temp.replaceFirst(entry.key, entry.value);
+            break;
+          }
+        }
+        
+        // After replacement: 20-05-26 02:24 PM
+        // Format: dd-MM-yy hh:mm a
+        return DateFormat("dd-MM-yy hh:mm a").parse(temp);
+      } catch (e) {
+        debugPrint("Parse Error for '$dateStr': $e");
+        return DateTime(2000); // Fallback
+      }
     }
   }
 

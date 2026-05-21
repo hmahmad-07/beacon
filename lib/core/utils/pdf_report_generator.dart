@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:centrex/core/models/emp_working_detail_model.dart';
 import 'package:centrex/core/models/employes_model.dart';
+import 'package:centrex/core/utils/utils.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
@@ -250,6 +251,11 @@ class PdfReportGenerator {
   }
 
   static pw.Widget _buildVisitTable(List<Visit> visits) {
+    // Sort visits chronologically by parsing date
+    final sortedVisits = List<Visit>.from(visits)
+      ..sort((a, b) => Utils.parseDateTime(a.createdAt)
+          .compareTo(Utils.parseDateTime(b.createdAt)),);
+
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
       children: [
@@ -264,7 +270,7 @@ class PdfReportGenerator {
             _tableHeader("Revenue"),
           ],
         ),
-        ...visits.map((v) {
+        ...sortedVisits.map((v) {
           double revenue = 0;
           for (var ord in v.orders) {
             for (var item in ord.items) {

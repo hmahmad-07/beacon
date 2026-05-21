@@ -8,7 +8,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:centrex/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
-
+import 'package:centrex/core/utils/utils.dart';
 import '../../components/app_constants.dart';
 import '../../../core/constants/constants.dart';
 
@@ -56,8 +56,10 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
     setState(() {
       _points.clear();
       _markers.clear();
+      // Sort visits chronologically by parsing date
+      widget.detail.visits.sort((a, b) => Utils.parseDateTime(a.createdAt)
+          .compareTo(Utils.parseDateTime(b.createdAt)),);
 
-      // 1. Add Check-in safely
       if (widget.detail.checkin != null &&
           widget.detail.checkin!.latitude.isNotEmpty &&
           widget.detail.checkin!.longitude.isNotEmpty) {
