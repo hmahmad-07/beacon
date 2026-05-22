@@ -141,70 +141,86 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     );
   }
 
+  Future<void> _onRefresh() async {
+    final controller = context.read<EmployesController>();
+    await controller.fetchWorkingDetails(context, widget.user.userId!);
+  }
+
   Widget _buildDashboardContent(
     BuildContext context,
     EmployesController controller,
     EmployesWorkingDetailModel? detail,
   ) {
     if (detail == null && !controller.isWorkingDetailLoading) {
-      return _buildEmptyState();
+      return RefreshIndicator(
+        onRefresh: _onRefresh,
+        color: AppColor.appColor1,
+        child: _buildEmptyState(),
+      );
     }
 
     bool hasVisits = detail != null && detail.visits.isNotEmpty;
     bool hasCheckin = detail?.checkin != null;
 
-    return ListView(
-      padding: EdgeInsets.all(5.w),
-      physics: const BouncingScrollPhysics(),
-      children: [
-        _buildEnhancedUserCard(),
-        3.height,
-        if (detail != null && detail.totalVisits > 0) ...[
-          _buildSectionTitle("Performance Intelligence"),
-          2.height,
-          _buildRichAnalyticsCard(detail),
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      color: AppColor.appColor1,
+      child: ListView(
+        padding: EdgeInsets.all(5.w),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: ClampingScrollPhysics(),
+        ),
+        children: [
+          _buildEnhancedUserCard(isOnline: hasCheckin),
           3.height,
-        ],
-        _buildSectionTitle("Daily Journey"),
-        2.height,
-        _buildCheckinCheckoutPremium(context, detail),
-
-        3.height,
-        if ((hasVisits || hasCheckin) &&
-            (widget.user.department?.toLowerCase().contains("sales") == true ||
-                widget.user.department?.toLowerCase().contains("marketing") ==
-                    true)) ...[
-          _buildSectionTitle("Operational Modules"),
-          2.height,
-
-          if (hasVisits) ...[
-            _buildActionModule(
-              "Field Activity Logs",
-              "${detail.totalVisits} customer touchpoints recorded",
-              Icons.fact_check_rounded,
-              AppColor.appColor1,
-              onTap: () =>
-                  AppRoutes.push(VisitDetailsListView(visits: detail.visits)),
-            ),
-            1.5.height,
+          if (detail != null && detail.totalVisits > 0) ...[
+            _buildSectionTitle("Performance Intelligence"),
+            2.height,
+            _buildRichAnalyticsCard(detail),
+            3.height,
           ],
+          _buildSectionTitle("Daily Journey"),
+          2.height,
+          _buildCheckinCheckoutPremium(context, detail),
 
-          if (hasCheckin)
-            _buildActionModule(
-              "Visual Coverage Map",
-              "Territory exploration & route intelligence",
-              Icons.map_rounded,
-              AppColor.appDarkColor,
-              onTap: () =>
-                  AppRoutes.push(EmployeeRouteMapView(detail: detail!)),
-            ),
+          3.height,
+          if ((hasVisits || hasCheckin) &&
+              (widget.user.department?.toLowerCase().contains("sales") ==
+                      true ||
+                  widget.user.department?.toLowerCase().contains("marketing") ==
+                      true)) ...[
+            _buildSectionTitle("Operational Modules"),
+            2.height,
+
+            if (hasVisits) ...[
+              _buildActionModule(
+                "Field Activity Logs",
+                "${detail.totalVisits} customer touchpoints recorded",
+                Icons.fact_check_rounded,
+                AppColor.appColor1,
+                onTap: () =>
+                    AppRoutes.push(VisitDetailsListView(visits: detail.visits)),
+              ),
+              1.5.height,
+            ],
+
+            if (hasCheckin)
+              _buildActionModule(
+                "Visual Coverage Map",
+                "Territory exploration & route intelligence",
+                Icons.map_rounded,
+                AppColor.appDarkColor,
+                onTap: () =>
+                    AppRoutes.push(EmployeeRouteMapView(detail: detail!)),
+              ),
+          ],
+          5.height,
         ],
-        5.height,
-      ],
+      ),
     );
   }
 
-  Widget _buildEnhancedUserCard() {
+  Widget _buildEnhancedUserCard({required bool isOnline}) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -262,7 +278,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     ],
                   ),
                 ),
-                _statusIndicatorPremium(),
+                _statusIndicatorPremium(isOnline: isOnline),
               ],
             ),
           ),
@@ -288,37 +304,45 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     ),
   );
 
-  Widget _statusIndicatorPremium() => Container(
-    padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
-    decoration: BoxDecoration(
-      color: AppColor.green.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(50),
-      border: Border.all(color: AppColor.green.withValues(alpha: 0.2)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 1.5.w,
-          height: 1.5.w,
-          decoration: BoxDecoration(
-            color: AppColor.green,
-            shape: BoxShape.circle,
+  Widget _statusIndicatorPremium({required bool isOnline}) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+      decoration: BoxDecoration(
+        color: (isOnline ? AppColor.green : AppColor.red).withValues(
+          alpha: 0.08,
+        ),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(
+          color: (isOnline ? AppColor.green : AppColor.red).withValues(
+            alpha: 0.2,
           ),
         ),
-        2.width,
-        Text(
-          "ONLINE",
-          style: TextStyle(
-            color: AppColor.green,
-            fontSize: 3.sp,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 1.5.w,
+            height: 1.5.w,
+            decoration: BoxDecoration(
+              color: isOnline ? AppColor.green : AppColor.red,
+              shape: BoxShape.circle,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          2.width,
+          Text(
+            isOnline ? "ONLINE" : "OFFLINE",
+            style: TextStyle(
+              color: isOnline ? AppColor.green : AppColor.red,
+              fontSize: 3.sp,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildProfileAvatarPremium() {
     return Container(
@@ -737,33 +761,43 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.analytics_outlined,
-            size: 15.w,
-            color: AppColor.grey.withValues(alpha: 0.2),
-          ),
-          2.height,
-          Text(
-            "No Insights Available",
-            style: TextStyle(
-              fontSize: 4.sp,
-              fontWeight: FontWeight.bold,
-              color: AppColor.appDarkColor,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.analytics_outlined,
+                  size: 15.w,
+                  color: AppColor.grey.withValues(alpha: 0.2),
+                ),
+                2.height,
+                Text(
+                  "No Insights Available",
+                  style: TextStyle(
+                    fontSize: 4.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColor.appDarkColor,
+                  ),
+                ),
+                Text(
+                  "Pull down to refresh or select a different date.",
+                  style: TextStyle(
+                    fontSize: 2.8.sp,
+                    color: AppColor.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
-          Text(
-            "Try selecting a different date from the timeline.",
-            style: TextStyle(
-              fontSize: 2.8.sp,
-              color: AppColor.grey,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
