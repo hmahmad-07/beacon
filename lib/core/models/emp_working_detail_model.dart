@@ -11,7 +11,7 @@ class EmployesWorkingDetailModel {
   final String errorMsg;
   final DateTime date;
   final Checkin? checkin;
-  final Map<String, dynamic>? checkout;
+  final Checkout? checkout;
   final int totalVisits;
   final List<Visit> visits;
 
@@ -36,8 +36,11 @@ class EmployesWorkingDetailModel {
                 (json["checkin"] as Map).isNotEmpty)
             ? Checkin.fromJson(json["checkin"] as Map<String, dynamic>)
             : null,
-        checkout: (json["checkout"] != null && json["checkout"] is Map)
-            ? Map<String, dynamic>.from(json["checkout"] as Map)
+        checkout:
+            (json["checkout"] != null &&
+                json["checkout"] is Map &&
+                (json["checkout"] as Map).isNotEmpty)
+            ? Checkout.fromJson(json["checkout"] as Map<String, dynamic>)
             : null,
         totalVisits: json["total_visits"] != null
             ? json["total_visits"] as int
@@ -55,7 +58,7 @@ class EmployesWorkingDetailModel {
     "date":
         "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}",
     "checkin": checkin?.toJson(),
-    "checkout": checkout,
+    "checkout": checkout?.toJson(),
     "total_visits": totalVisits,
     "visits": visits.map((x) => x.toJson()).toList(),
   };
@@ -79,6 +82,42 @@ class Checkin {
   });
 
   factory Checkin.fromJson(Map<String, dynamic> json) => Checkin(
+    docid: (json["docid"] ?? "").toString(),
+    time: (json["time"] ?? "").toString(),
+    latitude: (json["latitude"] ?? "").toString(),
+    longitude: (json["longitude"] ?? "").toString(),
+    imageUrl: (json["image_url"] ?? "").toString(),
+    reason: json["reason"] as String?,
+  );
+
+  Map<String, dynamic> toJson() => {
+    "docid": docid,
+    "time": time,
+    "latitude": latitude,
+    "longitude": longitude,
+    "image_url": imageUrl,
+    "reason": reason,
+  };
+}
+
+class Checkout {
+  final String docid;
+  final String time;
+  final String latitude;
+  final String longitude;
+  final String imageUrl;
+  final String? reason;
+
+  const Checkout({
+    required this.docid,
+    required this.time,
+    required this.latitude,
+    required this.longitude,
+    required this.imageUrl,
+    this.reason,
+  });
+
+  factory Checkout.fromJson(Map<String, dynamic> json) => Checkout(
     docid: (json["docid"] ?? "").toString(),
     time: (json["time"] ?? "").toString(),
     latitude: (json["latitude"] ?? "").toString(),

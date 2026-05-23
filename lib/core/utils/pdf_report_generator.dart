@@ -194,7 +194,7 @@ class PdfReportGenerator {
           children: [
             _metaLabelValue("Check-in", report.checkin?.time ?? "Absent"),
             pw.SizedBox(width: 20),
-            _metaLabelValue("Check-out", report.checkout?['time'] ?? "N/A"),
+            _metaLabelValue("Check-out", report.checkout?.time ?? "N/A"),
             pw.SizedBox(width: 20),
             _metaLabelValue("Total Visits", report.visits.length.toString()),
           ],
@@ -253,8 +253,11 @@ class PdfReportGenerator {
   static pw.Widget _buildVisitTable(List<Visit> visits) {
     // Sort visits chronologically by parsing date
     final sortedVisits = List<Visit>.from(visits)
-      ..sort((a, b) => Utils.parseDateTime(a.createdAt)
-          .compareTo(Utils.parseDateTime(b.createdAt)),);
+      ..sort(
+        (a, b) => Utils.parseDateTime(
+          a.createdAt,
+        ).compareTo(Utils.parseDateTime(b.createdAt)),
+      );
 
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),

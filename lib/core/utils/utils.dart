@@ -73,24 +73,44 @@ class Utils {
     }
   }
 
+  static String formatTime(String time) {
+    try {
+      final parts = time.split(':');
+      int hour = int.parse(parts[0]);
+      final int minute = int.parse(parts[1]);
+      final String amPm = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12;
+      if (hour == 0) hour = 12;
+      return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $amPm';
+    } catch (_) {
+      return time;
+    }
+  }
+
   static DateTime parseDateTime(String dateStr) {
     if (dateStr.isEmpty) return DateTime(2000);
-    
+
     String cleanDate = dateStr.trim().toUpperCase();
-    
+
     try {
-      // 1. Try standard ISO parse
       return DateTime.parse(cleanDate);
     } catch (_) {
       try {
-        // 2. Handle 20-MAY-26 02:24 PM
-        // Map months manually for robustness
         final months = {
-          'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
-          'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
-          'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+          'JAN': '01',
+          'FEB': '02',
+          'MAR': '03',
+          'APR': '04',
+          'MAY': '05',
+          'JUN': '06',
+          'JUL': '07',
+          'AUG': '08',
+          'SEP': '09',
+          'OCT': '10',
+          'NOV': '11',
+          'DEC': '12',
         };
-        
+
         String temp = cleanDate;
         for (var entry in months.entries) {
           if (temp.contains(entry.key)) {
@@ -98,7 +118,7 @@ class Utils {
             break;
           }
         }
-        
+
         // After replacement: 20-05-26 02:24 PM
         // Format: dd-MM-yy hh:mm a
         return DateFormat("dd-MM-yy hh:mm a").parse(temp);

@@ -125,12 +125,12 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
     }
 
     if (widget.detail.checkout != null &&
-        widget.detail.checkout!['latitude'] != null &&
-        widget.detail.checkout!['longitude'] != null) {
+        widget.detail.checkout!.latitude.isNotEmpty &&
+        widget.detail.checkout!.longitude.isNotEmpty) {
       try {
         final checkoutPos = LatLng(
-          double.parse(widget.detail.checkout!['latitude'].toString()),
-          double.parse(widget.detail.checkout!['longitude'].toString()),
+          double.parse(widget.detail.checkout!.latitude),
+          double.parse(widget.detail.checkout!.longitude),
         );
         if (checkoutPos.latitude != 0.0) {
           _points.add(checkoutPos);
@@ -141,7 +141,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               infoWindow: InfoWindow(
                 title: "End Point (Check-out)",
                 snippet:
-                    "Time: ${_formatTo12Hour(widget.detail.checkout!['time'])}",
+                    "Time: ${_formatTo12Hour(widget.detail.checkout!.time)}",
               ),
               icon: BitmapDescriptor.defaultMarkerWithHue(
                 BitmapDescriptor.hueRed,
@@ -429,7 +429,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
             _monitorRow(
               "End",
               isCheckoutDone
-                  ? _formatTo12Hour(widget.detail.checkout!['time'])
+                  ? _formatTo12Hour(widget.detail.checkout!.time)
                   : "Pending",
               isCheckoutDone ? AppColor.red : AppColor.grey,
             ),

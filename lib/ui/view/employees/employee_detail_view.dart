@@ -3,6 +3,7 @@ import 'package:centrex/core/extensions/routes.dart';
 import 'package:centrex/core/models/emp_working_detail_model.dart';
 import 'package:centrex/core/models/employes_model.dart';
 import 'package:centrex/core/resources/app_colors.dart';
+import 'package:centrex/core/utils/utils.dart';
 import 'package:centrex/ui/components/custom_appbar.dart';
 import 'package:centrex/ui/components/app_constants.dart';
 import 'package:centrex/ui/view/employees/employee_route_map_view.dart';
@@ -367,7 +368,8 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
         child: widget.user.profilePic != null
             ? CachedNetworkImage(
                 imageUrl: widget.user.profilePic!,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
                 errorWidget: (c, u, e) => Icon(
                   Icons.person_rounded,
                   color: AppColor.appColor1,
@@ -538,7 +540,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
         _timelineCardPremium(
           context,
           "CHECK OUT",
-          detail?.checkout?['time'] ?? "Pending",
+          detail?.checkout?.time ?? "Pending",
           Icons.logout_rounded,
           AppColor.red,
           detail?.checkout != null
@@ -807,12 +809,12 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(6),
+          padding: EdgeInsets.all(2.r),
           decoration: BoxDecoration(
             color: AppColor.appColor1.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4.r),
           ),
-          child: Icon(icon, size: 3.5.w, color: AppColor.appColor1),
+          child: Icon(icon, size: 6.r, color: AppColor.appColor1),
         ),
         2.5.width,
         Expanded(
@@ -822,9 +824,9 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 2.3.sp,
+                  fontSize: 3.5.sp,
                   color: AppColor.grey,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.normal,
                   letterSpacing: 0.3,
                 ),
               ),
@@ -832,9 +834,9 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               Text(
                 val,
                 style: TextStyle(
-                  fontSize: 3.sp,
+                  fontSize: 4.sp,
                   color: AppColor.appDarkColor,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -844,7 +846,18 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     );
   }
 
-  void _showEventDetails(BuildContext context, String event, Checkin data) {
+  void _showAttendanceDetails(
+    BuildContext context,
+    String title,
+    String subtitle,
+    dynamic data,
+  ) {
+    final imageUrl = (data as dynamic).imageUrl as String? ?? '';
+    final time = (data as dynamic).time as String? ?? 'N/A';
+    final lat = (data as dynamic).latitude as String? ?? '';
+    final lng = (data as dynamic).longitude as String? ?? '';
+    final reason = (data as dynamic).reason as String?;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -858,7 +871,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
         ),
         decoration: BoxDecoration(
           color: AppColor.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(5.r)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -876,66 +889,112 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
               ),
             ),
             Text(
-              "$event insight",
+              title,
               style: TextStyle(
                 fontSize: 4.5.sp,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 color: AppColor.appDarkColor,
-                letterSpacing: -0.3,
+              ),
+            ),
+            1.height,
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 2.8.sp,
+                color: AppColor.grey,
+                fontWeight: FontWeight.w600,
               ),
             ),
             2.5.height,
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: () => AppRoutes.push(
-                    FullScreenImageViewer(images: [data.imageUrl]),
+            Container(
+              padding: EdgeInsets.all(3.w),
+              decoration: BoxDecoration(
+                color: AppColor.scaffold,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: imageUrl.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () => AppRoutes.push(
+                              FullScreenImageViewer(images: [imageUrl]),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: CachedNetworkImage(
+                                imageUrl: imageUrl,
+                                width: double.infinity,
+                                height: 20.h,
+                                fit: BoxFit.fill,
+                                placeholder: (c, u) => Shimmer.fromColors(
+                                  baseColor: AppColor.grey.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  highlightColor: AppColor.white,
+                                  child: Container(
+                                    width: double.infinity,
+                                    height: 20.h,
+                                    color: AppColor.white,
+                                  ),
+                                ),
+                                errorWidget: (c, u, e) => Container(
+                                  width: double.infinity,
+                                  height: 20.h,
+                                  color: AppColor.scaffold,
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    color: AppColor.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            width: double.infinity,
+                            height: 20.h,
+                            decoration: BoxDecoration(
+                              color: AppColor.scaffold,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Icon(
+                              Icons.image_not_supported,
+                              color: AppColor.grey,
+                            ),
+                          ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: CachedNetworkImage(
-                      imageUrl: data.imageUrl,
-                      width: 24.w,
-                      height: 24.w,
-                      fit: BoxFit.cover,
-                      placeholder: (c, u) => Shimmer.fromColors(
-                        baseColor: AppColor.grey.withValues(alpha: 0.1),
-                        highlightColor: AppColor.white,
-                        child: Container(
-                          width: 24.w,
-                          height: 24.w,
-                          color: AppColor.white,
+                  4.width,
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sheetDetailItem(
+                          Icons.access_time_filled_rounded,
+                          "Time",
+                          Utils.formatTime(time),
                         ),
-                      ),
-                      errorWidget: (c, u, e) => Container(
-                        width: 24.w,
-                        height: 24.w,
-                        color: AppColor.scaffold,
-                        child: Icon(Icons.broken_image, color: AppColor.grey),
-                      ),
+                        1.5.height,
+                        _sheetDetailItem(
+                          Icons.location_on_rounded,
+                          "Coordinates",
+                          "$lat, $lng",
+                        ),
+                        if (reason != null && reason.trim().isNotEmpty) ...[
+                          1.5.height,
+                          _sheetDetailItem(
+                            Icons.note_alt_rounded,
+                            "Reason",
+                            reason,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                ),
-                5.width,
-                Expanded(
-                  child: Column(
-                    children: [
-                      _sheetDetailItem(
-                        Icons.access_time_filled_rounded,
-                        "Timestamp",
-                        data.time,
-                      ),
-                      1.5.height,
-                      _sheetDetailItem(
-                        Icons.location_on_rounded,
-                        "Coordinates",
-                        "${data.latitude}, ${data.longitude}",
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
             4.height,
           ],
@@ -944,62 +1003,21 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     );
   }
 
-  void _showCheckoutDetails(BuildContext context, Map<String, dynamic> data) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        padding: EdgeInsets.fromLTRB(
-          5.w,
-          2.w,
-          5.w,
-          5.w + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        decoration: BoxDecoration(
-          color: AppColor.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 10.w,
-                height: 4,
-                margin: EdgeInsets.only(bottom: 3.h),
-                decoration: BoxDecoration(
-                  color: AppColor.grey.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            Text(
-              "Shift Conclusion",
-              style: TextStyle(
-                fontSize: 4.5.sp,
-                fontWeight: FontWeight.w700,
-                color: AppColor.appDarkColor,
-                letterSpacing: -0.3,
-              ),
-            ),
-            2.5.height,
-            _sheetDetailItem(
-              Icons.access_time_filled_rounded,
-              "Sign-out Time",
-              data['time'] ?? 'N/A',
-            ),
-            1.5.height,
-            _sheetDetailItem(
-              Icons.location_on_rounded,
-              "Final Location",
-              "${data['latitude']}, ${data['longitude']}",
-            ),
-            4.height,
-          ],
-        ),
-      ),
+  void _showEventDetails(BuildContext context, String event, Checkin data) {
+    _showAttendanceDetails(
+      context,
+      "$event insight",
+      "Detailed check-in information",
+      data,
+    );
+  }
+
+  void _showCheckoutDetails(BuildContext context, Checkout data) {
+    _showAttendanceDetails(
+      context,
+      "Shift Conclusion",
+      "Final checkout details",
+      data,
     );
   }
 }
