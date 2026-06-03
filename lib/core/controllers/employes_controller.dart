@@ -8,6 +8,7 @@ import '../constants/constants.dart';
 import 'package:intl/intl.dart';
 import '../models/emp_working_detail_model.dart';
 import '../models/employes_model.dart';
+import '../models/external_client_model.dart';
 import '../utils/utils.dart';
 
 class EmployesController extends ChangeNotifier {
@@ -121,6 +122,50 @@ class EmployesController extends ChangeNotifier {
     }).toList();
   }
 
+  // ============================================= External Clients Report =============================================
+
+  ExternalClientReportModel? externalReport;
+  bool isExternalReportLoading = false;
+  DateTime externalReportDate = DateTime.now();
+
+  Future<void> fetchExternalReport(
+    BuildContext context, {
+    DateTime? date,
+  }) async {
+    try {
+      isExternalReportLoading = true;
+      notifyListeners();
+
+      final targetDate = date != null
+          ? DateFormat('yyyy-MM-dd').format(date)
+          : DateFormat('yyyy-MM-dd').format(externalReportDate);
+
+      final dio = Dio();
+      final url =
+          '${Constants.baseUrl}tsm_daily_report.php?is_external_client=1&date=$targetDate';
+      log("Fetching External Report: $url");
+
+      final response = await dio.get(url);
+
+      if (response.statusCode == 200) {
+        externalReport = ExternalClientReportModel.fromJson(response.data);
+      } else {
+        Utils.showSnackBar(context, 'Server Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      log('Error external report: $e');
+      Utils.showSnackBar(context, 'Failed to load external report');
+    } finally {
+      isExternalReportLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void updateExternalReportDate(BuildContext context, DateTime date) {
+    externalReportDate = date;
+    fetchExternalReport(context);
+  }
+
   // ============================================= Employee Working Detail =============================================
 
   EmployesWorkingDetailModel? workingDetailModel;
@@ -226,6 +271,81 @@ class EmployesController extends ChangeNotifier {
             totalVisits: 0,
           ),
         );
+      }
+    }
+    return reports;
+  }
+
+  Future<List<EmployesWorkingDetailModel>> fetchMonthlyData(
+    BuildContext context,
+    String userId,
+    DateTime month,
+    Function(int progress, int total) onProgress,
+  ) async {
+    final List<EmployesWorkingDetailModel> reports = [];
+    final dio = Dio();
+
+    // Determine the range of days
+    final now = DateTime.now();
+    final lastDay = (month.year == now.year && month.month == now.month)
+        ? now.day
+        : DateTime(month.year, month.month + 1, 0).day;
+
+    for (int day = 1; day <= lastDay; day++) {
+      try {
+        onProgress(day, lastDay);
+        final targetDate = DateFormat(
+          'yyyy-MM-dd',
+        ).format(DateTime(month.year, month.month, day));
+        final url =
+            '${Constants.baseUrl}tsm_daily_report.php?user_id=$userId&date=$targetDate';
+        final response = await dio.get(url);
+
+        if (response.statusCode == 200) {
+          final r = EmployesWorkingDetailModel.fromJson(response.data);
+          // Only add if there is some activity
+          if (r.visits.isNotEmpty || r.checkin != null || r.checkout != null) {
+            reports.add(r);
+          }
+        }
+      } catch (e) {
+        log("Error fetching day $day: $e");
+      }
+    }
+    return reports;
+  }
+
+  Future<List<ExternalClientReportModel>> fetchExternalMonthlyData(
+    BuildContext context,
+    DateTime month,
+    Function(int progress, int total) onProgress,
+  ) async {
+    final List<ExternalClientReportModel> reports = [];
+    final dio = Dio();
+
+    final now = DateTime.now();
+    final lastDay = (month.year == now.year && month.month == now.month)
+        ? now.day
+        : DateTime(month.year, month.month + 1, 0).day;
+
+    for (int day = 1; day <= lastDay; day++) {
+      try {
+        onProgress(day, lastDay);
+        final targetDate = DateFormat(
+          'yyyy-MM-dd',
+        ).format(DateTime(month.year, month.month, day));
+        final url =
+            '${Constants.baseUrl}tsm_daily_report.php?is_external_client=1&date=$targetDate';
+        final response = await dio.get(url);
+
+        if (response.statusCode == 200) {
+          final r = ExternalClientReportModel.fromJson(response.data);
+          if (r.orders.isNotEmpty) {
+            reports.add(r);
+          }
+        }
+      } catch (e) {
+        log("Error fetching external day $day: $e");
       }
     }
     return reports;

@@ -82,9 +82,9 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               markerId: const MarkerId('checkin'),
               position: checkinPos,
               infoWindow: InfoWindow(
-                title: "Start Point (Check-in)",
+                title: "Shift Started (Check-in)",
                 snippet:
-                    "Time: ${_formatTo12Hour(widget.detail.checkin!.time)}",
+                    "Time: ${_formatTo12Hour(widget.detail.checkin!.time)}${widget.detail.checkin!.reason != null && widget.detail.checkin!.reason!.isNotEmpty ? '\nReason: ${widget.detail.checkin!.reason}' : ''}",
               ),
               icon: BitmapDescriptor.defaultMarkerWithHue(
                 BitmapDescriptor.hueGreen,
@@ -139,9 +139,9 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               markerId: const MarkerId('checkout'),
               position: checkoutPos,
               infoWindow: InfoWindow(
-                title: "End Point (Check-out)",
+                title: "Shift Ended (Check-out)",
                 snippet:
-                    "Time: ${_formatTo12Hour(widget.detail.checkout!.time)}",
+                    "Time: ${_formatTo12Hour(widget.detail.checkout!.time)}${widget.detail.checkout!.reason != null && widget.detail.checkout!.reason!.isNotEmpty ? '\nReason: ${widget.detail.checkout!.reason}' : ''}",
               ),
               icon: BitmapDescriptor.defaultMarkerWithHue(
                 BitmapDescriptor.hueRed,
@@ -357,7 +357,10 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
 
           _buildMapControls(),
           _buildTripMonitor(),
-          if (widget.detail.visits.isNotEmpty) _buildTimelineToggleButton(),
+          if (widget.detail.visits.isNotEmpty ||
+              widget.detail.checkin != null ||
+              widget.detail.checkout != null)
+            _buildTimelineToggleButton(),
           _buildDraggableSheet(),
         ],
       ),
@@ -514,6 +517,12 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
   }
 
   Widget _buildDraggableSheet() {
+    final List<dynamic> events = [
+      if (widget.detail.checkin != null) widget.detail.checkin!,
+      ...widget.detail.visits,
+      if (widget.detail.checkout != null) widget.detail.checkout!,
+    ];
+
     return DraggableScrollableSheet(
       controller: _sheetController,
       initialChildSize: 0.0,
@@ -563,13 +572,13 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                 child: ListView.builder(
                   controller: scrollController,
                   padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
-                  itemCount: widget.detail.visits.length,
+                  itemCount: events.length,
                   itemBuilder: (context, index) {
-                    final v = widget.detail.visits[index];
+                    final event = events[index];
                     return _buildTimelineItem(
-                      v,
+                      event,
                       index,
-                      index == widget.detail.visits.length - 1,
+                      index == events.length - 1,
                     );
                   },
                 ),
@@ -581,7 +590,48 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
     );
   }
 
-  Widget _buildTimelineItem(Visit v, int index, bool isLast) {
+  Widget _buildTimelineItem(dynamic item, int index, bool isLast) {
+    String title = "";
+    String subtitle = "";
+    IconData icon = Icons.location_on_rounded;
+    Color color = AppColor.appColor1;
+    LatLng? pos;
+    String markerId = "";
+
+    if (item is Checkin) {
+      title = "Shift Started (Check-in)";
+      subtitle = "At: ${_formatTo12Hour(item.time)}";
+      icon = Icons.login_rounded;
+      color = AppColor.green;
+      markerId = 'checkin';
+      pos = LatLng(
+        double.tryParse(item.latitude) ?? 0.0,
+        double.tryParse(item.longitude) ?? 0.0,
+      );
+    } else if (item is Checkout) {
+      title = "Shift Ended (Check-out)";
+      subtitle = "At: ${_formatTo12Hour(item.time)}";
+      icon = Icons.logout_rounded;
+      color = AppColor.red;
+      markerId = 'checkout';
+      pos = LatLng(
+        double.tryParse(item.latitude) ?? 0.0,
+        double.tryParse(item.longitude) ?? 0.0,
+      );
+    } else if (item is Visit) {
+      title = item.placeName;
+      subtitle = "Reached at: ${item.createdAt}";
+      icon = Icons.store_rounded;
+      color = AppColor.appColor1;
+      markerId = 'visit_${item.id}';
+      pos = LatLng(
+        double.tryParse(item.latitude) ?? 0.0,
+        double.tryParse(item.longitude) ?? 0.0,
+      );
+    }
+
+    if (pos == null || pos.latitude == 0.0) return const SizedBox.shrink();
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,14 +641,10 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               Container(
                 padding: EdgeInsets.all(1.w),
                 decoration: BoxDecoration(
-                  color: AppColor.appColor1.withValues(alpha: 0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.location_on_rounded,
-                  color: AppColor.appColor1,
-                  size: 5.w,
-                ),
+                child: Icon(icon, color: color, size: 5.w),
               ),
               if (!isLast)
                 Expanded(
@@ -613,15 +659,9 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               child: GestureDetector(
                 onTap: () {
                   _controller.animateCamera(
-                    CameraUpdate.newLatLngZoom(
-                      LatLng(
-                        double.parse(v.latitude),
-                        double.parse(v.longitude),
-                      ),
-                      16.5,
-                    ),
+                    CameraUpdate.newLatLngZoom(pos!, 16.5),
                   );
-                  _controller.showMarkerInfoWindow(MarkerId('visit_${v.id}'));
+                  _controller.showMarkerInfoWindow(MarkerId(markerId));
                   _toggleSheet();
                 },
                 child: Container(
@@ -634,7 +674,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        v.placeName,
+                        title,
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 3.5.sp,
@@ -643,13 +683,39 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                       ),
                       0.5.height,
                       Text(
-                        "Reached at: ${v.createdAt}",
+                        subtitle,
                         style: TextStyle(
                           fontSize: 2.8.sp,
                           color: AppColor.grey,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      if (item is Checkin &&
+                          item.reason != null &&
+                          item.reason!.isNotEmpty) ...[
+                        0.5.height,
+                        Text(
+                          "Reason: ${item.reason}",
+                          style: TextStyle(
+                            fontSize: 2.5.sp,
+                            color: AppColor.red,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                      if (item is Checkout &&
+                          item.reason != null &&
+                          item.reason!.isNotEmpty) ...[
+                        0.5.height,
+                        Text(
+                          "Reason: ${item.reason}",
+                          style: TextStyle(
+                            fontSize: 2.5.sp,
+                            color: AppColor.red,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

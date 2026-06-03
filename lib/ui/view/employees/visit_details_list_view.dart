@@ -20,11 +20,15 @@ class VisitDetailsListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sortedVisits = List<Visit>.from(visits)
-      ..sort(
-        (a, b) => Utils.parseDateTime(
-          a.createdAt,
-        ).compareTo(Utils.parseDateTime(b.createdAt)),
-      );
+      ..sort((a, b) {
+        final dateA = a.orders.isNotEmpty && a.orders.first.orderDate.isNotEmpty
+            ? a.orders.first.orderDate
+            : a.createdAt;
+        final dateB = b.orders.isNotEmpty && b.orders.first.orderDate.isNotEmpty
+            ? b.orders.first.orderDate
+            : b.createdAt;
+        return Utils.parseDateTime(dateA).compareTo(Utils.parseDateTime(dateB));
+      });
 
     return Scaffold(
       backgroundColor: AppColor.scaffold,
@@ -111,7 +115,13 @@ class VisitDetailsListView extends StatelessWidget {
                       0.5.height,
                       _detailRow(Icons.category_rounded, visit.channel),
                       0.5.height,
-                      _detailRow(Icons.event_note_rounded, visit.createdAt),
+                      _detailRow(
+                        Icons.event_note_rounded,
+                        visit.orders.isNotEmpty &&
+                                visit.orders.first.orderDate.isNotEmpty
+                            ? visit.orders.first.orderDate
+                            : visit.createdAt,
+                      ),
                       0.5.height,
                       _detailRow(
                         Icons.location_on_rounded,

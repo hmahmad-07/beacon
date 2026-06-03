@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:centrex/core/controllers/employes_controller.dart';
 import 'package:centrex/core/extensions/routes.dart';
 import 'package:centrex/core/models/emp_working_detail_model.dart';
@@ -10,8 +12,12 @@ import 'package:centrex/ui/view/employees/employee_route_map_view.dart';
 import 'package:centrex/ui/view/employees/visit_details_list_view.dart';
 import 'package:centrex/ui/view/employees/full_screen_image_viewer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:centrex/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
+import 'package:centrex/ui/components/custom_month_picker.dart';
+import 'package:centrex/core/utils/pdf_report_generator.dart';
+import 'package:centrex/ui/view/employees/pdf_preview_view.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -47,6 +53,22 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
           backgroundColor: AppColor.scaffold,
           appBar: CustomAppBar(
             title: widget.user.userName ?? 'Analytics Dashboard',
+            actions: [
+              if (widget.user.department?.toLowerCase().contains("sales") ==
+                      true ||
+                  widget.user.department?.toLowerCase().contains("marketing") ==
+                      true)
+                IconButton(
+                  icon: const Icon(
+                    Icons.assessment_rounded,
+                    color: Colors.white,
+                  ),
+                  tooltip: "Monthly Audit Report",
+                  onPressed: () =>
+                      _handleGenerateMonthlyReport(context, controller),
+                ),
+              2.width,
+            ],
           ),
           body: Column(
             children: [
@@ -142,6 +164,187 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     );
   }
 
+  Future<void> _handleGenerateMonthlyReport(
+    BuildContext context,
+    EmployesController controller,
+  ) async {
+    DateTime selectedMonth = DateTime.now();
+
+    bool? shouldGenerate = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        DateTime tempMonth = selectedMonth;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.calendar_month, color: AppColor.appColor1),
+                  2.width,
+                  Text(
+                    "Monthly Audit",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 4.5.sp,
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Generate a full performance and activity audit report for the selected month.",
+                    style: TextStyle(color: AppColor.grey, fontSize: 3.2.sp),
+                  ),
+                  2.height,
+                  CustomMonthPicker(
+                    hint: "Select Month",
+                    fieldTitle: "Audit Month",
+                    selectedMonth: tempMonth,
+                    onMonthSelected: (date) {
+                      setDialogState(() => tempMonth = date);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(
+                    "CANCEL",
+                    style: TextStyle(
+                      color: AppColor.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    selectedMonth = tempMonth;
+                    Navigator.pop(context, true);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColor.appColor1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    "GENERATE REPORT",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (shouldGenerate != true) return;
+
+    int currentDay = 0;
+    int totalDays = 0;
+    StateSetter? updateDialog;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          updateDialog = setDialogState;
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CupertinoActivityIndicator(
+                  radius: 7.r,
+                  color: AppColor.appColor1,
+                ),
+                3.height,
+                Text(
+                  "Preparing Report...",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                1.5.height,
+                Text(
+                  "Analyzing performance for ${DateFormat('MMMM').format(selectedMonth)}...",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColor.grey, fontSize: 3.sp),
+                ),
+                2.height,
+                LinearProgressIndicator(
+                  value: totalDays == 0 ? 0 : currentDay / totalDays,
+                  backgroundColor: AppColor.scaffold,
+                  color: AppColor.appColor2,
+                  borderRadius: BorderRadius.circular(20),
+                  minHeight: 7,
+                ),
+                1.height,
+                Text(
+                  "Processing day $currentDay of $totalDays",
+                  style: TextStyle(fontSize: 2.2.sp, color: AppColor.grey),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    try {
+      final reports = await controller.fetchMonthlyData(
+        context,
+        widget.user.userId!,
+        selectedMonth,
+        (day, total) {
+          if (updateDialog != null) {
+            updateDialog!(() {
+              currentDay = day;
+              totalDays = total;
+            });
+          }
+        },
+      );
+
+      if (Navigator.canPop(context)) Navigator.pop(context);
+
+      if (reports.isEmpty) {
+        Utils.showSnackBar(context, "No working records found for this month.");
+        return;
+      }
+
+      final bytes = await PdfReportGenerator.generateMonthlyEmployeeReport(
+        user: widget.user,
+        reports: reports,
+        month: selectedMonth,
+      );
+
+      final fileName =
+          "${widget.user.userName?.replaceAll(' ', '_')}_${DateFormat('MMM_yyyy').format(selectedMonth)}.pdf";
+
+      AppRoutes.push(PdfPreviewView(pdfBytes: bytes, fileName: fileName));
+    } catch (e) {
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      Utils.showSnackBar(context, "Error generating monthly report: $e");
+    }
+  }
+
   Future<void> _onRefresh() async {
     final controller = context.read<EmployesController>();
     await controller.fetchWorkingDetails(context, widget.user.userId!);
@@ -185,11 +388,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
           _buildCheckinCheckoutPremium(context, detail),
 
           3.height,
-          if ((hasVisits || hasCheckin) &&
-              (widget.user.department?.toLowerCase().contains("sales") ==
-                      true ||
-                  widget.user.department?.toLowerCase().contains("marketing") ==
-                      true)) ...[
+          if (hasVisits || hasCheckin) ...[
             _buildSectionTitle("Operational Modules"),
             2.height,
 
@@ -253,17 +452,24 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.user.userName ?? 'Employee',
-                        style: TextStyle(
-                          fontSize: 5.sp,
-                          fontWeight: FontWeight.w900,
-                          color: AppColor.appDarkColor,
-                          letterSpacing: -0.5,
-                        ),
+                      Row(
+                        mainAxisAlignment: .spaceBetween,
+                        children: [
+                          Text(
+                            widget.user.userName ?? 'Employee',
+                            style: TextStyle(
+                              fontSize: 5.sp,
+                              fontWeight: FontWeight.bold,
+                              color: AppColor.appDarkColor,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          _statusIndicatorPremium(isOnline: isOnline),
+                        ],
                       ),
                       0.8.height,
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           _smallBadge(
                             widget.user.designation?.toUpperCase() ?? 'N/A',
@@ -279,7 +485,6 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     ],
                   ),
                 ),
-                _statusIndicatorPremium(isOnline: isOnline),
               ],
             ),
           ),
@@ -294,13 +499,16 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
       color: color.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(4.r),
     ),
-    child: Text(
-      text,
-      style: TextStyle(
-        fontSize: 2.5.sp,
-        color: color,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 0.5,
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 2.4.sp,
+          color: color,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+        ),
       ),
     ),
   );
@@ -347,8 +555,8 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
 
   Widget _buildProfileAvatarPremium() {
     return Container(
-      width: 18.w,
-      height: 18.w,
+      width: 20.w,
+      height: 20.w,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
@@ -364,11 +572,11 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(50.r),
         child: widget.user.profilePic != null
             ? CachedNetworkImage(
                 imageUrl: widget.user.profilePic!,
-                fit: BoxFit.contain,
+                fit: BoxFit.fill,
                 alignment: Alignment.center,
                 errorWidget: (c, u, e) => Icon(
                   Icons.person_rounded,

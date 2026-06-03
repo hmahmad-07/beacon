@@ -18,6 +18,7 @@ import 'package:centrex/ui/components/custom_date_picker.dart';
 import 'package:centrex/ui/view/employees/pdf_preview_view.dart';
 import 'employee_detail_view.dart';
 import 'package:intl/intl.dart';
+import 'external_orders_view.dart';
 
 class EmployeeListView extends StatefulWidget {
   final String department;
@@ -192,6 +193,9 @@ class _EmployeeListViewState extends State<EmployeeListView> {
         }
       }
 
+      // Fetch External Report for the same date
+      await controller.fetchExternalReport(context, date: selectedAuditDate);
+
       if (Navigator.canPop(context)) Navigator.pop(context);
 
       final bytes = await PdfReportGenerator.generateDailyMasterReport(
@@ -199,6 +203,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
         reports: reports,
         date: selectedAuditDate,
         department: widget.department,
+        externalReport: controller.externalReport,
       );
 
       final fileName =
@@ -262,26 +267,115 @@ class _EmployeeListViewState extends State<EmployeeListView> {
             );
           }
 
-          return Builder(
-            builder: (context) {
-              return GridView.builder(
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverPadding(
                 padding: EdgeInsets.all(6.w),
-                physics: const BouncingScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 4.w,
-                  mainAxisSpacing: 4.w,
-                  childAspectRatio: 0.72,
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 4.w,
+                    mainAxisSpacing: 4.w,
+                    childAspectRatio: 0.72,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final user = employees[index];
+                      return _buildEmployeeCard(context, user);
+                    },
+                    childCount: employees.length,
+                  ),
                 ),
-                itemCount: employees.length,
-                itemBuilder: (context, index) {
-                  final user = employees[index];
-                  return _buildEmployeeCard(context, user);
-                },
-              );
-            },
+              ),
+              if (widget.department.toLowerCase().contains("sales") ||
+                  widget.department.toLowerCase().contains("marketing"))
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(6.w, 0, 6.w, 6.w),
+                    child: _buildExternalClientsCard(context),
+                  ),
+                ),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildExternalClientsCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColor.appDarkColor, AppColor.appColor1],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppColor.appColor1.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => AppRoutes.push(const ExternalOrdersView()),
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: EdgeInsets.all(6.w),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(3.w),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.storefront_rounded,
+                    color: Colors.white,
+                    size: 8.w,
+                  ),
+                ),
+                4.width,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "EXTERNAL CLIENTS",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 4.5.sp,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      0.5.height,
+                      Text(
+                        "View cross-channel orders & billing details",
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 2.8.sp,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white70,
+                  size: 5.w,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -301,11 +395,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
         ],
       ),
       child: InkWell(
-        onTap:
-            (user.department?.toLowerCase().contains("sales") == true ||
-                user.department?.toLowerCase().contains("marketing") == true)
-            ? () => AppRoutes.push(EmployeeDetailView(user: user))
-            : null,
+        onTap: () => AppRoutes.push(EmployeeDetailView(user: user)),
         borderRadius: BorderRadius.circular(6.r),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -5,6 +5,7 @@ import 'package:centrex/core/utils/utils.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
+import '../models/external_client_model.dart';
 
 class PdfReportGenerator {
   static Future<Uint8List> generateDailyMasterReport({
@@ -12,6 +13,7 @@ class PdfReportGenerator {
     required List<EmployesWorkingDetailModel> reports,
     required DateTime date,
     required String department,
+    ExternalClientReportModel? externalReport,
   }) async {
     final pdf = pw.Document();
     final String formattedDate = DateFormat('dd-MMMM-yyyy').format(date);
@@ -41,11 +43,177 @@ class PdfReportGenerator {
               data['report'] as EmployesWorkingDetailModel,
             ),
           ),
+          if (externalReport != null && externalReport.orders.isNotEmpty) ...[
+            pw.SizedBox(height: 30),
+            _buildExternalClientsSection(externalReport),
+          ],
         ],
       ),
     );
 
     return pdf.save();
+  }
+
+  static Future<Uint8List> generateMonthlyEmployeeReport({
+    required User user,
+    required List<EmployesWorkingDetailModel> reports,
+    required DateTime month,
+  }) async {
+    final pdf = pw.Document();
+    final String formattedMonth = DateFormat('MMMM yyyy').format(month);
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        header: (context) => _buildHeader(formattedMonth, "Monthly User Audit"),
+        footer: (context) => _buildFooter(context),
+        build: (context) => [
+          _buildMonthlyUserSummary(user, reports),
+          pw.SizedBox(height: 20),
+          ...reports.map((r) => _buildDailyActivitySection(r)),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static pw.Widget _buildDailyActivitySection(
+    EmployesWorkingDetailModel report,
+  ) {
+    final String formattedDate = DateFormat('dd-MMM-yyyy').format(report.date);
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Container(
+          padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                "DATE: $formattedDate",
+                style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 10,
+                ),
+              ),
+              pw.Text(
+                "Total Visits: ${report.totalVisits}",
+                style: pw.TextStyle(fontSize: 9),
+              ),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 5),
+        _buildAttendanceSummary(report),
+        if (report.visits.isNotEmpty) ...[
+          pw.SizedBox(height: 10),
+          _buildVisitTable(report.visits),
+        ],
+        pw.SizedBox(height: 20),
+      ],
+    );
+  }
+
+  static pw.Widget _buildAttendanceSummary(EmployesWorkingDetailModel report) {
+    return pw.Row(
+      children: [
+        _miniSummary("Check-in", report.checkin?.time ?? "N/A"),
+        pw.SizedBox(width: 20),
+        _miniSummary("Check-out", report.checkout?.time ?? "N/A"),
+      ],
+    );
+  }
+
+  static pw.Widget _miniSummary(String label, String val) {
+    return pw.Row(
+      children: [
+        pw.Text(
+          "$label: ",
+          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.Text(val, style: pw.TextStyle(fontSize: 8)),
+      ],
+    );
+  }
+
+  static Future<Uint8List> generateMonthlyExternalReport({
+    required List<ExternalClientReportModel> reports,
+    required DateTime month,
+  }) async {
+    final pdf = pw.Document();
+    final String formattedMonth = DateFormat('MMMM yyyy').format(month);
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        header: (context) => _buildHeader(formattedMonth, "Monthly External Clients"),
+        footer: (context) => _buildFooter(context),
+        build: (context) => [
+          ...reports.map((r) => _buildExternalClientsSection(r)),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static pw.Widget _buildMonthlyUserSummary(
+    User user,
+    List<EmployesWorkingDetailModel> reports,
+  ) {
+    int totalVisits = 0;
+    int productiveVisits = 0;
+    double totalRevenue = 0;
+
+    for (var r in reports) {
+      totalVisits += r.totalVisits;
+      for (var v in r.visits) {
+        bool isProductive = v.orders.any((o) => o.isProductive);
+        if (isProductive) {
+          productiveVisits++;
+          for (var o in v.orders) {
+            for (var item in o.items) {
+              final rate = double.tryParse(item['rate']?.toString() ?? '0') ?? 0;
+              final qty = (double.tryParse(item['qty_pcs']?.toString() ?? '0') ??
+                      0) +
+                  (double.tryParse(item['qty_box']?.toString() ?? '0') ?? 0);
+              totalRevenue += qty * rate;
+            }
+          }
+        }
+      }
+    }
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(15),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.blue50,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            user.userName?.toUpperCase() ?? "N/A",
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14),
+          ),
+          pw.SizedBox(height: 5),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              _summaryItem("Total Visits", totalVisits.toString()),
+              _summaryItem("Productive", productiveVisits.toString()),
+              _summaryItem("Revenue", "PKR ${totalRevenue.toStringAsFixed(0)}"),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   static pw.Widget _buildHeader(String date, String dept) {
@@ -58,7 +226,7 @@ class PdfReportGenerator {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  "CENTREX",
+                  "PAANI.",
                   style: pw.TextStyle(
                     fontSize: 18,
                     fontWeight: pw.FontWeight.bold,
@@ -253,11 +421,15 @@ class PdfReportGenerator {
   static pw.Widget _buildVisitTable(List<Visit> visits) {
     // Sort visits chronologically by parsing date
     final sortedVisits = List<Visit>.from(visits)
-      ..sort(
-        (a, b) => Utils.parseDateTime(
-          a.createdAt,
-        ).compareTo(Utils.parseDateTime(b.createdAt)),
-      );
+      ..sort((a, b) {
+        final dateA = a.orders.isNotEmpty && a.orders.first.orderDate.isNotEmpty
+            ? a.orders.first.orderDate
+            : a.createdAt;
+        final dateB = b.orders.isNotEmpty && b.orders.first.orderDate.isNotEmpty
+            ? b.orders.first.orderDate
+            : b.createdAt;
+        return Utils.parseDateTime(dateA).compareTo(Utils.parseDateTime(dateB));
+      });
 
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
@@ -289,9 +461,15 @@ class PdfReportGenerator {
           return pw.TableRow(
             children: [
               _tableCell(
-                v.createdAt.split(' ').length > 1
-                    ? v.createdAt.split(' ').sublist(1).join(' ')
-                    : v.createdAt,
+                (() {
+                  final displayDate =
+                      v.orders.isNotEmpty && v.orders.first.orderDate.isNotEmpty
+                      ? v.orders.first.orderDate
+                      : v.createdAt;
+                  return displayDate.split(' ').length > 1
+                      ? displayDate.split(' ').sublist(1).join(' ')
+                      : displayDate;
+                })(),
               ),
               _tableCell(v.placeName),
               _tableCell(v.channel),
@@ -326,6 +504,74 @@ class PdfReportGenerator {
     ),
   );
 
+  static pw.Widget _buildExternalClientsSection(
+    ExternalClientReportModel report,
+  ) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.SizedBox(height: 20),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(10),
+          decoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                "EXTERNAL CLIENTS ORDERS SUMMARY",
+                style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              pw.Text(
+                "Total orders: ${report.totalOrders}",
+                style: pw.TextStyle(color: PdfColors.white, fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 10),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+              children: [
+                _tableHeader("Time"),
+                _tableHeader("Client Name"),
+                _tableHeader("Item"),
+                _tableHeader("Qty"),
+                _tableHeader("Rate"),
+                _tableHeader("Amount"),
+              ],
+            ),
+            ...report.orders.expand((order) {
+              return order.items.asMap().entries.map((entry) {
+                final itemIndex = entry.key;
+                final item = entry.value;
+                return pw.TableRow(
+                  children: [
+                    _tableCell(itemIndex == 0 ? order.orderDate : ""),
+                    _tableCell(itemIndex == 0 ? (order.entityName ?? "") : ""),
+                    _tableCell(item.itemName),
+                    _tableCell((item.qtyPcs + item.qtyBox).toStringAsFixed(0)),
+                    _tableCell(item.rate.toStringAsFixed(0)),
+                    _tableCell(
+                      item.totalAmount.toStringAsFixed(0),
+                      align: pw.Alignment.centerRight,
+                    ),
+                  ],
+                );
+              });
+            }),
+          ],
+        ),
+      ],
+    );
+  }
+
   static pw.Widget _buildFooter(pw.Context context) {
     return pw.Column(
       children: [
@@ -334,7 +580,7 @@ class PdfReportGenerator {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(
-              "Generated by CENTREX",
+              "Generated by PAANI>",
               style: pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
             ),
             pw.Text(
