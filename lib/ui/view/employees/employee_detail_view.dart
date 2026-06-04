@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:developer';
+
 import 'package:centrex/core/controllers/employes_controller.dart';
 import 'package:centrex/core/extensions/routes.dart';
 import 'package:centrex/core/models/emp_working_detail_model.dart';
@@ -1059,12 +1061,17 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     String title,
     String subtitle,
     dynamic data,
-  ) {
+  ) async {
     final imageUrl = (data as dynamic).imageUrl as String? ?? '';
     final time = (data as dynamic).time as String? ?? 'N/A';
     final lat = (data as dynamic).latitude as String? ?? '';
     final lng = (data as dynamic).longitude as String? ?? '';
     final reason = (data as dynamic).reason as String?;
+
+    String address = await context
+        .read<EmployesController>()
+        .getAddressFromLatLng(double.parse(lat), double.parse(lng));
+    log("Address: $address");
 
     showModalBottomSheet(
       context: context,
@@ -1187,8 +1194,8 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                         1.5.height,
                         _sheetDetailItem(
                           Icons.location_on_rounded,
-                          "Coordinates",
-                          "$lat, $lng",
+                          "Location",
+                          address,
                         ),
                         if (reason != null && reason.trim().isNotEmpty) ...[
                           1.5.height,

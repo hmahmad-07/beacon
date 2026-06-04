@@ -3,6 +3,7 @@
 import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../constants/constants.dart';
 import 'package:intl/intl.dart';
@@ -403,5 +404,29 @@ class EmployesController extends ChangeNotifier {
   void setNavigating(bool val) {
     isNavigating = val;
     notifyListeners();
+  }
+
+  Future<String> getAddressFromLatLng(double latitude, double longitude) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        latitude,
+        longitude,
+      );
+
+      if (placemarks.isEmpty) {
+        return 'Address not found';
+      }
+
+      final place = placemarks.first;
+
+      return [
+        place.street,
+        place.subLocality,
+        place.locality,
+        place.administrativeArea,
+      ].where((e) => e != null && e.trim().isNotEmpty).join(', ');
+    } catch (e) {
+      return 'Unable to get address';
+    }
   }
 }

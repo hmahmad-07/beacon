@@ -74,20 +74,28 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
     return ListView(
       padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
       children: [
-        _shimmerBox(height: 12.h, width: double.infinity, borderRadius: 20),
+        _shimmerBox(height: 10.h, width: double.infinity, borderRadius: 2.r),
         2.height,
         ...List.generate(
-          3,
+          5,
           (index) => Padding(
             padding: EdgeInsets.only(bottom: 2.h),
-            child: _shimmerBox(height: 25.h, width: double.infinity, borderRadius: 16),
+            child: _shimmerBox(
+              height: 16.h,
+              width: double.infinity,
+              borderRadius: 2.r,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _shimmerBox({required double height, double? width, double borderRadius = 4}) {
+  Widget _shimmerBox({
+    required double height,
+    double? width,
+    double borderRadius = 4,
+  }) {
     return Shimmer.fromColors(
       baseColor: AppColor.grey.withValues(alpha: 0.1),
       highlightColor: AppColor.white.withValues(alpha: 0.5),
@@ -123,10 +131,12 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           _buildSummaryCard(report.totalOrders, totalRevenue),
-          ...report.orders.map((order) => Padding(
-                padding: EdgeInsets.symmetric(horizontal: 5.w),
-                child: _buildOrderCard(order),
-              )),
+          ...report.orders.map(
+            (order) => Padding(
+              padding: EdgeInsets.symmetric(horizontal: 5.w),
+              child: _buildOrderCard(order),
+            ),
+          ),
           5.height,
         ],
       ),
@@ -140,8 +150,10 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
         children: [
           Icon(Icons.shopping_bag_outlined, size: 15.w, color: AppColor.grey),
           2.height,
-          Text("No orders for this date",
-              style: TextStyle(fontSize: 4.sp, color: AppColor.grey)),
+          Text(
+            "No orders for this date",
+            style: TextStyle(fontSize: 4.sp, color: AppColor.grey),
+          ),
         ],
       ),
     );
@@ -161,7 +173,8 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
         itemCount: controller.dateRange.length,
         itemBuilder: (context, index) {
           final date = controller.dateRange[index];
-          final isSelected = DateFormat('yyyy-MM-dd').format(date) ==
+          final isSelected =
+              DateFormat('yyyy-MM-dd').format(date) ==
               DateFormat('yyyy-MM-dd').format(controller.externalReportDate);
 
           return GestureDetector(
@@ -178,8 +191,9 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
                         end: Alignment.bottomRight,
                       )
                     : null,
-                color:
-                    isSelected ? null : AppColor.scaffold.withValues(alpha: 0.5),
+                color: isSelected
+                    ? null
+                    : AppColor.scaffold.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(4.r),
                 boxShadow: isSelected ? AppShadow.soft : null,
               ),
@@ -201,7 +215,9 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
                     style: TextStyle(
                       fontSize: 4.2.sp,
                       fontWeight: FontWeight.w800,
-                      color: isSelected ? AppColor.white : AppColor.appDarkColor,
+                      color: isSelected
+                          ? AppColor.white
+                          : AppColor.appDarkColor,
                     ),
                   ),
                 ],
@@ -417,17 +433,23 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
   Widget _summaryColumn(String label, String value) {
     return Column(
       children: [
-        Text(label,
-            style: TextStyle(
-                color: Colors.white70,
-                fontSize: 2.2.sp,
-                fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 2.2.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         1.height,
-        Text(value,
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 4.sp,
-                fontWeight: FontWeight.w900)),
+        Text(
+          value,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 4.sp,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
       ],
     );
   }
@@ -459,9 +481,10 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
                       child: Text(
                         order.entityName?.toUpperCase() ?? "UNKNOWN CLIENT",
                         style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 3.8.sp,
-                            color: AppColor.appDarkColor),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 3.8.sp,
+                          color: AppColor.appDarkColor,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -472,39 +495,55 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
                 1.height,
                 Row(
                   children: [
-                    Icon(Icons.numbers_rounded, size: 3.w, color: AppColor.grey),
+                    Icon(
+                      Icons.numbers_rounded,
+                      size: 3.w,
+                      color: AppColor.grey,
+                    ),
                     1.width,
-                    Text("Entity No: ${order.entityNo ?? 'N/A'}",
-                        style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey)),
+                    Text(
+                      "Entity No: ${order.entityNo ?? 'N/A'}",
+                      style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey),
+                    ),
                     const Spacer(),
-                    Icon(Icons.access_time_filled_rounded,
-                        size: 3.w, color: AppColor.grey),
+                    Icon(
+                      Icons.access_time_filled_rounded,
+                      size: 3.w,
+                      color: AppColor.grey,
+                    ),
                     1.width,
-                    Text(order.orderDate,
-                        style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey)),
+                    Text(
+                      order.orderDate,
+                      style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey),
+                    ),
                   ],
                 ),
                 const Divider(),
-                ...order.items.map((item) => Padding(
-                      padding: EdgeInsets.symmetric(vertical: 0.5.h),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              "${item.itemName} (x${(item.qtyPcs + item.qtyBox).toInt()})",
-                              style: TextStyle(
-                                  fontSize: 2.8.sp,
-                                  fontWeight: FontWeight.w600),
+                ...order.items.map(
+                  (item) => Padding(
+                    padding: EdgeInsets.symmetric(vertical: 0.5.h),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            "${item.itemName} (x${(item.qtyPcs + item.qtyBox).toInt()})",
+                            style: TextStyle(
+                              fontSize: 2.8.sp,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          Text(
-                            "PKR ${item.totalAmount.toStringAsFixed(0)}",
-                            style: TextStyle(
-                                fontSize: 2.8.sp, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          "PKR ${item.totalAmount.toStringAsFixed(0)}",
+                          style: TextStyle(
+                            fontSize: 2.8.sp,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ),
-                    )),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -512,21 +551,29 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
             padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
             decoration: BoxDecoration(
               color: AppColor.scaffold.withValues(alpha: 0.5),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(16),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("ORDER TOTAL",
-                    style: TextStyle(
-                        fontSize: 2.5.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColor.grey)),
-                Text("PKR ${orderTotal.toStringAsFixed(0)}",
-                    style: TextStyle(
-                        fontSize: 3.5.sp,
-                        fontWeight: FontWeight.w900,
-                        color: AppColor.appColor1)),
+                Text(
+                  "ORDER TOTAL",
+                  style: TextStyle(
+                    fontSize: 2.5.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColor.grey,
+                  ),
+                ),
+                Text(
+                  "PKR ${orderTotal.toStringAsFixed(0)}",
+                  style: TextStyle(
+                    fontSize: 3.5.sp,
+                    fontWeight: FontWeight.w900,
+                    color: AppColor.appColor1,
+                  ),
+                ),
               ],
             ),
           ),
@@ -546,7 +593,10 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
       child: Text(
         productive ? "PRODUCTIVE" : "NON-PRODUCTIVE",
         style: TextStyle(
-            color: color, fontSize: 2.2.sp, fontWeight: FontWeight.bold),
+          color: color,
+          fontSize: 2.2.sp,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

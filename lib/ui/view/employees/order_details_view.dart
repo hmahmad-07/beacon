@@ -11,7 +11,6 @@ class OrderDetailsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Implementing LOCAL calculations strictly using API raw values
     double calculatedSubtotal = 0;
     for (var order in visit.orders) {
       for (var item in order.items) {

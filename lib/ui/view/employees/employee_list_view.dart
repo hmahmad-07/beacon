@@ -279,13 +279,10 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                     mainAxisSpacing: 4.w,
                     childAspectRatio: 0.72,
                   ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final user = employees[index];
-                      return _buildEmployeeCard(context, user);
-                    },
-                    childCount: employees.length,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final user = employees[index];
+                    return _buildEmployeeCard(context, user);
+                  }, childCount: employees.length),
                 ),
               ),
               if (widget.department.toLowerCase().contains("sales") ||

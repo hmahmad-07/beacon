@@ -24,14 +24,11 @@ class EmployeeRouteMapView extends StatefulWidget {
 
 class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
   late GoogleMapController _controller;
-  final DraggableScrollableController _sheetController =
-      DraggableScrollableController();
   final List<LatLng> _points = [];
 
   @override
   void initState() {
     super.initState();
-    // Clear old map data when entering
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EmployesController>().clearMapData();
       _initMapData();
@@ -60,12 +57,15 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
 
     _points.clear();
 
-    // Sort visits chronologically
-    widget.detail.visits.sort(
-      (a, b) => Utils.parseDateTime(
-        a.createdAt,
-      ).compareTo(Utils.parseDateTime(b.createdAt)),
-    );
+    widget.detail.visits.sort((a, b) {
+      final dateA = a.orders.isNotEmpty && a.orders.first.orderDate.isNotEmpty
+          ? a.orders.first.orderDate
+          : a.createdAt;
+      final dateB = b.orders.isNotEmpty && b.orders.first.orderDate.isNotEmpty
+          ? b.orders.first.orderDate
+          : b.createdAt;
+      return Utils.parseDateTime(dateA).compareTo(Utils.parseDateTime(dateB));
+    });
 
     if (widget.detail.checkin != null &&
         widget.detail.checkin!.latitude.isNotEmpty &&
@@ -111,7 +111,8 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               position: pos,
               infoWindow: InfoWindow(
                 title: visit.placeName,
-                snippet: "Visit Time: ${visit.createdAt}",
+                snippet:
+                    "Visit Time: ${visit.orders.isNotEmpty && visit.orders.first.orderDate.isNotEmpty ? visit.orders.first.orderDate : visit.createdAt}",
               ),
               icon: BitmapDescriptor.defaultMarkerWithHue(
                 BitmapDescriptor.hueAzure,
@@ -260,22 +261,87 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
     );
   }
 
-  void _toggleSheet() {
-    final controller = context.read<EmployesController>();
-    controller.toggleSheetVisible();
-    if (controller.isSheetVisible) {
-      _sheetController.animateTo(
-        0.5,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeOut,
-      );
-    } else {
-      _sheetController.animateTo(
-        0.0,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeIn,
-      );
-    }
+  void _showJourneyTimeline() {
+    final sortedVisits = List<Visit>.from(widget.detail.visits)
+      ..sort((a, b) {
+        final dateA = a.orders.isNotEmpty && a.orders.first.orderDate.isNotEmpty
+            ? a.orders.first.orderDate
+            : a.createdAt;
+        final dateB = b.orders.isNotEmpty && b.orders.first.orderDate.isNotEmpty
+            ? b.orders.first.orderDate
+            : b.createdAt;
+        return Utils.parseDateTime(dateA).compareTo(Utils.parseDateTime(dateB));
+      });
+
+    final List<dynamic> events = [
+      if (widget.detail.checkin != null) widget.detail.checkin!,
+      ...sortedVisits,
+      if (widget.detail.checkout != null) widget.detail.checkout!,
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.5,
+      ),
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: AppColor.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 20,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(6.w, 1.5.h, 6.w, 0.5.h),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Journey Intelligence",
+                    style: TextStyle(
+                      fontSize: 4.2.sp,
+                      fontWeight: FontWeight.bold,
+                      color: AppColor.appDarkColor,
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AppColor.grey,
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.builder(
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  final event = events[index];
+                  return _buildTimelineItem(
+                    ctx,
+                    event,
+                    index,
+                    index == events.length - 1,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -301,9 +367,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                 polygons: controller.polygons,
                 myLocationButtonEnabled: false,
                 zoomControlsEnabled: false,
-                onTap: (_) {
-                  if (controller.isSheetVisible) _toggleSheet();
-                },
+                onTap: (_) {},
               );
             },
           ),
@@ -361,7 +425,6 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               widget.detail.checkin != null ||
               widget.detail.checkout != null)
             _buildTimelineToggleButton(),
-          _buildDraggableSheet(),
         ],
       ),
     );
@@ -479,7 +542,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
       right: 0,
       child: Center(
         child: GestureDetector(
-          onTap: _toggleSheet,
+          onTap: _showJourneyTimeline,
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
             decoration: BoxDecoration(
@@ -504,7 +567,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                   "Field Journey Timeline",
                   style: TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.bold,
                     fontSize: 3.5.sp,
                   ),
                 ),
@@ -516,81 +579,12 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
     );
   }
 
-  Widget _buildDraggableSheet() {
-    final List<dynamic> events = [
-      if (widget.detail.checkin != null) widget.detail.checkin!,
-      ...widget.detail.visits,
-      if (widget.detail.checkout != null) widget.detail.checkout!,
-    ];
-
-    return DraggableScrollableSheet(
-      controller: _sheetController,
-      initialChildSize: 0.0,
-      minChildSize: 0.0,
-      maxChildSize: 0.5,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: AppColor.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 20,
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Fixed Header
-              Padding(
-                padding: EdgeInsets.fromLTRB(6.w, 1.5.h, 6.w, 0.5.h),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Journey Intelligence",
-                      style: TextStyle(
-                        fontSize: 4.2.sp,
-                        fontWeight: FontWeight.w900,
-                        color: AppColor.appDarkColor,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _toggleSheet,
-                      icon: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: AppColor.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              // Scrollable Content
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
-                  itemCount: events.length,
-                  itemBuilder: (context, index) {
-                    final event = events[index];
-                    return _buildTimelineItem(
-                      event,
-                      index,
-                      index == events.length - 1,
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTimelineItem(dynamic item, int index, bool isLast) {
+  Widget _buildTimelineItem(
+    BuildContext sheetContext,
+    dynamic item,
+    int index,
+    bool isLast,
+  ) {
     String title = "";
     String subtitle = "";
     IconData icon = Icons.location_on_rounded;
@@ -620,7 +614,8 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
       );
     } else if (item is Visit) {
       title = item.placeName;
-      subtitle = "Reached at: ${item.createdAt}";
+      subtitle =
+          "Reached at: ${item.orders.isNotEmpty && item.orders.first.orderDate.isNotEmpty ? item.orders.first.orderDate : item.createdAt}";
       icon = Icons.store_rounded;
       color = AppColor.appColor1;
       markerId = 'visit_${item.id}';
@@ -658,11 +653,11 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
               padding: EdgeInsets.only(bottom: 3.h),
               child: GestureDetector(
                 onTap: () {
+                  Navigator.pop(sheetContext);
                   _controller.animateCamera(
                     CameraUpdate.newLatLngZoom(pos!, 16.5),
                   );
                   _controller.showMarkerInfoWindow(MarkerId(markerId));
-                  _toggleSheet();
                 },
                 child: Container(
                   padding: EdgeInsets.all(4.w),
