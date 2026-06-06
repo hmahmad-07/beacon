@@ -1,4 +1,6 @@
-import 'ui/view/splash_view.dart';
+import 'package:centrex/core/controllers/connectivity_controller.dart';
+import 'package:centrex/firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'core/extensions/sizer.dart';
 import 'core/extensions/routes.dart';
 import 'package:flutter/services.dart';
@@ -7,13 +9,14 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'core/network/internet_connectivity.dart';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/core/controllers/connectivity_controller.dart';
+import 'ui/view/splash_view.dart';
 import 'package:centrex/core/controllers/auth_controller.dart';
 import 'package:centrex/core/controllers/employes_controller.dart';
+import 'package:centrex/core/resources/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -24,6 +27,8 @@ Future<void> main() async {
       statusBarIconBrightness: Brightness.light,
     ),
   );
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(Phoenix(child: const MyApp()));
 }

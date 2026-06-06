@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "744026879062",
+    "project_id": "beacon-8f765",
+    "storage_bucket": "beacon-8f765.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:744026879062:android:89136dd98b83471f0bf7f7",
+        "android_client_info": {
+          "package_name": "com.mtm.centrex.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbf8aCXdk7coAoW8zcBpER_XC3-2BLIrI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
