@@ -398,8 +398,11 @@ class _HomeViewState extends State<HomeView> {
 
   IconData _getDeptIcon(String dept) {
     final d = dept.toLowerCase();
-    if (d.contains("it")) return BoxIcons.bx_code_alt;
-    if (d.contains("internal audit")) return BoxIcons.bx_shield_alt;
+    if (d.contains("kitchen")) return IonIcons.restaurant;
+    if (d.contains("internal audit") || d.contains("audit")) {
+      return BoxIcons.bx_clipboard;
+    }
+    if (RegExp(r"\bit\b").hasMatch(d)) return BoxIcons.bx_laptop;
     if (d.contains("sales")) return BoxIcons.bx_bar_chart_alt;
     if (d.contains("admin")) return BoxIcons.bx_shield;
     if (d.contains("hr") || d.contains("human")) return BoxIcons.bx_user;
