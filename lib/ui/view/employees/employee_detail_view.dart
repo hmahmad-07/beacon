@@ -597,8 +597,27 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
             .where((v) => v.orders.any((o) => o.isProductive))
             .length ??
         0;
+    // Per user's request: non-productive = visits with NO orders
+    final nonProductive =
+        detail?.visits.where((v) => v.orders.isEmpty).length ?? 0;
+    // Other visits: have orders but none are productive
+    final otherVisits =
+        detail?.visits
+            .where(
+              (v) =>
+                  v.orders.isNotEmpty && v.orders.every((o) => !o.isProductive),
+            )
+            .length ??
+        0;
     final total = detail?.totalVisits ?? 0;
-    final percent = total > 0 ? (productive / total) * 100 : 0.0;
+    final productivePercent = total > 0 ? (productive / total) * 100 : 0.0;
+
+    // Use counts as values for the PieChart sections so proportions reflect actual visit counts
+    final sectionValues = [
+      productive.toDouble(),
+      nonProductive.toDouble(),
+      otherVisits.toDouble(),
+    ];
 
     return Container(
       padding: EdgeInsets.all(5.w),
@@ -622,13 +641,19 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     sections: [
                       PieChartSectionData(
                         color: AppColor.green,
-                        value: percent > 0 ? percent : 0.1,
+                        value: sectionValues[0] > 0 ? sectionValues[0] : 0.1,
                         radius: 10,
                         showTitle: false,
                       ),
                       PieChartSectionData(
-                        color: AppColor.scaffold,
-                        value: 100 - percent,
+                        color: AppColor.red,
+                        value: sectionValues[1] > 0 ? sectionValues[1] : 0.1,
+                        radius: 10,
+                        showTitle: false,
+                      ),
+                      PieChartSectionData(
+                        color: AppColor.appColor1,
+                        value: sectionValues[2] > 0 ? sectionValues[2] : 0.1,
                         radius: 10,
                         showTitle: false,
                       ),
@@ -639,7 +664,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      "${percent.toStringAsFixed(0)}%",
+                      "${productivePercent.toStringAsFixed(0)}%",
                       style: TextStyle(
                         fontSize: 4.5.sp,
                         fontWeight: FontWeight.w900,
@@ -679,10 +704,10 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                 ),
                 1.height,
                 _analyticRowPremium(
-                  "Coverage Score",
-                  "${percent.toStringAsFixed(1)}%",
-                  AppColor.appColor1,
-                  Icons.auto_graph_rounded,
+                  "Non-productive (No orders)",
+                  nonProductive.toString(),
+                  AppColor.red,
+                  Icons.block_rounded,
                 ),
               ],
             ),
@@ -705,19 +730,25 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
       3.width,
       Expanded(
         child: Row(
-          mainAxisAlignment: .spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              l,
-              style: TextStyle(
-                fontSize: 3.5.sp,
-                color: AppColor.appDarkColor,
-                fontWeight: FontWeight.normal,
+            Expanded(
+              child: Text(
+                l,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 3.5.sp,
+                  color: AppColor.appDarkColor,
+                  fontWeight: FontWeight.normal,
+                ),
               ),
             ),
             Text(
               v,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              textAlign: TextAlign.right,
               style: TextStyle(
                 fontSize: 4.sp,
                 color: c,
