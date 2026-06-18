@@ -2,7 +2,6 @@ import 'package:centrex/ui/components/loading_view.dart';
 import 'package:centrex/core/controllers/employes_controller.dart';
 import 'package:centrex/core/extensions/routes.dart';
 import 'package:centrex/core/utils/utils.dart';
-import 'package:centrex/ui/view/dashboard/home_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/controllers/auth_controller.dart';
@@ -277,6 +276,7 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
                                   title: "SIGN IN",
                                   isLoading: authVC.isLoading,
                                   buttonColor: AppColor.appColor1,
+
                                   onPress: () async {
                                     if (authVC
                                             .employeeCodeController
@@ -299,24 +299,18 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
                                       ),
                                     );
 
-                                    try {
-                                      await authVC.login(context);
-                                      if (context.mounted) {
-                                        final empController = context
-                                            .read<EmployesController>();
-                                        await empController.fetchEmployees(
-                                          context,
-                                        );
-                                      }
-                                      if (context.mounted) {
-                                        AppRoutes.pushAndRemoveAll(
-                                          const HomeView(),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        Navigator.pop(context);
-                                      }
+                                    final success = await authVC.login(context);
+
+                                    if (!success && context.mounted) {
+                                      Navigator.pop(context);
+                                    }
+
+                                    if (success && context.mounted) {
+                                      final empController = context
+                                          .read<EmployesController>();
+                                      await empController.fetchEmployees(
+                                        context,
+                                      );
                                     }
                                   },
                                 ),

@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../ui/view/dashboard/home_view.dart';
 import '../../ui/view/splash_view.dart';
 import '../constants/constants.dart';
 import '../extensions/routes.dart';
@@ -31,7 +32,7 @@ class AuthController extends ChangeNotifier {
   final employeeCodeController = TextEditingController();
   final passwordController = TextEditingController();
 
-  Future<void> login(BuildContext context) async {
+  Future<bool> login(BuildContext context) async {
     try {
       isLoading = true;
       notifyListeners();
@@ -43,7 +44,6 @@ class AuthController extends ChangeNotifier {
       };
 
       final dio = Dio();
-
       final response = await dio.post(
         '${Constants.baseUrl}login_api_cspmobile_user.php',
         data: formData,
@@ -63,26 +63,45 @@ class AuthController extends ChangeNotifier {
             context,
             data['error_msg']?.toString() ?? 'Login successful!',
           );
-
           await saveUserData(data);
+
+          if (context.mounted) {
+            AppRoutes.pushAndRemoveAll(const HomeView());
+          }
 
           employeeCodeController.clear();
           passwordController.clear();
+          return true;
         } else {
-          Utils.showSnackBar(context, data['error_msg'] ?? 'Login failed');
+          if (context.mounted) {
+            Utils.showSnackBar(context, data['error_msg'] ?? 'Login failed');
+          }
+          return false;
         }
       }
+      return false;
     } on DioException catch (e) {
       log('Dio error: ${e.response?.data}');
-
-      Utils.showSnackBar(
-        context,
-        e.response?.data?['error_msg'] ?? 'Login failed. Check credentials',
-      );
+      if (context.mounted) {
+        try {
+          Utils.showSnackBar(
+            context,
+            e.response?.data is Map
+                ? (e.response?.data['error_msg'] ??
+                      'Login failed. Check credentials')
+                : 'Login failed. Check credentials',
+          );
+        } catch (_) {}
+      }
+      return false;
     } catch (e) {
       log('Unexpected error: $e');
-
-      Utils.showSnackBar(context, 'Something went wrong');
+      if (context.mounted) {
+        try {
+          Utils.showSnackBar(context, 'Something went wrong');
+        } catch (_) {}
+      }
+      return false;
     } finally {
       isLoading = false;
       notifyListeners();
