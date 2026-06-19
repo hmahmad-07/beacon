@@ -13,13 +13,28 @@ import 'package:centrex/core/extensions/sizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/extensions/routes.dart';
 
-class VisitDetailsListView extends StatelessWidget {
+class VisitDetailsListView extends StatefulWidget {
   final List<Visit> visits;
   const VisitDetailsListView({super.key, required this.visits});
 
   @override
+  State<VisitDetailsListView> createState() => _VisitDetailsListViewState();
+}
+
+class _VisitDetailsListViewState extends State<VisitDetailsListView> {
+  String extractDuration(String remarks) {
+    final match = RegExp(r'\((\d+)m(\d+)s\)').firstMatch(remarks);
+    if (match != null) {
+      final minutes = int.parse(match.group(1)!);
+      final seconds = int.parse(match.group(2)!);
+      return '$minutes min $seconds Sec';
+    }
+    return '';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final sortedVisits = List<Visit>.from(visits)
+    final sortedVisits = List<Visit>.from(widget.visits)
       ..sort((a, b) {
         final dateA = a.orders.isNotEmpty && a.orders.first.orderDate.isNotEmpty
             ? a.orders.first.orderDate
@@ -76,7 +91,13 @@ class VisitDetailsListView extends StatelessWidget {
 
   Widget _buildVisitCard(BuildContext context, Visit visit) {
     bool isProductive = visit.orders.any((o) => o.isProductive);
-    log(visit.createdAt);
+    String remarks =
+        visit.orders.isNotEmpty && visit.orders.first.remarks != null
+        ? visit.orders.first.remarks!
+        : visit.remarks ?? '';
+
+    String stayTime = extractDuration(remarks);
+
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
       decoration: BoxDecoration(
@@ -93,7 +114,7 @@ class VisitDetailsListView extends StatelessWidget {
               children: [
                 _buildImageThumbnail(context, visit.photos),
                 3.width,
-                Container(width: 1.5, height: 12.h, color: AppColor.scaffold),
+                Container(width: 1.5, height: 15.h, color: AppColor.scaffold),
                 3.width,
                 Expanded(
                   child: Column(
@@ -110,11 +131,11 @@ class VisitDetailsListView extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      0.8.height,
+                      0.7.height,
                       _detailRow(Icons.person_rounded, visit.ownerName),
-                      0.5.height,
+                      0.3.height,
                       _detailRow(Icons.category_rounded, visit.channel),
-                      0.5.height,
+                      0.3.height,
                       _detailRow(
                         Icons.event_note_rounded,
                         visit.orders.isNotEmpty &&
@@ -122,7 +143,9 @@ class VisitDetailsListView extends StatelessWidget {
                             ? visit.orders.first.orderDate
                             : visit.createdAt,
                       ),
-                      0.5.height,
+                      0.3.height,
+                      _detailRow(Icons.timer_rounded, "Stay Time: $stayTime"),
+                      0.7.height,
                       _detailRow(
                         Icons.location_on_rounded,
                         visit.address,
@@ -137,7 +160,6 @@ class VisitDetailsListView extends StatelessWidget {
 
           Divider(height: 1, color: AppColor.scaffold, thickness: 1),
 
-          // Bottom Action Grid
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.w),
             child: Row(
@@ -181,47 +203,52 @@ class VisitDetailsListView extends StatelessWidget {
       onTap: hasPhotos
           ? () => AppRoutes.push(FullScreenImageViewer(images: photos))
           : null,
-      child: Container(
-        width: 25.w,
-        height: 12.h,
-        decoration: BoxDecoration(
-          color: AppColor.scaffold,
-          borderRadius: BorderRadius.circular(4.r),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(4.r),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (hasPhotos)
-                CachedNetworkImage(
-                  imageUrl: photos[0],
-                  fit: BoxFit.cover,
-                  errorWidget: (c, u, e) =>
-                      Icon(Icons.broken_image, color: AppColor.grey),
-                )
-              else
-                Icon(
-                  Icons.image_not_supported_rounded,
-                  color: AppColor.grey,
-                  size: 8.w,
-                ),
+      child: InkWell(
+        onTap: () {
+          log("Visit has $photos photos");
+        },
+        child: Container(
+          width: 30.w,
+          height: 15.h,
+          decoration: BoxDecoration(
+            color: AppColor.scaffold,
+            borderRadius: BorderRadius.circular(4.r),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4.r),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (hasPhotos)
+                  CachedNetworkImage(
+                    imageUrl: photos[0],
+                    fit: BoxFit.cover,
+                    errorWidget: (c, u, e) =>
+                        Icon(Icons.broken_image, color: AppColor.grey),
+                  )
+                else
+                  Icon(
+                    Icons.image_not_supported_rounded,
+                    color: AppColor.grey,
+                    size: 8.w,
+                  ),
 
-              if (photos.length > 1)
-                Container(
-                  color: Colors.black45,
-                  child: Center(
-                    child: Text(
-                      "+${photos.length - 1}",
-                      style: TextStyle(
-                        color: AppColor.white,
-                        fontSize: 3.5.sp,
-                        fontWeight: FontWeight.bold,
+                if (photos.length > 1)
+                  Container(
+                    color: Colors.black45,
+                    child: Center(
+                      child: Text(
+                        "+${photos.length - 1}",
+                        style: TextStyle(
+                          color: AppColor.white,
+                          fontSize: 3.5.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -231,7 +258,7 @@ class VisitDetailsListView extends StatelessWidget {
   Widget _detailRow(IconData icon, String text, {bool isAddress = false}) {
     return Row(
       children: [
-        Icon(icon, size: 2.8.w, color: AppColor.grey.withValues(alpha: 0.7)),
+        Icon(icon, size: 2.8.w, color: AppColor.appColor2),
         1.5.width,
         Expanded(
           child: Text(
