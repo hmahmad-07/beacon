@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:centrex/core/controllers/employes_controller.dart';
 import 'package:centrex/core/models/external_client_model.dart';
 import 'package:centrex/core/resources/app_colors.dart';
@@ -5,6 +7,7 @@ import 'package:centrex/ui/components/app_constants.dart';
 import 'package:centrex/core/utils/pdf_report_generator.dart';
 import 'package:centrex/ui/components/custom_appbar.dart';
 import 'package:centrex/ui/components/custom_month_picker.dart';
+import 'package:centrex/ui/components/custom_date_range_picker.dart';
 import 'package:centrex/ui/view/employees/pdf_preview_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -234,6 +237,7 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
     EmployesController controller,
   ) async {
     DateTime selectedMonth = DateTime.now();
+    DateTimeRange? customRange;
 
     bool? shouldGenerate = await showDialog<bool>(
       context: context,
@@ -274,7 +278,51 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
                     fieldTitle: "Sales Month",
                     selectedMonth: tempMonth,
                     onMonthSelected: (date) {
-                      setDialogState(() => tempMonth = date);
+                      setDialogState(() {
+                        tempMonth = date;
+                        customRange = null; // Clear range if month is picked
+                      });
+                    },
+                  ),
+                  2.height,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: AppColor.grey.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2.w),
+                        child: Text(
+                          "OR",
+                          style: TextStyle(
+                            color: AppColor.grey,
+                            fontSize: 3.sp,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: AppColor.grey.withValues(alpha: 0.3),
+                        ),
+                      ),
+                    ],
+                  ),
+                  2.height,
+                  CustomDateRangePicker(
+                    hint: "Select Range",
+                    fieldTitle: "Custom Range",
+                    selectedRange: customRange,
+                    onClear: () {
+                      setDialogState(() {
+                        customRange = null;
+                      });
+                    },
+                    onRangeSelected: (range) {
+                      setDialogState(() {
+                        customRange = range;
+                      });
                     },
                   ),
                 ],
@@ -318,8 +366,28 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
 
     if (shouldGenerate != true) return;
 
+    DateTime startDate;
+    DateTime endDate;
+    String dateRangeText;
+
+    if (customRange != null) {
+      startDate = customRange!.start;
+      endDate = customRange!.end;
+      dateRangeText =
+          "${DateFormat('dd MMM yyyy').format(startDate)} to ${DateFormat('dd MMM yyyy').format(endDate)}";
+    } else {
+      final now = DateTime.now();
+      startDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
+      final isCurrentMonth =
+          selectedMonth.year == now.year && selectedMonth.month == now.month;
+      endDate = isCurrentMonth
+          ? now
+          : DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
+      dateRangeText = DateFormat('MMMM yyyy').format(selectedMonth);
+    }
+
     int currentDay = 0;
-    int totalDays = 0;
+    int totalDays = endDate.difference(startDate).inDays + 1;
     StateSetter? updateDialog;
 
     showDialog(
@@ -348,7 +416,7 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
                 ),
                 1.5.height,
                 Text(
-                  "Analyzing external sales for ${DateFormat('MMMM').format(selectedMonth)}...",
+                  "Analyzing external sales for $dateRangeText...",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColor.grey, fontSize: 3.sp),
                 ),
@@ -375,12 +443,12 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
     try {
       final reports = await controller.fetchExternalMonthlyData(
         context,
-        selectedMonth,
+        startDate,
+        endDate,
         (day, total) {
           if (updateDialog != null) {
             updateDialog!(() {
               currentDay = day;
-              totalDays = total;
             });
           }
         },
@@ -389,17 +457,20 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
       if (Navigator.canPop(context)) Navigator.pop(context);
 
       if (reports.isEmpty) {
-        Utils.showSnackBar(context, "No external orders found for this month.");
+        Utils.showSnackBar(
+          context,
+          "No external orders found for this period.",
+        );
         return;
       }
 
       final bytes = await PdfReportGenerator.generateMonthlyExternalReport(
         reports: reports,
-        month: selectedMonth,
+        dateRangeText: dateRangeText,
       );
 
       final fileName =
-          "External_Monthly_${DateFormat('MMM_yyyy').format(selectedMonth)}.pdf";
+          "External_Monthly_${dateRangeText.replaceAll(' ', '_')}.pdf";
 
       AppRoutes.push(PdfPreviewView(pdfBytes: bytes, fileName: fileName));
     } catch (e) {

@@ -96,7 +96,7 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
         ? visit.orders.first.remarks!
         : visit.remarks ?? '';
 
-    String stayTime = extractDuration(remarks);
+    String stayTime = (remarks);
 
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
@@ -203,52 +203,47 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
       onTap: hasPhotos
           ? () => AppRoutes.push(FullScreenImageViewer(images: photos))
           : null,
-      child: InkWell(
-        onTap: () {
-          log("Visit has $photos photos");
-        },
-        child: Container(
-          width: 30.w,
-          height: 15.h,
-          decoration: BoxDecoration(
-            color: AppColor.scaffold,
-            borderRadius: BorderRadius.circular(4.r),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(4.r),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (hasPhotos)
-                  CachedNetworkImage(
-                    imageUrl: photos[0],
-                    fit: BoxFit.cover,
-                    errorWidget: (c, u, e) =>
-                        Icon(Icons.broken_image, color: AppColor.grey),
-                  )
-                else
-                  Icon(
-                    Icons.image_not_supported_rounded,
-                    color: AppColor.grey,
-                    size: 8.w,
-                  ),
+      child: Container(
+        width: 30.w,
+        height: 15.h,
+        decoration: BoxDecoration(
+          color: AppColor.scaffold,
+          borderRadius: BorderRadius.circular(4.r),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4.r),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (hasPhotos)
+                CachedNetworkImage(
+                  imageUrl: photos[0],
+                  fit: BoxFit.cover,
+                  errorWidget: (c, u, e) =>
+                      Icon(Icons.broken_image, color: AppColor.grey),
+                )
+              else
+                Icon(
+                  Icons.image_not_supported_rounded,
+                  color: AppColor.grey,
+                  size: 8.w,
+                ),
 
-                if (photos.length > 1)
-                  Container(
-                    color: Colors.black45,
-                    child: Center(
-                      child: Text(
-                        "+${photos.length - 1}",
-                        style: TextStyle(
-                          color: AppColor.white,
-                          fontSize: 3.5.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
+              if (photos.length > 1)
+                Container(
+                  color: Colors.black45,
+                  child: Center(
+                    child: Text(
+                      "+${photos.length - 1}",
+                      style: TextStyle(
+                        color: AppColor.white,
+                        fontSize: 3.5.sp,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
       ),

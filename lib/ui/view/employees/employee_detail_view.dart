@@ -18,6 +18,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:centrex/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
 import 'package:centrex/ui/components/custom_month_picker.dart';
+import 'package:centrex/ui/components/custom_date_range_picker.dart';
 import 'package:centrex/core/utils/pdf_report_generator.dart';
 import 'package:centrex/ui/view/employees/pdf_preview_view.dart';
 import 'package:provider/provider.dart';
@@ -171,6 +172,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     EmployesController controller,
   ) async {
     DateTime selectedMonth = DateTime.now();
+    DateTimeRange? customRange;
 
     bool? shouldGenerate = await showDialog<bool>(
       context: context,
@@ -211,7 +213,51 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     fieldTitle: "Audit Month",
                     selectedMonth: tempMonth,
                     onMonthSelected: (date) {
-                      setDialogState(() => tempMonth = date);
+                      setDialogState(() {
+                        tempMonth = date;
+                        customRange = null; // Clear range if month is picked
+                      });
+                    },
+                  ),
+                  2.height,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: AppColor.grey.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2.w),
+                        child: Text(
+                          "OR",
+                          style: TextStyle(
+                            color: AppColor.grey,
+                            fontSize: 3.sp,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: AppColor.grey.withValues(alpha: 0.3),
+                        ),
+                      ),
+                    ],
+                  ),
+                  2.height,
+                  CustomDateRangePicker(
+                    hint: "Select Range",
+                    fieldTitle: "Custom Range",
+                    selectedRange: customRange,
+                    onClear: () {
+                      setDialogState(() {
+                        customRange = null;
+                      });
+                    },
+                    onRangeSelected: (range) {
+                      setDialogState(() {
+                        customRange = range;
+                      });
                     },
                   ),
                 ],
@@ -255,8 +301,28 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
 
     if (shouldGenerate != true) return;
 
+    DateTime startDate;
+    DateTime endDate;
+    String dateRangeText;
+
+    if (customRange != null) {
+      startDate = customRange!.start;
+      endDate = customRange!.end;
+      dateRangeText =
+          "${DateFormat('dd MMM yyyy').format(startDate)} to ${DateFormat('dd MMM yyyy').format(endDate)}";
+    } else {
+      final now = DateTime.now();
+      startDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
+      final isCurrentMonth =
+          selectedMonth.year == now.year && selectedMonth.month == now.month;
+      endDate = isCurrentMonth
+          ? now
+          : DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
+      dateRangeText = DateFormat('MMMM yyyy').format(selectedMonth);
+    }
+
     int currentDay = 0;
-    int totalDays = 0;
+    int totalDays = endDate.difference(startDate).inDays + 1;
     StateSetter? updateDialog;
 
     showDialog(
@@ -285,7 +351,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                 ),
                 1.5.height,
                 Text(
-                  "Analyzing performance for ${DateFormat('MMMM').format(selectedMonth)}...",
+                  "Analyzing performance for $dateRangeText...",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColor.grey, fontSize: 3.sp),
                 ),
@@ -313,12 +379,12 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
       final reports = await controller.fetchMonthlyData(
         context,
         widget.user.userId!,
-        selectedMonth,
+        startDate,
+        endDate,
         (day, total) {
           if (updateDialog != null) {
             updateDialog!(() {
               currentDay = day;
-              totalDays = total;
             });
           }
         },
@@ -327,18 +393,21 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
       if (Navigator.canPop(context)) Navigator.pop(context);
 
       if (reports.isEmpty) {
-        Utils.showSnackBar(context, "No working records found for this month.");
+        Utils.showSnackBar(
+          context,
+          "No working records found for this period.",
+        );
         return;
       }
 
       final bytes = await PdfReportGenerator.generateMonthlyEmployeeReport(
         user: widget.user,
         reports: reports,
-        month: selectedMonth,
+        dateRangeText: dateRangeText,
       );
 
       final fileName =
-          "${widget.user.userName?.replaceAll(' ', '_')}_${DateFormat('MMM_yyyy').format(selectedMonth)}.pdf";
+          "${widget.user.userName?.replaceAll(' ', '_')}_${dateRangeText.replaceAll(' ', '_')}.pdf";
 
       AppRoutes.push(PdfPreviewView(pdfBytes: bytes, fileName: fileName));
     } catch (e) {
@@ -592,32 +661,17 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
   }
 
   Widget _buildRichAnalyticsCard(EmployesWorkingDetailModel? detail) {
+    final total = detail?.visits.length ?? 0;
+
     final productive =
         detail?.visits
             .where((v) => v.orders.any((o) => o.isProductive))
             .length ??
         0;
-    // Per user's request: non-productive = visits with NO orders
-    final nonProductive =
-        detail?.visits.where((v) => v.orders.isEmpty).length ?? 0;
-    // Other visits: have orders but none are productive
-    final otherVisits =
-        detail?.visits
-            .where(
-              (v) =>
-                  v.orders.isNotEmpty && v.orders.every((o) => !o.isProductive),
-            )
-            .length ??
-        0;
-    final total = detail?.totalVisits ?? 0;
-    final productivePercent = total > 0 ? (productive / total) * 100 : 0.0;
 
-    // Use counts as values for the PieChart sections so proportions reflect actual visit counts
-    final sectionValues = [
-      productive.toDouble(),
-      nonProductive.toDouble(),
-      otherVisits.toDouble(),
-    ];
+    final nonProductive = total - productive;
+
+    final productivePercent = total > 0 ? (productive / total) * 100 : 0.0;
 
     return Container(
       padding: EdgeInsets.all(5.w),
@@ -641,19 +695,15 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     sections: [
                       PieChartSectionData(
                         color: AppColor.green,
-                        value: sectionValues[0] > 0 ? sectionValues[0] : 0.1,
+                        value: productive > 0 ? productive.toDouble() : 0.01,
                         radius: 10,
                         showTitle: false,
                       ),
                       PieChartSectionData(
                         color: AppColor.red,
-                        value: sectionValues[1] > 0 ? sectionValues[1] : 0.1,
-                        radius: 10,
-                        showTitle: false,
-                      ),
-                      PieChartSectionData(
-                        color: AppColor.appColor1,
-                        value: sectionValues[2] > 0 ? sectionValues[2] : 0.1,
+                        value: nonProductive > 0
+                            ? nonProductive.toDouble()
+                            : 0.01,
                         radius: 10,
                         showTitle: false,
                       ),
@@ -697,14 +747,14 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                 ),
                 1.height,
                 _analyticRowPremium(
-                  "Successful Orders",
+                  "Productive Visits",
                   productive.toString(),
                   AppColor.green,
                   Icons.task_alt_rounded,
                 ),
                 1.height,
                 _analyticRowPremium(
-                  "Non-productive (No orders)",
+                  "Non-Productive",
                   nonProductive.toString(),
                   AppColor.red,
                   Icons.block_rounded,

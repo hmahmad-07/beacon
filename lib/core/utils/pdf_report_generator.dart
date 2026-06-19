@@ -57,10 +57,10 @@ class PdfReportGenerator {
   static Future<Uint8List> generateMonthlyEmployeeReport({
     required User user,
     required List<EmployesWorkingDetailModel> reports,
-    required DateTime month,
+    required String dateRangeText,
   }) async {
     final pdf = pw.Document();
-    final String formattedMonth = DateFormat('MMMM yyyy').format(month);
+    final String formattedMonth = dateRangeText;
 
     pdf.addPage(
       pw.MultiPage(
@@ -142,10 +142,10 @@ class PdfReportGenerator {
 
   static Future<Uint8List> generateMonthlyExternalReport({
     required List<ExternalClientReportModel> reports,
-    required DateTime month,
+    required String dateRangeText,
   }) async {
     final pdf = pw.Document();
-    final String formattedMonth = DateFormat('MMMM yyyy').format(month);
+    final String formattedMonth = dateRangeText;
 
     pdf.addPage(
       pw.MultiPage(
@@ -331,6 +331,8 @@ class PdfReportGenerator {
     User user,
     EmployesWorkingDetailModel report,
   ) {
+    int productive = report.visits.where((v) => v.orders.any((o) => o.isProductive)).length;
+
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -365,10 +367,16 @@ class PdfReportGenerator {
             _metaLabelValue("Check-out", report.checkout?.time ?? "N/A"),
             pw.SizedBox(width: 20),
             _metaLabelValue("Total Visits", report.visits.length.toString()),
+            pw.SizedBox(width: 20),
+            _metaLabelValue("Productive Visits", productive.toString()),
           ],
         ),
         pw.SizedBox(height: 10),
-        if (report.visits.isNotEmpty) _buildVisitTable(report.visits),
+        if (report.visits.isNotEmpty) ...[
+          _buildVisitTable(report.visits),
+          pw.SizedBox(height: 10),
+          _buildUserTotals(report.visits),
+        ],
         if (report.visits.isEmpty && report.checkin == null)
           pw.Container(
             width: double.infinity,
@@ -397,6 +405,36 @@ class PdfReportGenerator {
     );
   }
 
+  static pw.Widget _buildUserTotals(List<Visit> visits) {
+    int totalVisits = visits.length;
+    int productive = visits.where((v) => v.orders.any((o) => o.isProductive)).length;
+    double totalRev = 0;
+    for (var v in visits) {
+      for (var o in v.orders) {
+        for (var item in o.items) {
+          final rate = double.tryParse(item['rate']?.toString() ?? '0') ?? 0;
+          final pcs = double.tryParse(item['qty_pcs']?.toString() ?? '0') ?? 0;
+          final box = double.tryParse(item['qty_box']?.toString() ?? '0') ?? 0;
+          totalRev += (pcs + box) * rate;
+        }
+      }
+    }
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      decoration: const pw.BoxDecoration(color: PdfColors.blue100),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text("User Totals:", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+          pw.Text("Total Visits: $totalVisits", style: pw.TextStyle(fontSize: 9)),
+          pw.Text("Productive: $productive", style: pw.TextStyle(fontSize: 9)),
+          pw.Text("Total Revenue: ${totalRev.toStringAsFixed(0)}", style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   static pw.Widget _metaLabelValue(String l, String v) {
     return pw.RichText(
       text: pw.TextSpan(
@@ -416,6 +454,16 @@ class PdfReportGenerator {
         ],
       ),
     );
+  }
+
+  static String _extractDuration(String remarks) {
+    final match = RegExp(r'\((\d+)m(\d+)s\)').firstMatch(remarks);
+    if (match != null) {
+      final minutes = int.parse(match.group(1)!);
+      final seconds = int.parse(match.group(2)!);
+      return '${minutes}m ${seconds}s';
+    }
+    return 'N/A';
   }
 
   static pw.Widget _buildVisitTable(List<Visit> visits) {
@@ -441,6 +489,7 @@ class PdfReportGenerator {
             _tableHeader("Shop Name"),
             _tableHeader("Channel"),
             _tableHeader("Status"),
+            _tableHeader("Stay Time"),
             _tableHeader("Productive"),
             _tableHeader("Revenue"),
           ],
@@ -474,6 +523,13 @@ class PdfReportGenerator {
               _tableCell(v.placeName),
               _tableCell(v.channel),
               _tableCell(v.orders.isEmpty ? "No Order" : "Visit Done"),
+              _tableCell(
+                _extractDuration(
+                  v.orders.isNotEmpty && v.orders.first.remarks != null
+                      ? v.orders.first.remarks!
+                      : v.remarks ?? '',
+                ),
+              ),
               _tableCell(v.orders.any((o) => o.isProductive) ? "Yes" : "No"),
               _tableCell(
                 revenue.toStringAsFixed(0),

@@ -280,26 +280,21 @@ class EmployesController extends ChangeNotifier {
   Future<List<EmployesWorkingDetailModel>> fetchMonthlyData(
     BuildContext context,
     String userId,
-    DateTime month,
+    DateTime startDate,
+    DateTime endDate,
     Function(int progress, int total) onProgress,
   ) async {
     final List<EmployesWorkingDetailModel> reports = [];
     final dio = Dio();
 
-    // Determine the range of days
-    final now = DateTime.now();
-    final lastDay = (month.year == now.year && month.month == now.month)
-        ? now.day
-        : DateTime(month.year, month.month + 1, 0).day;
+    final totalDays = endDate.difference(startDate).inDays + 1;
 
-    for (int day = 1; day <= lastDay; day++) {
+    for (int i = 0; i < totalDays; i++) {
+      final currentDate = startDate.add(Duration(days: i));
       try {
-        onProgress(day, lastDay);
-        final targetDate = DateFormat(
-          'yyyy-MM-dd',
-        ).format(DateTime(month.year, month.month, day));
-        final url =
-            '${Constants.baseUrl}tsm_daily_report.php?user_id=$userId&date=$targetDate';
+        onProgress(i + 1, totalDays);
+        final targetDate = DateFormat('yyyy-MM-dd').format(currentDate);
+        final url = '${Constants.baseUrl}tsm_daily_report.php?user_id=$userId&date=$targetDate';
         final response = await dio.get(url);
 
         if (response.statusCode == 200) {
@@ -310,7 +305,7 @@ class EmployesController extends ChangeNotifier {
           }
         }
       } catch (e) {
-        log("Error fetching day $day: $e");
+        log("Error fetching day ${i+1}: $e");
       }
     }
     return reports;
@@ -318,25 +313,21 @@ class EmployesController extends ChangeNotifier {
 
   Future<List<ExternalClientReportModel>> fetchExternalMonthlyData(
     BuildContext context,
-    DateTime month,
+    DateTime startDate,
+    DateTime endDate,
     Function(int progress, int total) onProgress,
   ) async {
     final List<ExternalClientReportModel> reports = [];
     final dio = Dio();
 
-    final now = DateTime.now();
-    final lastDay = (month.year == now.year && month.month == now.month)
-        ? now.day
-        : DateTime(month.year, month.month + 1, 0).day;
+    final totalDays = endDate.difference(startDate).inDays + 1;
 
-    for (int day = 1; day <= lastDay; day++) {
+    for (int i = 0; i < totalDays; i++) {
+      final currentDate = startDate.add(Duration(days: i));
       try {
-        onProgress(day, lastDay);
-        final targetDate = DateFormat(
-          'yyyy-MM-dd',
-        ).format(DateTime(month.year, month.month, day));
-        final url =
-            '${Constants.baseUrl}tsm_daily_report.php?is_external_client=1&date=$targetDate';
+        onProgress(i + 1, totalDays);
+        final targetDate = DateFormat('yyyy-MM-dd').format(currentDate);
+        final url = '${Constants.baseUrl}tsm_daily_report.php?is_external_client=1&date=$targetDate';
         final response = await dio.get(url);
 
         if (response.statusCode == 200) {
@@ -346,7 +337,7 @@ class EmployesController extends ChangeNotifier {
           }
         }
       } catch (e) {
-        log("Error fetching external day $day: $e");
+        log("Error fetching external day ${i+1}: $e");
       }
     }
     return reports;
