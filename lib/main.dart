@@ -4,15 +4,15 @@ import 'core/extensions/routes.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:centrex/firebase_options.dart';
+import 'package:beacon/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'core/network/internet_connectivity.dart';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/core/controllers/auth_controller.dart';
-import 'package:centrex/core/controllers/employes_controller.dart';
-import 'package:centrex/core/controllers/connectivity_controller.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/core/controllers/auth_controller.dart';
+import 'package:beacon/core/controllers/employes_controller.dart';
+import 'package:beacon/core/controllers/connectivity_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,7 +53,7 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             navigatorKey: AppRoutes.navigatorKey,
-            title: 'CENTREX',
+            title: 'beacon',
             theme: AppTheme.lightTheme.copyWith(
               textTheme: GoogleFonts.interTextTheme(
                 AppTheme.lightTheme.textTheme,

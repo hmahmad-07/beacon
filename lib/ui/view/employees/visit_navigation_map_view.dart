@@ -1,16 +1,16 @@
 // ignore_for_file: deprecated_member_use
 
-import 'package:centrex/core/controllers/employes_controller.dart';
-import 'package:centrex/core/models/emp_working_detail_model.dart';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/ui/components/custom_appbar.dart';
+import 'package:beacon/core/controllers/employes_controller.dart';
+import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:centrex/core/extensions/sizer.dart';
+import 'package:beacon/core/extensions/sizer.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'package:centrex/core/constants/constants.dart';
-import 'package:centrex/ui/components/app_constants.dart';
+import 'package:beacon/core/constants/constants.dart';
+import 'package:beacon/ui/components/app_constants.dart';
 import 'package:provider/provider.dart';
 
 class VisitNavigationMapView extends StatefulWidget {
@@ -37,8 +37,8 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
   void _addVisitMarker() {
     final controller = context.read<EmployesController>();
     final visitPos = LatLng(
-      double.parse(widget.visit.latitude),
-      double.parse(widget.visit.longitude),
+      double.parse(widget.visit.effectiveLatitude),
+      double.parse(widget.visit.effectiveLongitude),
     );
     final Set<Marker> initialMarkers = {
       Marker(
@@ -49,7 +49,7 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
           snippet: widget.visit.address,
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      )
+      ),
     };
     controller.updateMarkers(initialMarkers);
   }
@@ -71,7 +71,9 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
       _currentPosition = LatLng(position.latitude, position.longitude);
 
       final Set<Marker> currentMarkers = Set.from(controller.markers);
-      currentMarkers.removeWhere((m) => m.markerId == const MarkerId('user_pos'));
+      currentMarkers.removeWhere(
+        (m) => m.markerId == const MarkerId('user_pos'),
+      );
       currentMarkers.add(
         Marker(
           markerId: const MarkerId('user_pos'),
@@ -92,8 +94,8 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
             _currentPosition!.longitude,
           ),
           destination: PointLatLng(
-            double.parse(widget.visit.latitude),
-            double.parse(widget.visit.longitude),
+            double.parse(widget.visit.effectiveLatitude),
+            double.parse(widget.visit.effectiveLongitude),
           ),
           mode: TravelMode.driving,
         ),
@@ -122,8 +124,8 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
             points: [
               _currentPosition!,
               LatLng(
-                double.parse(widget.visit.latitude),
-                double.parse(widget.visit.longitude),
+                double.parse(widget.visit.effectiveLatitude),
+                double.parse(widget.visit.effectiveLongitude),
               ),
             ],
             color: AppColor.appColor1.withValues(alpha: 0.5),
@@ -144,8 +146,8 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
     if (_currentPosition == null) return;
 
     LatLng dest = LatLng(
-      double.parse(widget.visit.latitude),
-      double.parse(widget.visit.longitude),
+      double.parse(widget.visit.effectiveLatitude),
+      double.parse(widget.visit.effectiveLongitude),
     );
 
     double minLat = _currentPosition!.latitude < dest.latitude
@@ -183,8 +185,8 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
               return GoogleMap(
                 initialCameraPosition: CameraPosition(
                   target: LatLng(
-                    double.parse(widget.visit.latitude),
-                    double.parse(widget.visit.longitude),
+                    double.parse(widget.visit.effectiveLatitude),
+                    double.parse(widget.visit.effectiveLongitude),
                   ),
                   zoom: 15,
                 ),
@@ -212,7 +214,7 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                   Row(
+                  Row(
                     children: [
                       Container(
                         padding: EdgeInsets.all(2.w),
@@ -259,7 +261,9 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
                       return SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: controller.isNavigating ? null : _startNavigation,
+                          onPressed: controller.isNavigating
+                              ? null
+                              : _startNavigation,
                           icon: controller.isNavigating
                               ? SizedBox(
                                   width: 4.w,
@@ -271,7 +275,9 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
                                 )
                               : const Icon(Icons.near_me_rounded),
                           label: Text(
-                            controller.isNavigating ? "CALCULATING..." : "START NAVIGATION",
+                            controller.isNavigating
+                                ? "CALCULATING..."
+                                : "START NAVIGATION",
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColor.appDarkColor,

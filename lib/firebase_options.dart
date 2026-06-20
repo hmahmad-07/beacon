@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '744026879062',
     projectId: 'beacon-8f765',
     storageBucket: 'beacon-8f765.firebasestorage.app',
-    iosBundleId: 'com.mtm.centrex.app',
+    iosBundleId: 'com.mtm.beacon.app',
   );
 }

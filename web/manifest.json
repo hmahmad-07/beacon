@@ -1,6 +1,6 @@
 {
-    "name": "centrex",
-    "short_name": "centrex",
+    "name": "beacon",
+    "short_name": "beacon",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

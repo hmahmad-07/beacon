@@ -18,7 +18,7 @@ if (secretsFile.exists()) {
 val apiKey: String = secretsProperties.getProperty("MAPS_API_KEY") ?: ""
 
 android {
-    namespace = "com.mtm.centrex.app"
+    namespace = "com.mtm.beacon.app"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion // "27.0.12077973"
 
@@ -32,7 +32,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mtm.centrex.app"
+        applicationId = "com.mtm.beacon.app"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode

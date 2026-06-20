@@ -1,9 +1,9 @@
-import 'package:centrex/core/models/emp_working_detail_model.dart';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/ui/components/custom_appbar.dart';
-import 'package:centrex/ui/components/app_constants.dart';
+import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/app_constants.dart';
 import 'package:flutter/material.dart';
-import 'package:centrex/core/extensions/sizer.dart';
+import 'package:beacon/core/extensions/sizer.dart';
 
 class OrderDetailsView extends StatelessWidget {
   final Visit visit;

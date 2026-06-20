@@ -167,6 +167,27 @@ class Visit {
     required this.orders,
   });
 
+  String get effectiveLatitude {
+    if (orders.isNotEmpty && orders.first.latitude != null && orders.first.latitude!.isNotEmpty) {
+      return orders.first.latitude!;
+    }
+    return latitude;
+  }
+
+  String get effectiveLongitude {
+    if (orders.isNotEmpty && orders.first.longitude != null && orders.first.longitude!.isNotEmpty) {
+      return orders.first.longitude!;
+    }
+    return longitude;
+  }
+
+  List<String> get effectivePhotos {
+    if (orders.isNotEmpty && orders.first.photos.isNotEmpty) {
+      return orders.first.photos;
+    }
+    return photos;
+  }
+
   factory Visit.fromJson(Map<String, dynamic> json) => Visit(
     id: (json["id"] ?? "").toString(),
     userId: (json["user_id"] ?? "").toString(),
@@ -215,6 +236,8 @@ class Order {
   final String createdAt;
   final List<String> photos;
   final List<Map<String, dynamic>> items;
+  final String? latitude;
+  final String? longitude;
 
   const Order({
     required this.id,
@@ -225,6 +248,8 @@ class Order {
     required this.createdAt,
     required this.photos,
     required this.items,
+    this.latitude,
+    this.longitude,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
@@ -245,6 +270,8 @@ class Order {
               .map((x) => Map<String, dynamic>.from(x as Map))
               .toList()
         : [],
+    latitude: json["latitude"]?.toString(),
+    longitude: json["longitude"]?.toString(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -256,5 +283,7 @@ class Order {
     "created_at": createdAt,
     "photos": photos,
     "items": items,
+    "latitude": latitude,
+    "longitude": longitude,
   };
 }

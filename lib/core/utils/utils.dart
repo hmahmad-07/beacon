@@ -1,6 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
-import 'package:centrex/core/resources/app_images.dart';
+import 'package:beacon/core/resources/app_images.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';

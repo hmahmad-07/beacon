@@ -1,5 +1,5 @@
-import 'package:centrex/core/extensions/sizer.dart';
-import 'package:centrex/core/resources/app_colors.dart';
+import 'package:beacon/core/extensions/sizer.dart';
+import 'package:beacon/core/resources/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class LoadingView extends StatelessWidget {

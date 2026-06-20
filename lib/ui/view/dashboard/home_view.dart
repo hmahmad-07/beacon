@@ -1,7 +1,7 @@
-import 'package:centrex/core/controllers/employes_controller.dart';
-import 'package:centrex/core/extensions/routes.dart';
-import 'package:centrex/ui/components/app_constants.dart';
-import 'package:centrex/ui/view/employees/employee_list_view.dart';
+import 'package:beacon/core/controllers/employes_controller.dart';
+import 'package:beacon/core/extensions/routes.dart';
+import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/view/employees/employee_list_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -75,7 +75,7 @@ class _HomeViewState extends State<HomeView> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'CENTREX',
+                                  'BEACON',
                                   style: TextStyle(
                                     color: AppColor.white,
                                     fontSize: 5.sp,
@@ -202,7 +202,7 @@ class _HomeViewState extends State<HomeView> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: Text(
-          "CENTREX",
+          "beacon",
           style: TextStyle(color: AppColor.appColor1, fontSize: 8.sp),
         ),
         content: Padding(

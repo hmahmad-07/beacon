@@ -1,12 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
-import 'package:centrex/core/controllers/auth_controller.dart';
-import 'package:centrex/core/controllers/employes_controller.dart';
-import 'package:centrex/core/extensions/routes.dart';
-import 'package:centrex/ui/view/auth/login_view.dart';
-import 'package:centrex/ui/components/loading_view.dart';
-import 'package:centrex/ui/view/dashboard/home_view.dart';
+import 'package:beacon/core/controllers/auth_controller.dart';
+import 'package:beacon/core/controllers/employes_controller.dart';
+import 'package:beacon/core/extensions/routes.dart';
+import 'package:beacon/ui/view/auth/login_view.dart';
+import 'package:beacon/ui/components/loading_view.dart';
+import 'package:beacon/ui/view/dashboard/home_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
@@ -195,7 +195,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                         ).createShader(bounds);
                       },
                       child: Text(
-                        "CENTREX",
+                        "BEACON",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 10.sp,

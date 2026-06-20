@@ -1,5 +1,5 @@
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/ui/components/custom_appbar.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/extensions/sizer.dart';
 
@@ -26,7 +26,7 @@ class PrivacyPolicyView extends StatelessWidget {
             ),
             2.height,
             Text(
-              "This privacy policy applied to the CENTREX Field Force Monitoring app. We are committed to protecting your personal data and ensuring transparency in how we collect and use your information.",
+              "This privacy policy applied to the beacon Field Force Monitoring app. We are committed to protecting your personal data and ensuring transparency in how we collect and use your information.",
               style: TextStyle(
                 fontSize: 3.5.sp,
                 color: AppColor.grey,

@@ -1,15 +1,15 @@
 // ignore_for_file: deprecated_member_use
 
-import 'package:centrex/core/controllers/employes_controller.dart';
-import 'package:centrex/core/models/emp_working_detail_model.dart';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/ui/components/custom_appbar.dart';
+import 'package:beacon/core/controllers/employes_controller.dart';
+import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:centrex/core/extensions/sizer.dart';
+import 'package:beacon/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
-import 'package:centrex/core/utils/utils.dart';
+import 'package:beacon/core/utils/utils.dart';
 import 'package:provider/provider.dart';
 import '../../components/app_constants.dart';
 import '../../../core/constants/constants.dart';
@@ -100,8 +100,8 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
     for (var visit in widget.detail.visits) {
       try {
         final pos = LatLng(
-          double.parse(visit.latitude.toString()),
-          double.parse(visit.longitude.toString()),
+          double.parse(visit.effectiveLatitude.toString()),
+          double.parse(visit.effectiveLongitude.toString()),
         );
         if (pos.latitude != 0.0) {
           _points.add(pos);
@@ -620,8 +620,8 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
       color = AppColor.appColor1;
       markerId = 'visit_${item.id}';
       pos = LatLng(
-        double.tryParse(item.latitude) ?? 0.0,
-        double.tryParse(item.longitude) ?? 0.0,
+        double.tryParse(item.effectiveLatitude) ?? 0.0,
+        double.tryParse(item.effectiveLongitude) ?? 0.0,
       );
     }
 

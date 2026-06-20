@@ -1,10 +1,10 @@
-import 'package:centrex/core/constants/constants.dart';
-import 'package:centrex/core/controllers/auth_controller.dart';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/ui/components/custom_appbar.dart';
-import 'package:centrex/ui/components/custom_button.dart';
-import 'package:centrex/ui/components/app_constants.dart';
-import 'package:centrex/ui/view/profile/privacy_policy_view.dart';
+import 'package:beacon/core/constants/constants.dart';
+import 'package:beacon/core/controllers/auth_controller.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/custom_button.dart';
+import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/view/profile/privacy_policy_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

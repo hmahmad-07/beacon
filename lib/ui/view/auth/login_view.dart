@@ -1,7 +1,7 @@
-import 'package:centrex/ui/components/loading_view.dart';
-import 'package:centrex/core/controllers/employes_controller.dart';
-import 'package:centrex/core/extensions/routes.dart';
-import 'package:centrex/core/utils/utils.dart';
+import 'package:beacon/ui/components/loading_view.dart';
+import 'package:beacon/core/controllers/employes_controller.dart';
+import 'package:beacon/core/extensions/routes.dart';
+import 'package:beacon/core/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/controllers/auth_controller.dart';
@@ -191,7 +191,7 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
                                     ).createShader(bounds);
                                   },
                                   child: Text(
-                                    "CENTREX",
+                                    "BEACON",
                                     style: TextStyle(
                                       color: AppColor.white,
                                       fontSize: 10.sp,
@@ -246,7 +246,7 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
                                 1.height,
 
                                 Text(
-                                  "Login with your employee credentials to continue.",
+                                  "Login with your credentials to continue.",
                                   style: TextStyle(
                                     color: AppColor.appColor1,
                                     fontSize: 3.8.sp,

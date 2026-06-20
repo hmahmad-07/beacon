@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import 'package:centrex/core/models/emp_working_detail_model.dart';
-import 'package:centrex/core/models/employes_model.dart';
-import 'package:centrex/core/utils/utils.dart';
+import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/models/employes_model.dart';
+import 'package:beacon/core/utils/utils.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
@@ -151,7 +151,8 @@ class PdfReportGenerator {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        header: (context) => _buildHeader(formattedMonth, "Monthly External Clients"),
+        header: (context) =>
+            _buildHeader(formattedMonth, "Monthly External Clients"),
         footer: (context) => _buildFooter(context),
         build: (context) => [
           ...reports.map((r) => _buildExternalClientsSection(r)),
@@ -178,9 +179,10 @@ class PdfReportGenerator {
           productiveVisits++;
           for (var o in v.orders) {
             for (var item in o.items) {
-              final rate = double.tryParse(item['rate']?.toString() ?? '0') ?? 0;
-              final qty = (double.tryParse(item['qty_pcs']?.toString() ?? '0') ??
-                      0) +
+              final rate =
+                  double.tryParse(item['rate']?.toString() ?? '0') ?? 0;
+              final qty =
+                  (double.tryParse(item['qty_pcs']?.toString() ?? '0') ?? 0) +
                   (double.tryParse(item['qty_box']?.toString() ?? '0') ?? 0);
               totalRevenue += qty * rate;
             }
@@ -331,7 +333,9 @@ class PdfReportGenerator {
     User user,
     EmployesWorkingDetailModel report,
   ) {
-    int productive = report.visits.where((v) => v.orders.any((o) => o.isProductive)).length;
+    int productive = report.visits
+        .where((v) => v.orders.any((o) => o.isProductive))
+        .length;
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -407,7 +411,9 @@ class PdfReportGenerator {
 
   static pw.Widget _buildUserTotals(List<Visit> visits) {
     int totalVisits = visits.length;
-    int productive = visits.where((v) => v.orders.any((o) => o.isProductive)).length;
+    int productive = visits
+        .where((v) => v.orders.any((o) => o.isProductive))
+        .length;
     double totalRev = 0;
     for (var v in visits) {
       for (var o in v.orders) {
@@ -426,10 +432,19 @@ class PdfReportGenerator {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text("User Totals:", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
-          pw.Text("Total Visits: $totalVisits", style: pw.TextStyle(fontSize: 9)),
+          pw.Text(
+            "User Totals:",
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+          ),
+          pw.Text(
+            "Total Visits: $totalVisits",
+            style: pw.TextStyle(fontSize: 9),
+          ),
           pw.Text("Productive: $productive", style: pw.TextStyle(fontSize: 9)),
-          pw.Text("Total Revenue: ${totalRev.toStringAsFixed(0)}", style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+          pw.Text(
+            "Total Revenue: ${totalRev.toStringAsFixed(0)}",
+            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          ),
         ],
       ),
     );

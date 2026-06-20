@@ -2,10 +2,10 @@
 
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/ui/components/custom_appbar.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:flutter/material.dart';
-import 'package:centrex/core/extensions/sizer.dart';
+import 'package:beacon/core/extensions/sizer.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';

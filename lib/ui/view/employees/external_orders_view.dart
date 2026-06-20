@@ -1,23 +1,23 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:centrex/core/controllers/employes_controller.dart';
-import 'package:centrex/core/models/external_client_model.dart';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/ui/components/app_constants.dart';
-import 'package:centrex/core/utils/pdf_report_generator.dart';
-import 'package:centrex/ui/components/custom_appbar.dart';
-import 'package:centrex/ui/components/custom_month_picker.dart';
-import 'package:centrex/ui/components/custom_date_range_picker.dart';
-import 'package:centrex/ui/view/employees/pdf_preview_view.dart';
+import 'package:beacon/core/controllers/employes_controller.dart';
+import 'package:beacon/core/models/external_client_model.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/core/utils/pdf_report_generator.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/custom_month_picker.dart';
+import 'package:beacon/ui/components/custom_date_range_picker.dart';
+import 'package:beacon/ui/view/employees/pdf_preview_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:centrex/core/extensions/sizer.dart';
+import 'package:beacon/core/extensions/sizer.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:centrex/core/extensions/routes.dart';
-import 'package:centrex/core/utils/utils.dart';
+import 'package:beacon/core/extensions/routes.dart';
+import 'package:beacon/core/utils/utils.dart';
 
 class ExternalOrdersView extends StatefulWidget {
   const ExternalOrdersView({super.key});

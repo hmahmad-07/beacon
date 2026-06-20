@@ -1,21 +1,21 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:centrex/core/extensions/routes.dart';
-import 'package:centrex/core/models/employes_model.dart';
+import 'package:beacon/core/extensions/routes.dart';
+import 'package:beacon/core/models/employes_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:centrex/core/controllers/employes_controller.dart';
-import 'package:centrex/core/extensions/sizer.dart';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/ui/components/custom_appbar.dart';
+import 'package:beacon/core/controllers/employes_controller.dart';
+import 'package:beacon/core/extensions/sizer.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:centrex/core/models/emp_working_detail_model.dart';
-import 'package:centrex/core/utils/pdf_report_generator.dart';
-import 'package:centrex/core/utils/utils.dart';
-import 'package:centrex/ui/components/custom_date_picker.dart';
-import 'package:centrex/ui/view/employees/pdf_preview_view.dart';
+import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/utils/pdf_report_generator.dart';
+import 'package:beacon/core/utils/utils.dart';
+import 'package:beacon/ui/components/custom_date_picker.dart';
+import 'package:beacon/ui/view/employees/pdf_preview_view.dart';
 import 'employee_detail_view.dart';
 import 'package:intl/intl.dart';
 import 'external_orders_view.dart';

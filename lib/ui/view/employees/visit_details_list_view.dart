@@ -1,15 +1,14 @@
 import 'dart:developer';
-
-import 'package:centrex/core/models/emp_working_detail_model.dart';
-import 'package:centrex/core/resources/app_colors.dart';
-import 'package:centrex/core/utils/utils.dart';
-import 'package:centrex/ui/components/custom_appbar.dart';
-import 'package:centrex/ui/components/app_constants.dart';
-import 'package:centrex/ui/view/employees/order_details_view.dart';
-import 'package:centrex/ui/view/employees/full_screen_image_viewer.dart';
-import 'package:centrex/ui/view/employees/visit_navigation_map_view.dart';
+import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/core/utils/utils.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/view/employees/order_details_view.dart';
+import 'package:beacon/ui/view/employees/full_screen_image_viewer.dart';
+import 'package:beacon/ui/view/employees/visit_navigation_map_view.dart';
 import 'package:flutter/material.dart';
-import 'package:centrex/core/extensions/sizer.dart';
+import 'package:beacon/core/extensions/sizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/extensions/routes.dart';
 
@@ -96,7 +95,7 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
         ? visit.orders.first.remarks!
         : visit.remarks ?? '';
 
-    String stayTime = (remarks);
+    String stayTime = extractDuration(remarks);
 
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
@@ -112,7 +111,7 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildImageThumbnail(context, visit.photos),
+                _buildImageThumbnail(context, visit.effectivePhotos),
                 3.width,
                 Container(width: 1.5, height: 15.h, color: AppColor.scaffold),
                 3.width,

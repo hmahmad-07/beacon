@@ -1,4 +1,4 @@
-package com.mtm.centrex.app
+package com.mtm.beacon.app
 
 import io.flutter.embedding.android.FlutterActivity
 
