@@ -75,7 +75,7 @@ class _HomeViewState extends State<HomeView> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'BEACON',
+                                  'CENTREX',
                                   style: TextStyle(
                                     color: AppColor.white,
                                     fontSize: 5.sp,

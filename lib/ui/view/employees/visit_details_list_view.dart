@@ -119,16 +119,19 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        visit.placeName.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 4.sp,
-                          fontWeight: FontWeight.bold,
-                          color: AppColor.appDarkColor,
-                          letterSpacing: -0.2,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          visit.placeName.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 4.2.sp,
+                            fontWeight: FontWeight.bold,
+                            color: AppColor.appDarkColor,
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                       0.7.height,
                       _detailRow(Icons.person_rounded, visit.ownerName),
@@ -156,38 +159,50 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
               ],
             ),
           ),
-
           Divider(height: 1, color: AppColor.scaffold, thickness: 1),
-
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.w),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _statusBadge(isProductive),
-                const Spacer(),
-                _actionButton(
-                  icon: Icons.map_rounded,
-                  label: "Route",
-                  color: AppColor.appDarkColor,
-                  onTap: () =>
-                      AppRoutes.push(VisitNavigationMapView(visit: visit)),
+                Row(
+                  children: [
+                    _statusBadge(isProductive),
+                    const Spacer(),
+                    _actionButton(
+                      icon: Icons.map_rounded,
+                      label: "Route",
+                      color: AppColor.appDarkColor,
+                      onTap: () =>
+                          AppRoutes.push(VisitNavigationMapView(visit: visit)),
+                    ),
+                    3.width,
+                    _actionButton(
+                      icon: Icons.phone_rounded,
+                      label: "Call",
+                      color: AppColor.appColor1,
+                      onTap: () => Utils.launchURL("tel:${visit.phoneNumber}"),
+                    ),
+                    if (isProductive) ...[
+                      3.width,
+                      _actionButton(
+                        icon: Icons.shopping_cart_rounded,
+                        label: "Order",
+                        color: AppColor.green,
+                        onTap: () =>
+                            AppRoutes.push(OrderDetailsView(visit: visit)),
+                      ),
+                    ],
+                  ],
                 ),
-                3.width,
-                _actionButton(
-                  icon: Icons.phone_rounded,
-                  label: "Call",
-                  color: AppColor.appColor1,
-                  onTap: () => Utils.launchURL("tel:${visit.phoneNumber}"),
-                ),
-                if (isProductive) ...[
-                  3.width,
-                  _actionButton(
-                    icon: Icons.shopping_cart_rounded,
-                    label: "Order",
-                    color: AppColor.green,
-                    onTap: () => AppRoutes.push(OrderDetailsView(visit: visit)),
-                  ),
-                ],
+                if (!isProductive)
+                  Divider(color: AppColor.scaffold, thickness: 1),
+                if (!isProductive)
+                  if (!isProductive)
+                    _detailRow(
+                      Icons.note_alt_rounded,
+                      "Remarks: ${remarks.split('(').first.trim()}",
+                    ),
               ],
             ),
           ),

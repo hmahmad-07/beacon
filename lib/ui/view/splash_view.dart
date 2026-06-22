@@ -195,7 +195,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                         ).createShader(bounds);
                       },
                       child: Text(
-                        "BEACON",
+                        "CENTREX",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 10.sp,

@@ -191,7 +191,7 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
                                     ).createShader(bounds);
                                   },
                                   child: Text(
-                                    "BEACON",
+                                    "CENTREX",
                                     style: TextStyle(
                                       color: AppColor.white,
                                       fontSize: 10.sp,
@@ -202,7 +202,7 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
                                 ),
                                 1.height,
                                 Text(
-                                  " MONITORING SYSTEM",
+                                  "MONITORING SYSTEM",
                                   style: TextStyle(
                                     color: AppColor.appDarkColor,
                                     fontSize: 3.8.sp,

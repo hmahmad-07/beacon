@@ -235,8 +235,6 @@ class OrderDetailsView extends StatelessWidget {
     return Column(
       children: [
         ...order.items.map((item) => _buildExecutiveProductRow(item)),
-        if (order.remarks != null && order.remarks!.isNotEmpty)
-          _buildEliteRemarks(order.remarks!),
         2.height,
       ],
     );
@@ -395,32 +393,6 @@ class OrderDetailsView extends StatelessWidget {
           ),
         ],
       );
-
-  Widget _buildEliteRemarks(String rem) => Container(
-    padding: EdgeInsets.all(4.w),
-    decoration: BoxDecoration(
-      color: AppColor.scaffold.withValues(alpha: 0.5),
-      borderRadius: BorderRadius.circular(4.r),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.notes_rounded, size: 3.w, color: AppColor.grey),
-        3.width,
-        Expanded(
-          child: Text(
-            "COMPLIANCE REMARKS: $rem",
-            style: TextStyle(
-              fontSize: 2.4.sp,
-              color: AppColor.grey,
-              fontWeight: FontWeight.w700,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
 
   Widget _buildGrandTotalFooter(double total) {
     return Container(

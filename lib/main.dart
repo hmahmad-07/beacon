@@ -53,7 +53,7 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             navigatorKey: AppRoutes.navigatorKey,
-            title: 'beacon',
+            title: 'CENTREX',
             theme: AppTheme.lightTheme.copyWith(
               textTheme: GoogleFonts.interTextTheme(
                 AppTheme.lightTheme.textTheme,
