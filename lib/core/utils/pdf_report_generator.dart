@@ -482,7 +482,6 @@ class PdfReportGenerator {
   }
 
   static pw.Widget _buildVisitTable(List<Visit> visits) {
-    // Sort visits chronologically by parsing date
     final sortedVisits = List<Visit>.from(visits)
       ..sort((a, b) {
         final dateA = a.orders.isNotEmpty && a.orders.first.orderDate.isNotEmpty
@@ -505,7 +504,6 @@ class PdfReportGenerator {
             _tableHeader("Channel"),
             _tableHeader("Status"),
             _tableHeader("Stay Time"),
-            _tableHeader("Productive"),
             _tableHeader("Revenue"),
           ],
         ),
@@ -537,7 +535,11 @@ class PdfReportGenerator {
               ),
               _tableCell(v.placeName),
               _tableCell(v.channel),
-              _tableCell(v.orders.isEmpty ? "No Order" : "Visit Done"),
+              _tableCell(
+                v.orders.any((o) => o.isProductive)
+                    ? "Productive"
+                    : "Non-Productive",
+              ),
               _tableCell(
                 _extractDuration(
                   v.orders.isNotEmpty && v.orders.first.remarks != null
@@ -545,7 +547,6 @@ class PdfReportGenerator {
                       : v.remarks ?? '',
                 ),
               ),
-              _tableCell(v.orders.any((o) => o.isProductive) ? "Yes" : "No"),
               _tableCell(
                 revenue.toStringAsFixed(0),
                 align: pw.Alignment.centerRight,

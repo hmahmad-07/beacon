@@ -11,7 +11,7 @@ class AppColor {
   static Color darkGrey = const Color(0xFF4B4B4B);
   static Color scaffold = const Color(0xffF5F7FB);
   static Color appColor1 = const Color(0xFF1E88E5);
-  static Color appColor2 = const Color.fromARGB(255, 239, 187, 45);
+  static Color appColor2 = const Color(0xffE5C13C);
   static Color appDarkColor = const Color(0xFF181E4C);
   static Color black = const Color(0xFF111111);
   static Color white = const Color(0xFFFFFFFF);

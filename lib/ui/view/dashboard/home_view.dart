@@ -5,6 +5,7 @@ import 'package:beacon/ui/view/employees/employee_list_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:provider/provider.dart';
 import '../../../core/controllers/auth_controller.dart';
@@ -60,9 +61,7 @@ class _HomeViewState extends State<HomeView> {
                         children: [
                           CircleAvatar(
                             radius: 7.r,
-                            backgroundColor: AppColor.white.withValues(
-                              alpha: 0.2,
-                            ),
+                            backgroundColor: AppColor.appColor2,
                             child: Icon(
                               Icons.admin_panel_settings_rounded,
                               color: AppColor.white,
@@ -78,7 +77,7 @@ class _HomeViewState extends State<HomeView> {
                                   'CENTREX',
                                   style: TextStyle(
                                     color: AppColor.white,
-                                    fontSize: 5.sp,
+                                    fontSize: 6.sp,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 2,
                                   ),
@@ -168,27 +167,42 @@ class _HomeViewState extends State<HomeView> {
               }
               final allDepts = controller.departments;
 
-              return ListView(
-                padding: EdgeInsets.symmetric(horizontal: 5.w),
-                children: [
-                  2.height,
-                  if (allDepts.isNotEmpty)
-                    Text(
-                      "Employee Directory",
-                      style: TextStyle(
-                        fontSize: 6.sp,
-                        fontWeight: FontWeight.w900,
-                        color: AppColor.appDarkColor,
-                        letterSpacing: -0.5,
+              return AnimationLimiter(
+                child: ListView(
+                  padding: EdgeInsets.symmetric(horizontal: 5.w),
+                  children: [
+                    2.height,
+
+                    if (allDepts.isNotEmpty)
+                      Text(
+                        "Employee Directory",
+                        style: TextStyle(
+                          fontSize: 6.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColor.appDarkColor,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    ),
-                  1.height,
-                  if (allDepts.isEmpty)
-                    _buildEmptyState()
-                  else
-                    ...allDepts.map((dept) => _deptCard(dept)),
-                  4.height,
-                ],
+
+                    1.height,
+
+                    if (allDepts.isEmpty)
+                      _buildEmptyState()
+                    else
+                      ...AnimationConfiguration.toStaggeredList(
+                        duration: const Duration(milliseconds: 400),
+                        childAnimationBuilder: (widget) => SlideAnimation(
+                          horizontalOffset: 80.0,
+                          child: FadeInAnimation(child: widget),
+                        ),
+                        children: allDepts
+                            .map((dept) => _deptCard(dept))
+                            .toList(),
+                      ),
+
+                    4.height,
+                  ],
+                ),
               );
             },
           ),
@@ -202,7 +216,7 @@ class _HomeViewState extends State<HomeView> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: Text(
-          "beacon",
+          "CENTREX",
           style: TextStyle(color: AppColor.appColor1, fontSize: 8.sp),
         ),
         content: Padding(

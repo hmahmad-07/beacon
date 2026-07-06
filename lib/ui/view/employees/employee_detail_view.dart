@@ -1,7 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:developer';
-
 import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/models/emp_working_detail_model.dart';
@@ -16,6 +15,8 @@ import 'package:beacon/ui/view/employees/full_screen_image_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:beacon/core/extensions/sizer.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:icons_plus/icons_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
@@ -57,19 +58,12 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
           appBar: CustomAppBar(
             title: widget.user.userName ?? 'Analytics Dashboard',
             actions: [
-              if (widget.user.department?.toLowerCase().contains("sales") ==
-                      true ||
-                  widget.user.department?.toLowerCase().contains("marketing") ==
-                      true)
-                IconButton(
-                  icon: const Icon(
-                    Icons.assessment_rounded,
-                    color: Colors.white,
-                  ),
-                  tooltip: "Monthly Audit Report",
-                  onPressed: () =>
-                      _handleGenerateMonthlyReport(context, controller),
-                ),
+              IconButton(
+                icon: const Icon(Icons.assessment_rounded, color: Colors.white),
+                tooltip: "Monthly Audit Report",
+                onPressed: () =>
+                    _handleGenerateMonthlyReport(context, controller),
+              ),
               2.width,
             ],
           ),
@@ -77,7 +71,21 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
             children: [
               controller.isWorkingDetailLoading
                   ? SizedBox.shrink()
-                  : _buildModernDateSelector(controller),
+                  : TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: 1),
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, child) {
+                        return Opacity(
+                          opacity: value,
+                          child: Transform.translate(
+                            offset: Offset(0, -30 * (1 - value)),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: _buildModernDateSelector(controller),
+                    ),
               Expanded(
                 child: controller.isWorkingDetailLoading
                     ? Skeletonizer(
@@ -437,56 +445,128 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     bool hasVisits = detail != null && detail.visits.isNotEmpty;
     bool hasCheckin = detail?.checkin != null;
 
+    int index = 0;
+    Widget staggered({
+      required Widget child,
+      double horizontalOffset = 0,
+      double verticalOffset = 0,
+    }) {
+      final position = index++;
+      return AnimationConfiguration.staggeredList(
+        position: position,
+        duration: const Duration(milliseconds: 500),
+        child: SlideAnimation(
+          horizontalOffset: horizontalOffset,
+          verticalOffset: verticalOffset,
+          child: FadeInAnimation(child: child),
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: _onRefresh,
       color: AppColor.appColor1,
-      child: ListView(
-        padding: EdgeInsets.all(5.w),
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: ClampingScrollPhysics(),
-        ),
-        children: [
-          _buildEnhancedUserCard(isOnline: hasCheckin),
-          3.height,
-          if (detail != null && detail.totalVisits > 0) ...[
-            _buildSectionTitle("Performance Intelligence"),
-            2.height,
-            _buildRichAnalyticsCard(detail),
+      child: AnimationLimiter(
+        child: ListView(
+          padding: EdgeInsets.all(5.w),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: ClampingScrollPhysics(),
+          ),
+          children: [
+            staggered(
+              horizontalOffset: 60, // right se
+              child: _buildEnhancedUserCard(isOnline: hasCheckin),
+            ),
             3.height,
-          ],
-          _buildSectionTitle("Daily Journey"),
-          2.height,
-          _buildCheckinCheckoutPremium(context, detail),
-
-          3.height,
-          if (hasVisits || hasCheckin) ...[
-            _buildSectionTitle("Operational Modules"),
-            2.height,
-
-            if (hasVisits) ...[
-              _buildActionModule(
-                "Field Activity Logs",
-                "${detail.totalVisits} customer touchpoints recorded",
-                Icons.fact_check_rounded,
-                AppColor.appColor1,
-                onTap: () =>
-                    AppRoutes.push(VisitDetailsListView(visits: detail.visits)),
+            if (detail != null && detail.totalVisits > 0) ...[
+              _buildSectionTitle("Performance Intelligence"),
+              2.height,
+              staggered(
+                horizontalOffset: -60,
+                child: _buildRichAnalyticsCard(detail),
               ),
-              1.5.height,
+              3.height,
             ],
-
-            if (hasCheckin)
-              _buildActionModule(
-                "Visual Coverage Map",
-                "Territory exploration & route intelligence",
-                Icons.map_rounded,
-                AppColor.appDarkColor,
-                onTap: () =>
-                    AppRoutes.push(EmployeeRouteMapView(detail: detail!)),
-              ),
+            _buildSectionTitle("Daily Journey"),
+            2.height,
+            Row(
+              children: [
+                Expanded(
+                  child: staggered(
+                    horizontalOffset: -60,
+                    child: _timelineCardPremium(
+                      context,
+                      "CHECK IN",
+                      detail?.checkin?.time ?? "Pending",
+                      Icons.login_rounded,
+                      AppColor.green,
+                      detail?.checkin != null
+                          ? () => _showEventDetails(
+                              context,
+                              "Check-in",
+                              detail!.checkin!,
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+                4.width,
+                Expanded(
+                  child: staggered(
+                    horizontalOffset: 60, // check-out right se
+                    child: _timelineCardPremium(
+                      context,
+                      "CHECK OUT",
+                      detail?.checkout?.time ?? "Pending",
+                      Icons.logout_rounded,
+                      AppColor.red,
+                      detail?.checkout != null
+                          ? () =>
+                                _showCheckoutDetails(context, detail!.checkout!)
+                          : null,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            3.height,
+            if (hasVisits || hasCheckin) ...[
+              _buildSectionTitle("Operational Modules"),
+              2.height,
+              if (hasVisits) ...[
+                staggered(
+                  verticalOffset: 60,
+                  child: _buildActionModule(
+                    "Field Activity Logs",
+                    "${detail.totalVisits} customer touchpoints recorded",
+                    Icons.fact_check_rounded,
+                    AppColor.appColor1,
+                    onTap: () => AppRoutes.push(
+                      VisitDetailsListView(
+                        visits: detail.visits,
+                        dept: widget.user.department ?? 'Other',
+                      ),
+                    ),
+                  ),
+                ),
+                1.5.height,
+              ],
+              if (hasCheckin)
+                staggered(
+                  verticalOffset: 60,
+                  child: _buildActionModule(
+                    "Visual Coverage Map",
+                    "Territory exploration & route intelligence",
+                    Icons.map_rounded,
+                    AppColor.appDarkColor,
+                    onTap: () =>
+                        AppRoutes.push(EmployeeRouteMapView(detail: detail!)),
+                  ),
+                ),
+            ],
+            5.height,
           ],
-          5.height,
-        ],
+        ),
       ),
     );
   }
@@ -663,14 +743,20 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
   Widget _buildRichAnalyticsCard(EmployesWorkingDetailModel? detail) {
     final total = detail?.visits.length ?? 0;
 
+    final isSalesOrMarketing =
+        widget.user.department?.toLowerCase().contains("sales") == true ||
+        widget.user.department?.toLowerCase().contains("marketing") == true;
+
+    if (!isSalesOrMarketing) {
+      return _buildSimpleVisitsCard(total);
+    }
+
     final productive =
         detail?.visits
             .where((v) => v.orders.any((o) => o.isProductive))
             .length ??
         0;
-
     final nonProductive = total - productive;
-
     final productivePercent = total > 0 ? (productive / total) * 100 : 0.0;
 
     return Container(
@@ -717,7 +803,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                       "${productivePercent.toStringAsFixed(0)}%",
                       style: TextStyle(
                         fontSize: 4.5.sp,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.bold,
                         color: AppColor.appDarkColor,
                       ),
                     ),
@@ -758,6 +844,89 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                   nonProductive.toString(),
                   AppColor.red,
                   Icons.block_rounded,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleVisitsCard(int total) {
+    final activityPercent = (total * 10).clamp(0, 100) / 100;
+
+    return Container(
+      padding: EdgeInsets.all(5.w),
+      decoration: BoxDecoration(
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(5.r),
+        boxShadow: AppShadow.soft,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(3.5.w),
+            decoration: BoxDecoration(
+              color: AppColor.appDarkColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(4.r),
+            ),
+            child: Icon(
+              Iconsax.shop_bold,
+              color: AppColor.appDarkColor,
+              size: 7.w,
+            ),
+          ),
+          4.width,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      total.toString(),
+                      style: TextStyle(
+                        fontSize: 5.5.sp,
+                        fontWeight: FontWeight.w900,
+                        color: AppColor.appDarkColor,
+                        height: 1,
+                      ),
+                    ),
+                    1.width,
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 0.4.h),
+                      child: Text(
+                        "visits recorded",
+                        style: TextStyle(
+                          fontSize: 2.8.sp,
+                          color: AppColor.grey,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                1.5.height,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: activityPercent,
+                    minHeight: 1.h,
+                    backgroundColor: AppColor.scaffold,
+                    color: AppColor.green,
+                  ),
+                ),
+                1.height,
+                Text(
+                  "${(activityPercent * 100).toStringAsFixed(0)}% activity level",
+                  style: TextStyle(
+                    fontSize: 2.4.sp,
+                    color: AppColor.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -811,37 +980,6 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     ],
   );
 
-  Widget _buildCheckinCheckoutPremium(
-    BuildContext context,
-    EmployesWorkingDetailModel? detail,
-  ) {
-    return Row(
-      children: [
-        _timelineCardPremium(
-          context,
-          "CHECK IN",
-          detail?.checkin?.time ?? "Pending",
-          Icons.login_rounded,
-          AppColor.green,
-          detail?.checkin != null
-              ? () => _showEventDetails(context, "Check-in", detail!.checkin!)
-              : null,
-        ),
-        4.width,
-        _timelineCardPremium(
-          context,
-          "CHECK OUT",
-          detail?.checkout?.time ?? "Pending",
-          Icons.logout_rounded,
-          AppColor.red,
-          detail?.checkout != null
-              ? () => _showCheckoutDetails(context, detail!.checkout!)
-              : null,
-        ),
-      ],
-    );
-  }
-
   Widget _timelineCardPremium(
     BuildContext context,
     String title,
@@ -851,59 +989,53 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     VoidCallback? onTap,
   ) {
     bool isPending = val == "Pending";
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: EdgeInsets.all(4.w),
-          decoration: BoxDecoration(
-            color: AppColor.white,
-            borderRadius: BorderRadius.circular(5.r),
-            boxShadow: AppShadow.soft,
-            border: isPending
-                ? null
-                : Border.all(color: color.withValues(alpha: 0.1), width: 1.5),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(4.w),
+        decoration: BoxDecoration(
+          color: AppColor.white,
+          borderRadius: BorderRadius.circular(5.r),
+          boxShadow: AppShadow.soft,
+          border: isPending
+              ? null
+              : Border.all(color: color.withValues(alpha: 0.1), width: 1.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, color: isPending ? AppColor.grey : color, size: 5.w),
+                if (!isPending)
                   Icon(
-                    icon,
-                    color: isPending ? AppColor.grey : color,
+                    Icons.arrow_forward_rounded,
+                    color: AppColor.grey.withValues(alpha: 0.2),
                     size: 5.w,
                   ),
-                  if (!isPending)
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      color: AppColor.grey.withValues(alpha: 0.2),
-                      size: 5.w,
-                    ),
-                ],
+              ],
+            ),
+            2.height,
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 2.5.sp,
+                color: AppColor.grey,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8,
               ),
-              2.height,
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 2.5.sp,
-                  color: AppColor.grey,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                ),
+            ),
+            0.5.height,
+            Text(
+              val,
+              style: TextStyle(
+                fontSize: 4.sp,
+                fontWeight: FontWeight.bold,
+                color: isPending ? AppColor.grey : AppColor.appDarkColor,
               ),
-              0.5.height,
-              Text(
-                val,
-                style: TextStyle(
-                  fontSize: 4.sp,
-                  fontWeight: FontWeight.bold,
-                  color: isPending ? AppColor.grey : AppColor.appDarkColor,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

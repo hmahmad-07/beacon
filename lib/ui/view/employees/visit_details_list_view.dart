@@ -10,11 +10,17 @@ import 'package:beacon/ui/view/employees/visit_navigation_map_view.dart';
 import 'package:flutter/material.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../../../core/extensions/routes.dart';
 
 class VisitDetailsListView extends StatefulWidget {
   final List<Visit> visits;
-  const VisitDetailsListView({super.key, required this.visits});
+  final String dept;
+  const VisitDetailsListView({
+    super.key,
+    required this.visits,
+    required this.dept,
+  });
 
   @override
   State<VisitDetailsListView> createState() => _VisitDetailsListViewState();
@@ -43,6 +49,8 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
             : b.createdAt;
         return Utils.parseDateTime(dateA).compareTo(Utils.parseDateTime(dateB));
       });
+
+    log('Dept Visits: ${widget.dept}');
 
     return Scaffold(
       backgroundColor: AppColor.scaffold,
@@ -79,12 +87,25 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
 
   Widget _buildList(List<Visit> sortedVisits) {
     log(sortedVisits.first.createdAt);
-    return ListView.builder(
-      padding: EdgeInsets.all(4.w),
-      physics: const BouncingScrollPhysics(),
-      itemCount: sortedVisits.length,
-      itemBuilder: (context, index) =>
-          _buildVisitCard(context, sortedVisits[index]),
+
+    return AnimationLimiter(
+      child: ListView.builder(
+        padding: EdgeInsets.all(4.w),
+        physics: const BouncingScrollPhysics(),
+        itemCount: sortedVisits.length,
+        itemBuilder: (context, index) {
+          return AnimationConfiguration.staggeredList(
+            position: index,
+            duration: const Duration(milliseconds: 400),
+            child: SlideAnimation(
+              horizontalOffset: 80.0,
+              child: FadeInAnimation(
+                child: _buildVisitCard(context, sortedVisits[index]),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -119,19 +140,36 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          visit.placeName.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 4.2.sp,
-                            fontWeight: FontWeight.bold,
-                            color: AppColor.appDarkColor,
-                            letterSpacing: -0.2,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              visit.placeName.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 4.2.sp,
+                                fontWeight: FontWeight.bold,
+                                color: AppColor.appDarkColor,
+                                letterSpacing: -0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          if (widget.dept.toLowerCase().contains(
+                            "qlty. assurance",
+                          )) ...[
+                            _actionButton(
+                              icon: Icons.map_rounded,
+                              label: "Route",
+                              color: AppColor.appDarkColor,
+                              onTap: () => AppRoutes.push(
+                                VisitNavigationMapView(visit: visit),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       0.7.height,
                       _detailRow(Icons.person_rounded, visit.ownerName),
@@ -159,7 +197,8 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
               ],
             ),
           ),
-          Divider(height: 1, color: AppColor.scaffold, thickness: 1),
+          if (!widget.dept.toLowerCase().contains("qlty. assurance"))
+            Divider(height: 1, color: AppColor.scaffold, thickness: 1),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.w),
             child: Column(
@@ -167,22 +206,31 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
               children: [
                 Row(
                   children: [
-                    _statusBadge(isProductive),
-                    const Spacer(),
-                    _actionButton(
-                      icon: Icons.map_rounded,
-                      label: "Route",
-                      color: AppColor.appDarkColor,
-                      onTap: () =>
-                          AppRoutes.push(VisitNavigationMapView(visit: visit)),
-                    ),
-                    3.width,
-                    _actionButton(
-                      icon: Icons.phone_rounded,
-                      label: "Call",
-                      color: AppColor.appColor1,
-                      onTap: () => Utils.launchURL("tel:${visit.phoneNumber}"),
-                    ),
+                    if (widget.dept.toLowerCase().contains("sales") ||
+                        widget.dept.toLowerCase().contains("marketing")) ...[
+                      _statusBadge(isProductive),
+                      const Spacer(),
+                    ],
+                    if (!widget.dept.toLowerCase().contains(
+                      "qlty. assurance",
+                    )) ...[
+                      _actionButton(
+                        icon: Icons.map_rounded,
+                        label: "Route",
+                        color: AppColor.appDarkColor,
+                        onTap: () => AppRoutes.push(
+                          VisitNavigationMapView(visit: visit),
+                        ),
+                      ),
+                      3.width,
+                      _actionButton(
+                        icon: Icons.phone_rounded,
+                        label: "Call",
+                        color: AppColor.appColor1,
+                        onTap: () =>
+                            Utils.launchURL("tel:${visit.phoneNumber}"),
+                      ),
+                    ],
                     if (isProductive) ...[
                       3.width,
                       _actionButton(

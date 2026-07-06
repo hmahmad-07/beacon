@@ -9,6 +9,7 @@ import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:beacon/core/models/emp_working_detail_model.dart';
@@ -270,6 +271,14 @@ class _EmployeeListViewState extends State<EmployeeListView> {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
+              if (widget.department.toLowerCase().contains("sales") ||
+                  widget.department.toLowerCase().contains("marketing"))
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(6.w, 4.w, 6.w, 0.w),
+                    child: _buildExternalClientsCard(context),
+                  ),
+                ),
               SliverPadding(
                 padding: EdgeInsets.all(6.w),
                 sliver: SliverGrid(
@@ -281,18 +290,21 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                   ),
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final user = employees[index];
-                    return _buildEmployeeCard(context, user);
+
+                    return AnimationConfiguration.staggeredGrid(
+                      position: index,
+                      columnCount: 2,
+                      duration: const Duration(milliseconds: 400),
+                      child: SlideAnimation(
+                        verticalOffset: 50,
+                        child: FadeInAnimation(
+                          child: _buildEmployeeCard(context, user),
+                        ),
+                      ),
+                    );
                   }, childCount: employees.length),
                 ),
               ),
-              if (widget.department.toLowerCase().contains("sales") ||
-                  widget.department.toLowerCase().contains("marketing"))
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(6.w, 0, 6.w, 6.w),
-                    child: _buildExternalClientsCard(context),
-                  ),
-                ),
             ],
           );
         },
