@@ -32,26 +32,34 @@ class EmployesController extends ChangeNotifier {
         if (employesModel?.error == 0) {
           log("Employees Fetched Successfully: ${employesModel?.totalUsers}");
         } else {
-          Utils.showSnackBar(
-            context,
-            employesModel?.errorMsg ?? 'Failed to load employees',
-          );
+          if (context.mounted) {
+            Utils.showSnackBar(
+              context,
+              employesModel?.errorMsg ?? 'Failed to load employees',
+            );
+          }
         }
       } else {
-        Utils.showSnackBar(
-          context,
-          'Server Error: ${response.statusCode} - ${response.statusMessage}',
-        );
+        if (context.mounted) {
+          Utils.showSnackBar(
+            context,
+            'Server Error: ${response.statusCode} - ${response.statusMessage}',
+          );
+        }
       }
     } on DioException catch (e) {
       log('Dio error: ${e.message}');
-      Utils.showSnackBar(
-        context,
-        e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
-      );
+      if (context.mounted) {
+        Utils.showSnackBar(
+          context,
+          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+        );
+      }
     } catch (e) {
       log('Unexpected error: $e');
-      Utils.showSnackBar(context, 'Something went wrong. Please try again.');
+      if (context.mounted) {
+        Utils.showSnackBar(context, 'Something went wrong. Please try again.');
+      }
     } finally {
       isLoading = false;
       notifyListeners();
@@ -151,11 +159,11 @@ class EmployesController extends ChangeNotifier {
       if (response.statusCode == 200) {
         externalReport = ExternalClientReportModel.fromJson(response.data);
       } else {
-        Utils.showSnackBar(context, 'Server Error: ${response.statusCode}');
+        if (context.mounted) Utils.showSnackBar(context, 'Server Error: ${response.statusCode}');
       }
     } catch (e) {
       log('Error external report: $e');
-      Utils.showSnackBar(context, 'Failed to load external report');
+      if (context.mounted) Utils.showSnackBar(context, 'Failed to load external report');
     } finally {
       isExternalReportLoading = false;
       notifyListeners();
@@ -208,17 +216,19 @@ class EmployesController extends ChangeNotifier {
           log("API Status: ${workingDetailModel?.errorMsg}");
         }
       } else {
-        Utils.showSnackBar(context, 'Server Error: ${response.statusCode}');
+        if (context.mounted) Utils.showSnackBar(context, 'Server Error: ${response.statusCode}');
       }
     } on DioException catch (e) {
       log('Dio error: ${e.message}');
-      Utils.showSnackBar(context, 'Network error. Please try again.');
+      if (context.mounted) Utils.showSnackBar(context, 'Network error. Please try again.');
     } catch (e) {
       log('Unexpected error working details: $e');
-      Utils.showSnackBar(
-        context,
-        'Something went wrong while fetching details',
-      );
+      if (context.mounted) {
+        Utils.showSnackBar(
+          context,
+          'Something went wrong while fetching details',
+        );
+      }
     } finally {
       isWorkingDetailLoading = false;
       notifyListeners();

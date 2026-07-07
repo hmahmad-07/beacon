@@ -61,6 +61,8 @@ class PdfReportGenerator {
   }) async {
     final pdf = pw.Document();
     final String formattedMonth = dateRangeText;
+    final bool isSales =
+        user.department?.toLowerCase().contains('sales') ?? false;
 
     pdf.addPage(
       pw.MultiPage(
@@ -69,9 +71,15 @@ class PdfReportGenerator {
         header: (context) => _buildHeader(formattedMonth, "Monthly User Audit"),
         footer: (context) => _buildFooter(context),
         build: (context) => [
-          _buildMonthlyUserSummary(user, reports),
+          _buildMonthlyUserSummary(user, reports, isSales: isSales),
           pw.SizedBox(height: 20),
-          ...reports.map((r) => _buildDailyActivitySection(r)),
+          ...reports.map(
+            (r) => _buildDailyActivitySection(
+              r,
+              isSales: isSales,
+              showRemarks: true,
+            ),
+          ),
         ],
       ),
     );
@@ -80,8 +88,10 @@ class PdfReportGenerator {
   }
 
   static pw.Widget _buildDailyActivitySection(
-    EmployesWorkingDetailModel report,
-  ) {
+    EmployesWorkingDetailModel report, {
+    bool isSales = true,
+    bool showRemarks = false,
+  }) {
     final String formattedDate = DateFormat('dd-MMM-yyyy').format(report.date);
 
     return pw.Column(
@@ -111,7 +121,11 @@ class PdfReportGenerator {
         _buildAttendanceSummary(report),
         if (report.visits.isNotEmpty) ...[
           pw.SizedBox(height: 10),
-          _buildVisitTable(report.visits),
+          _buildVisitTable(
+            report.visits,
+            isSales: isSales,
+            showRemarks: showRemarks,
+          ),
         ],
         pw.SizedBox(height: 20),
       ],
@@ -165,8 +179,9 @@ class PdfReportGenerator {
 
   static pw.Widget _buildMonthlyUserSummary(
     User user,
-    List<EmployesWorkingDetailModel> reports,
-  ) {
+    List<EmployesWorkingDetailModel> reports, {
+    bool isSales = true,
+  }) {
     int totalVisits = 0;
     int productiveVisits = 0;
     double totalRevenue = 0;
@@ -209,8 +224,13 @@ class PdfReportGenerator {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               _summaryItem("Total Visits", totalVisits.toString()),
-              _summaryItem("Productive", productiveVisits.toString()),
-              _summaryItem("Revenue", "PKR ${totalRevenue.toStringAsFixed(0)}"),
+              if (isSales)
+                _summaryItem("Productive", productiveVisits.toString()),
+              if (isSales)
+                _summaryItem(
+                  "Revenue",
+                  "PKR ${totalRevenue.toStringAsFixed(0)}",
+                ),
             ],
           ),
         ],
@@ -331,8 +351,10 @@ class PdfReportGenerator {
 
   static pw.Widget _buildUserSection(
     User user,
-    EmployesWorkingDetailModel report,
-  ) {
+    EmployesWorkingDetailModel report, {
+    bool isSales = true,
+    bool showRemarks = false,
+  }) {
     int productive = report.visits
         .where((v) => v.orders.any((o) => o.isProductive))
         .length;
@@ -371,15 +393,21 @@ class PdfReportGenerator {
             _metaLabelValue("Check-out", report.checkout?.time ?? "N/A"),
             pw.SizedBox(width: 20),
             _metaLabelValue("Total Visits", report.visits.length.toString()),
-            pw.SizedBox(width: 20),
-            _metaLabelValue("Productive Visits", productive.toString()),
+            if (isSales) ...[
+              pw.SizedBox(width: 20),
+              _metaLabelValue("Productive Visits", productive.toString()),
+            ],
           ],
         ),
         pw.SizedBox(height: 10),
         if (report.visits.isNotEmpty) ...[
-          _buildVisitTable(report.visits),
+          _buildVisitTable(
+            report.visits,
+            isSales: isSales,
+            showRemarks: showRemarks,
+          ),
           pw.SizedBox(height: 10),
-          _buildUserTotals(report.visits),
+          if (isSales) _buildUserTotals(report.visits),
         ],
         if (report.visits.isEmpty && report.checkin == null)
           pw.Container(
@@ -481,7 +509,17 @@ class PdfReportGenerator {
     return 'N/A';
   }
 
-  static pw.Widget _buildVisitTable(List<Visit> visits) {
+  static String _extractRemarksText(String remarks) {
+    if (remarks.isEmpty) return 'N/A';
+    final extracted = remarks.replaceAll(RegExp(r'\(\d+m\d+s\)'), '').trim();
+    return extracted.isEmpty ? 'N/A' : extracted;
+  }
+
+  static pw.Widget _buildVisitTable(
+    List<Visit> visits, {
+    bool isSales = true,
+    bool showRemarks = false,
+  }) {
     final sortedVisits = List<Visit>.from(visits)
       ..sort((a, b) {
         final dateA = a.orders.isNotEmpty && a.orders.first.orderDate.isNotEmpty
@@ -502,9 +540,10 @@ class PdfReportGenerator {
             _tableHeader("Time"),
             _tableHeader("Shop Name"),
             _tableHeader("Channel"),
-            _tableHeader("Status"),
+            if (isSales) _tableHeader("Status"),
             _tableHeader("Stay Time"),
-            _tableHeader("Revenue"),
+            if (isSales) _tableHeader("Revenue"),
+            if (showRemarks) _tableHeader("Remarks"),
           ],
         ),
         ...sortedVisits.map((v) {
@@ -535,11 +574,12 @@ class PdfReportGenerator {
               ),
               _tableCell(v.placeName),
               _tableCell(v.channel),
-              _tableCell(
-                v.orders.any((o) => o.isProductive)
-                    ? "Productive"
-                    : "Non-Productive",
-              ),
+              if (isSales)
+                _tableCell(
+                  v.orders.any((o) => o.isProductive)
+                      ? "Productive"
+                      : "Non-Productive",
+                ),
               _tableCell(
                 _extractDuration(
                   v.orders.isNotEmpty && v.orders.first.remarks != null
@@ -547,10 +587,19 @@ class PdfReportGenerator {
                       : v.remarks ?? '',
                 ),
               ),
-              _tableCell(
-                revenue.toStringAsFixed(0),
-                align: pw.Alignment.centerRight,
-              ),
+              if (isSales)
+                _tableCell(
+                  revenue.toStringAsFixed(0),
+                  align: pw.Alignment.centerRight,
+                ),
+              if (showRemarks)
+                _tableCell(
+                  _extractRemarksText(
+                    v.orders.isNotEmpty && v.orders.first.remarks != null
+                        ? v.orders.first.remarks!
+                        : v.remarks ?? '',
+                  ),
+                ),
             ],
           );
         }),
