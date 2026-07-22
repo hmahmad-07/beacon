@@ -37,12 +37,17 @@ class PdfReportGenerator {
             users.length,
           ),
           pw.SizedBox(height: 20),
-          ...totalForce.map(
-            (data) => _buildUserSection(
-              data['user'] as User,
+          ...totalForce.map((data) {
+            final u = data['user'] as User;
+            final isUserSales = u.department?.toLowerCase().contains('sales') == true ||
+                u.department?.toLowerCase().contains('marketing') == true;
+            return _buildUserSection(
+              u,
               data['report'] as EmployesWorkingDetailModel,
-            ),
-          ),
+              isSales: isUserSales,
+              showRemarks: true,
+            );
+          }),
           if (externalReport != null && externalReport.orders.isNotEmpty) ...[
             pw.SizedBox(height: 30),
             _buildExternalClientsSection(externalReport),
@@ -317,10 +322,6 @@ class PdfReportGenerator {
           _summaryItem("TOTAL STAFF", total.toString()),
           _summaryItem("ACTIVE FORCE", active.toString()),
           _summaryItem("ABSENT/INACTIVE", (total - active).toString()),
-          _summaryItem(
-            "UTILIZATION",
-            "${((active / total) * 100).toStringAsFixed(1)}%",
-          ),
         ],
       ),
     );
@@ -359,6 +360,18 @@ class PdfReportGenerator {
         .where((v) => v.orders.any((o) => o.isProductive))
         .length;
 
+    double totalRev = 0;
+    for (var v in report.visits) {
+      for (var o in v.orders) {
+        for (var item in o.items) {
+          final rate = double.tryParse(item['rate']?.toString() ?? '0') ?? 0;
+          final pcs = double.tryParse(item['qty_pcs']?.toString() ?? '0') ?? 0;
+          final box = double.tryParse(item['qty_box']?.toString() ?? '0') ?? 0;
+          totalRev += (pcs + box) * rate;
+        }
+      }
+    }
+
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -396,6 +409,8 @@ class PdfReportGenerator {
             if (isSales) ...[
               pw.SizedBox(width: 20),
               _metaLabelValue("Productive Visits", productive.toString()),
+              pw.SizedBox(width: 20),
+              _metaLabelValue("Total Amount", "PKR ${totalRev.toStringAsFixed(0)}"),
             ],
           ],
         ),
@@ -531,8 +546,25 @@ class PdfReportGenerator {
         return Utils.parseDateTime(dateA).compareTo(Utils.parseDateTime(dateB));
       });
 
+    final Map<int, pw.TableColumnWidth> columnWidths = {};
+    int colIndex = 0;
+    columnWidths[colIndex++] = const pw.IntrinsicColumnWidth(); // Time
+    columnWidths[colIndex++] = const pw.FlexColumnWidth();      // Shop Name
+    columnWidths[colIndex++] = const pw.IntrinsicColumnWidth(); // Channel
+    if (isSales) {
+      columnWidths[colIndex++] = const pw.IntrinsicColumnWidth(); // Status
+    }
+    columnWidths[colIndex++] = const pw.IntrinsicColumnWidth(); // Stay Time
+    if (isSales) {
+      columnWidths[colIndex++] = const pw.IntrinsicColumnWidth(); // Revenue
+    }
+    if (showRemarks) {
+      columnWidths[colIndex++] = const pw.FixedColumnWidth(160);  // Remarks
+    }
+
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+      columnWidths: columnWidths,
       children: [
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.grey100),

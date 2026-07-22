@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:beacon/core/utils/utils.dart';
 
 EmployesWorkingDetailModel employesWorkingDetailModelFromJson(String str) =>
     EmployesWorkingDetailModel.fromJson(json.decode(str));
@@ -25,32 +26,89 @@ class EmployesWorkingDetailModel {
     required this.visits,
   });
 
-  factory EmployesWorkingDetailModel.fromJson(Map<String, dynamic> json) =>
-      EmployesWorkingDetailModel(
-        error: json["error"] as int,
-        errorMsg: json["error_msg"] as String,
-        date: DateTime.parse(json["date"] as String),
-        checkin:
-            (json["checkin"] != null &&
-                json["checkin"] is Map &&
-                (json["checkin"] as Map).isNotEmpty)
-            ? Checkin.fromJson(json["checkin"] as Map<String, dynamic>)
-            : null,
-        checkout:
-            (json["checkout"] != null &&
-                json["checkout"] is Map &&
-                (json["checkout"] as Map).isNotEmpty)
-            ? Checkout.fromJson(json["checkout"] as Map<String, dynamic>)
-            : null,
-        totalVisits: json["total_visits"] != null
-            ? json["total_visits"] as int
-            : 0,
-        visits: json["visits"] != null
-            ? (json["visits"] as List<dynamic>)
-                  .map((x) => Visit.fromJson(x as Map<String, dynamic>))
-                  .toList()
-            : [],
-      );
+  EmployesWorkingDetailModel copyWith({
+    int? error,
+    String? errorMsg,
+    DateTime? date,
+    Checkin? checkin,
+    Checkout? checkout,
+    int? totalVisits,
+    List<Visit>? visits,
+  }) {
+    return EmployesWorkingDetailModel(
+      error: error ?? this.error,
+      errorMsg: errorMsg ?? this.errorMsg,
+      date: date ?? this.date,
+      checkin: checkin ?? this.checkin,
+      checkout: checkout ?? this.checkout,
+      totalVisits: totalVisits ?? this.totalVisits,
+      visits: visits ?? this.visits,
+    );
+  }
+
+  static bool _is24DVisit(String placeName) {
+    final name = placeName.toLowerCase();
+    return RegExp(r'24[\s\-]*d').hasMatch(name);
+  }
+
+  factory EmployesWorkingDetailModel.fromJson(Map<String, dynamic> json) {
+    final rawVisits = json["visits"] != null
+        ? (json["visits"] as List<dynamic>)
+              .map((x) => Visit.fromJson(x as Map<String, dynamic>))
+              .toList()
+        : <Visit>[];
+
+    final Map<String, Visit> uniqueVisits = {};
+
+    for (var visit in rawVisits) {
+      if (_is24DVisit(visit.placeName)) {
+        continue;
+      }
+
+      final dateStr =
+          visit.orders.isNotEmpty && visit.orders.first.orderDate.isNotEmpty
+          ? visit.orders.first.orderDate
+          : visit.createdAt;
+      final parsedDate = Utils.parseDateTime(dateStr);
+      final key =
+          '${parsedDate.year}-${parsedDate.month}-${parsedDate.day}_${visit.placeName.trim().toLowerCase()}';
+
+      if (!uniqueVisits.containsKey(key)) {
+        uniqueVisits[key] = visit;
+      } else {
+        final existingVisit = uniqueVisits[key]!;
+        final existingProductive = existingVisit.orders.any(
+          (o) => o.isProductive,
+        );
+        final newProductive = visit.orders.any((o) => o.isProductive);
+        if (!existingProductive && newProductive) {
+          uniqueVisits[key] = visit;
+        }
+      }
+    }
+
+    final finalVisits = uniqueVisits.values.toList();
+
+    return EmployesWorkingDetailModel(
+      error: json["error"] as int,
+      errorMsg: json["error_msg"] as String,
+      date: DateTime.parse(json["date"] as String),
+      checkin:
+          (json["checkin"] != null &&
+              json["checkin"] is Map &&
+              (json["checkin"] as Map).isNotEmpty)
+          ? Checkin.fromJson(json["checkin"] as Map<String, dynamic>)
+          : null,
+      checkout:
+          (json["checkout"] != null &&
+              json["checkout"] is Map &&
+              (json["checkout"] as Map).isNotEmpty)
+          ? Checkout.fromJson(json["checkout"] as Map<String, dynamic>)
+          : null,
+      totalVisits: finalVisits.length,
+      visits: finalVisits,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     "error": error,
@@ -168,14 +226,18 @@ class Visit {
   });
 
   String get effectiveLatitude {
-    if (orders.isNotEmpty && orders.first.latitude != null && orders.first.latitude!.isNotEmpty) {
+    if (orders.isNotEmpty &&
+        orders.first.latitude != null &&
+        orders.first.latitude!.isNotEmpty) {
       return orders.first.latitude!;
     }
     return latitude;
   }
 
   String get effectiveLongitude {
-    if (orders.isNotEmpty && orders.first.longitude != null && orders.first.longitude!.isNotEmpty) {
+    if (orders.isNotEmpty &&
+        orders.first.longitude != null &&
+        orders.first.longitude!.isNotEmpty) {
       return orders.first.longitude!;
     }
     return longitude;

@@ -37,9 +37,39 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
     return '';
   }
 
+  bool _is24DVisit(String placeName) {
+    final name = placeName.toLowerCase();
+    return RegExp(r'24[\s\-]*d').hasMatch(name);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final sortedVisits = List<Visit>.from(widget.visits)
+    final Map<String, Visit> uniqueVisits = {};
+
+    for (var visit in widget.visits) {
+      if (_is24DVisit(visit.placeName)) {
+        continue;
+      }
+
+      final dateStr = visit.orders.isNotEmpty && visit.orders.first.orderDate.isNotEmpty
+          ? visit.orders.first.orderDate
+          : visit.createdAt;
+      final parsedDate = Utils.parseDateTime(dateStr);
+      final key = '${parsedDate.year}-${parsedDate.month}-${parsedDate.day}_${visit.placeName.trim().toLowerCase()}';
+
+      if (!uniqueVisits.containsKey(key)) {
+        uniqueVisits[key] = visit;
+      } else {
+        final existingVisit = uniqueVisits[key]!;
+        final existingProductive = existingVisit.orders.any((o) => o.isProductive);
+        final newProductive = visit.orders.any((o) => o.isProductive);
+        if (!existingProductive && newProductive) {
+          uniqueVisits[key] = visit;
+        }
+      }
+    }
+
+    final sortedVisits = uniqueVisits.values.toList()
       ..sort((a, b) {
         final dateA = a.orders.isNotEmpty && a.orders.first.orderDate.isNotEmpty
             ? a.orders.first.orderDate
