@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    SizeConfig.init(context, debug: true);
+    SizeConfig.init(context);
 
     return MultiProvider(
       providers: [

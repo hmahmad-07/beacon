@@ -51,17 +51,21 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
         continue;
       }
 
-      final dateStr = visit.orders.isNotEmpty && visit.orders.first.orderDate.isNotEmpty
+      final dateStr =
+          visit.orders.isNotEmpty && visit.orders.first.orderDate.isNotEmpty
           ? visit.orders.first.orderDate
           : visit.createdAt;
       final parsedDate = Utils.parseDateTime(dateStr);
-      final key = '${parsedDate.year}-${parsedDate.month}-${parsedDate.day}_${visit.placeName.trim().toLowerCase()}';
+      final key =
+          '${parsedDate.year}-${parsedDate.month}-${parsedDate.day}_${visit.placeName.trim().toLowerCase()}';
 
       if (!uniqueVisits.containsKey(key)) {
         uniqueVisits[key] = visit;
       } else {
         final existingVisit = uniqueVisits[key]!;
-        final existingProductive = existingVisit.orders.any((o) => o.isProductive);
+        final existingProductive = existingVisit.orders.any(
+          (o) => o.isProductive,
+        );
         final newProductive = visit.orders.any((o) => o.isProductive);
         if (!existingProductive && newProductive) {
           uniqueVisits[key] = visit;
@@ -173,18 +177,21 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              visit.placeName.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 4.2.sp,
-                                fontWeight: FontWeight.bold,
-                                color: AppColor.appDarkColor,
-                                letterSpacing: -0.2,
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                textAlign: TextAlign.left,
+                                visit.placeName.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 4.2.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColor.appDarkColor,
+                                  letterSpacing: -0.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           if (widget.dept.toLowerCase().contains(
@@ -344,12 +351,14 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
 
   Widget _detailRow(IconData icon, String text, {bool isAddress = false}) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Icon(icon, size: 2.8.w, color: AppColor.appColor2),
         1.5.width,
         Expanded(
           child: Text(
             text,
+            textAlign: TextAlign.left,
             maxLines: isAddress ? 1 : 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(

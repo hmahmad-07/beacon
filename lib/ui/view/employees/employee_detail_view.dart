@@ -151,7 +151,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     style: TextStyle(
                       fontSize: 2.sp,
                       color: isSelected ? AppColor.white : AppColor.grey,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -160,7 +160,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     DateFormat('dd').format(date),
                     style: TextStyle(
                       fontSize: 4.2.sp,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.bold,
                       color: isSelected
                           ? AppColor.white
                           : AppColor.appDarkColor,

@@ -159,11 +159,15 @@ class EmployesController extends ChangeNotifier {
       if (response.statusCode == 200) {
         externalReport = ExternalClientReportModel.fromJson(response.data);
       } else {
-        if (context.mounted) Utils.showSnackBar(context, 'Server Error: ${response.statusCode}');
+        if (context.mounted) {
+          Utils.showSnackBar(context, 'Server Error: ${response.statusCode}');
+        }
       }
     } catch (e) {
       log('Error external report: $e');
-      if (context.mounted) Utils.showSnackBar(context, 'Failed to load external report');
+      if (context.mounted) {
+        Utils.showSnackBar(context, 'Failed to load external report');
+      }
     } finally {
       isExternalReportLoading = false;
       notifyListeners();
@@ -185,7 +189,7 @@ class EmployesController extends ChangeNotifier {
   List<DateTime> get dateRange {
     final List<DateTime> dates = [];
     final now = DateTime.now();
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 45; i++) {
       dates.add(now.subtract(Duration(days: i)));
     }
     return dates;
@@ -216,11 +220,15 @@ class EmployesController extends ChangeNotifier {
           log("API Status: ${workingDetailModel?.errorMsg}");
         }
       } else {
-        if (context.mounted) Utils.showSnackBar(context, 'Server Error: ${response.statusCode}');
+        if (context.mounted) {
+          Utils.showSnackBar(context, 'Server Error: ${response.statusCode}');
+        }
       }
     } on DioException catch (e) {
       log('Dio error: ${e.message}');
-      if (context.mounted) Utils.showSnackBar(context, 'Network error. Please try again.');
+      if (context.mounted) {
+        Utils.showSnackBar(context, 'Network error. Please try again.');
+      }
     } catch (e) {
       log('Unexpected error working details: $e');
       if (context.mounted) {
@@ -304,7 +312,8 @@ class EmployesController extends ChangeNotifier {
       try {
         onProgress(i + 1, totalDays);
         final targetDate = DateFormat('yyyy-MM-dd').format(currentDate);
-        final url = '${Constants.baseUrl}tsm_daily_report.php?user_id=$userId&date=$targetDate';
+        final url =
+            '${Constants.baseUrl}tsm_daily_report.php?user_id=$userId&date=$targetDate';
         final response = await dio.get(url);
 
         if (response.statusCode == 200) {
@@ -315,7 +324,7 @@ class EmployesController extends ChangeNotifier {
           }
         }
       } catch (e) {
-        log("Error fetching day ${i+1}: $e");
+        log("Error fetching day ${i + 1}: $e");
       }
     }
     return reports;
@@ -337,7 +346,8 @@ class EmployesController extends ChangeNotifier {
       try {
         onProgress(i + 1, totalDays);
         final targetDate = DateFormat('yyyy-MM-dd').format(currentDate);
-        final url = '${Constants.baseUrl}tsm_daily_report.php?is_external_client=1&date=$targetDate';
+        final url =
+            '${Constants.baseUrl}tsm_daily_report.php?is_external_client=1&date=$targetDate';
         final response = await dio.get(url);
 
         if (response.statusCode == 200) {
@@ -347,7 +357,7 @@ class EmployesController extends ChangeNotifier {
           }
         }
       } catch (e) {
-        log("Error fetching external day ${i+1}: $e");
+        log("Error fetching external day ${i + 1}: $e");
       }
     }
     return reports;

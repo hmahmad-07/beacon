@@ -27,138 +27,7 @@ class CustomSearchDropdown extends StatefulWidget {
 }
 
 class _CustomSearchDropdownState extends State<CustomSearchDropdown> {
-  final TextEditingController _searchController = TextEditingController();
-  void _showSearchDialog() {
-    _searchController.clear();
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.4),
-      builder: (context) {
-        String searchQuery = '';
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final filteredList = widget.menuList
-                .where(
-                  (item) =>
-                      item.toLowerCase().contains(searchQuery.toLowerCase()),
-                )
-                .toList();
-
-            return Dialog(
-              elevation: 0,
-              backgroundColor: Colors.transparent,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
-                constraints: BoxConstraints(maxHeight: 65.h),
-                decoration: BoxDecoration(
-                  color: AppColor.appColor1,
-                  borderRadius: BorderRadius.circular(4.r),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColor.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(2.5.r),
-                      ),
-                      child: CustomField(
-                        controller: _searchController,
-                        hintText: 'Search here...',
-                        isLabel: false,
-                        prefix: Icon(
-                          Iconsax.search_normal_1_outline,
-                          color: AppColor.appColor1.withValues(alpha: 0.7),
-                        ),
-                        onChanged: (value) {
-                          setDialogState(() {
-                            searchQuery = value;
-                          });
-                        },
-                      ),
-                    ),
-
-                    2.height,
-                    Expanded(
-                      child: filteredList.isEmpty
-                          ? Center(
-                              child: Text(
-                                "No results found",
-                                style: TextStyle(
-                                  color: AppColor.white.withValues(alpha: 0.6),
-                                  fontSize: 4.sp,
-                                ),
-                              ),
-                            )
-                          : ListView.separated(
-                              itemCount: filteredList.length,
-                              separatorBuilder: (_, _) => Divider(
-                                color: AppColor.white.withValues(alpha: 0.1),
-                                height: 1,
-                              ),
-                              itemBuilder: (context, index) {
-                                final item = filteredList[index];
-                                final isSelected = widget.selectedItem == item;
-
-                                return Material(
-                                  color: isSelected
-                                      ? AppColor.white.withValues(alpha: 0.08)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(2.r),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(2.r),
-                                    onTap: () {
-                                      widget.onChange(item);
-                                      Navigator.pop(context);
-                                    },
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 2.w,
-                                        vertical: 1.5.h,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              item,
-                                              style: TextStyle(
-                                                color: AppColor.white,
-                                                fontSize: 4.2.sp,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.w600
-                                                    : FontWeight.w400,
-                                              ),
-                                            ),
-                                          ),
-                                          if (isSelected)
-                                            Icon(
-                                              Icons.check_circle,
-                                              color: AppColor.white,
-                                              size: 2.2.h,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+  final searchController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -220,6 +89,138 @@ class _CustomSearchDropdownState extends State<CustomSearchDropdown> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showSearchDialog() {
+    searchController.clear();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (context) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final filteredList = widget.menuList
+                .where(
+                  (item) =>
+                      item.toLowerCase().contains(searchQuery.toLowerCase()),
+                )
+                .toList();
+
+            return Dialog(
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                constraints: BoxConstraints(maxHeight: 65.h),
+                decoration: BoxDecoration(
+                  color: AppColor.appColor1,
+                  borderRadius: BorderRadius.circular(4.r),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColor.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(2.5.r),
+                      ),
+                      child: CustomField(
+                        controller: searchController,
+                        hintText: 'Search here...',
+                        isLabel: false,
+                        prefix: Icon(
+                          Iconsax.search_normal_1_outline,
+                          color: AppColor.appColor1.withValues(alpha: 0.7),
+                        ),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            searchQuery = value;
+                          });
+                        },
+                      ),
+                    ),
+
+                    2.height,
+                    Expanded(
+                      child: filteredList.isEmpty
+                          ? Center(
+                              child: Text(
+                                "No results found",
+                                style: TextStyle(
+                                  color: AppColor.white.withValues(alpha: 0.6),
+                                  fontSize: 4.sp,
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: filteredList.length,
+                              separatorBuilder: (_, _) => Divider(
+                                color: AppColor.white.withValues(alpha: 0.1),
+                                height: 1,
+                              ),
+                              itemBuilder: (context, index) {
+                                final item = filteredList[index];
+                                final isSelected = widget.selectedItem == item;
+
+                                return Material(
+                                  color: isSelected
+                                      ? AppColor.white.withValues(alpha: 0.08)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(2.r),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(2.r),
+                                    onTap: () {
+                                      widget.onChange(item);
+                                      Navigator.pop(context);
+                                    },
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 2.w,
+                                        vertical: 1.5.h,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              item,
+                                              style: TextStyle(
+                                                color: AppColor.white,
+                                                fontSize: 4.2.sp,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isSelected)
+                                            Icon(
+                                              Icons.check_circle,
+                                              color: AppColor.white,
+                                              size: 2.2.h,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
