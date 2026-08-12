@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:icons_plus/icons_plus.dart';
+import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import '../../core/extensions/sizer.dart';
 import '../../core/resources/app_colors.dart';

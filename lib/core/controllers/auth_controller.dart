@@ -27,7 +27,7 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ================================================================ Login =================================================================
+  // ================================================================= Login =================================================================
 
   final employeeCodeController = TextEditingController();
   final passwordController = TextEditingController();
@@ -143,7 +143,7 @@ class AuthController extends ChangeNotifier {
     super.dispose();
   }
 
-  // ================================================ Logout ===========================================================
+  // =========================================================== Logout ===========================================================
 
   Future<void> logout(BuildContext context) async {
     final ss = FlutterSecureStorage();

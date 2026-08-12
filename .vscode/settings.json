@@ -1,0 +1,43 @@
+{
+    "editor.tokenColorCustomizations": {
+        "textMateRules": [
+            {
+                "scope": "comment",
+                "settings": {
+                    "fontStyle": "bold underline",
+                    "foreground": "#bd993c"
+                }
+            },
+            {
+                "scope": "entity.name.function",
+                "settings": {
+                    "fontStyle": "underline",
+                }
+            },
+            {
+                "scope": "keyword",
+                "settings": {
+                    "fontStyle": "italic"
+                }
+            },
+            {
+                "scope": "string",
+                "settings": {}
+            },
+            {
+                "scope": "variable",
+                "settings": {}
+            },
+            {
+                "scope": "entity.name.type",
+                "settings": {
+                    "fontStyle": "bold",
+                }
+            }
+        ]
+    },
+    "flutterTools.displayGetxContextMenu": false,
+    "flutterTools.displayMobxContextMenu": false,
+    "flutterTools.displayRiverpodContextMenu": false,
+    "flutterTools.displayModularContextMenu": false
+}

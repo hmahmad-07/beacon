@@ -16,7 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:icons_plus/icons_plus.dart';
+import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';

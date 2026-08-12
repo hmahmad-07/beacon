@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../models/emp_working_detail_model.dart';
 import '../models/employes_model.dart';
 import '../models/external_client_model.dart';
+import '../models/project_model.dart';
 import '../utils/utils.dart';
 
 class EmployesController extends ChangeNotifier {
@@ -24,8 +25,15 @@ class EmployesController extends ChangeNotifier {
       notifyListeners();
 
       final dio = Dio();
-      final response = await dio.get('${Constants.baseUrl}tsm_users_list.php');
-
+      final response = await dio.get(
+        '${Constants.baseUrl}tsm_users_list.php',
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${Constants.token}',
+          },
+        ),
+      );
       if (response.statusCode == 200) {
         employesModel = EmployesModel.fromJson(response.data);
 
@@ -117,6 +125,31 @@ class EmployesController extends ChangeNotifier {
     return depts;
   }
 
+  /// Departments bucketed per project, keyed by [AppProject.id].
+  ///
+  /// The users API carries no project field, so the split is manual for now:
+  /// the first half of [departments] goes to Corporate Canteen and the rest to
+  /// Paani. Al Azeem Foundation and Rabia Trust Hospital have no departments on
+  /// the API yet, so they stay empty. Replace this once a user carries a real
+  /// project.
+  Map<String, List<String>> get projectDepartments {
+    final all = departments;
+    final grouped = {for (final p in AppProject.all) p.id: <String>[]};
+    if (all.isEmpty) return grouped;
+
+    final mid = (all.length / 2).ceil();
+    grouped[AppProject.corporateCanteen.id] = all.sublist(0, mid);
+    grouped[AppProject.paani.id] = all.sublist(mid);
+    return grouped;
+  }
+
+  /// All departments, excluding empty ones.
+  List<String> get allDepartments {
+    return departments
+        .where((dept) => getEmployeesByDept(dept).isNotEmpty)
+        .toList();
+  }
+
   List<User> getEmployeesByDept(String dept) {
     if (employesModel?.users == null) return [];
     return employesModel!.users!.where((u) {
@@ -154,7 +187,15 @@ class EmployesController extends ChangeNotifier {
           '${Constants.baseUrl}tsm_daily_report.php?is_external_client=1&date=$targetDate';
       log("Fetching External Report: $url");
 
-      final response = await dio.get(url);
+      final response = await dio.get(
+        url,
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${Constants.token}',
+          },
+        ),
+      );
 
       if (response.statusCode == 200) {
         externalReport = ExternalClientReportModel.fromJson(response.data);
@@ -210,7 +251,15 @@ class EmployesController extends ChangeNotifier {
           '${Constants.baseUrl}tsm_daily_report.php?user_id=$userId&date=$targetDate';
       log("Fetching Working Details: $url");
 
-      final response = await dio.get(url);
+      final response = await dio.get(
+        url,
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${Constants.token}',
+          },
+        ),
+      );
 
       if (response.statusCode == 200) {
         workingDetailModel = EmployesWorkingDetailModel.fromJson(response.data);
@@ -265,7 +314,15 @@ class EmployesController extends ChangeNotifier {
         onProgress(i + 1, users.length);
         final url =
             '${Constants.baseUrl}tsm_daily_report.php?user_id=${users[i].userId}&date=$targetDate';
-        final response = await dio.get(url);
+        final response = await dio.get(
+          url,
+          options: Options(
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer ${Constants.token}',
+            },
+          ),
+        );
 
         if (response.statusCode == 200) {
           reports.add(EmployesWorkingDetailModel.fromJson(response.data));
@@ -314,7 +371,15 @@ class EmployesController extends ChangeNotifier {
         final targetDate = DateFormat('yyyy-MM-dd').format(currentDate);
         final url =
             '${Constants.baseUrl}tsm_daily_report.php?user_id=$userId&date=$targetDate';
-        final response = await dio.get(url);
+        final response = await dio.get(
+          url,
+          options: Options(
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer ${Constants.token}',
+            },
+          ),
+        );
 
         if (response.statusCode == 200) {
           final r = EmployesWorkingDetailModel.fromJson(response.data);
@@ -348,7 +413,12 @@ class EmployesController extends ChangeNotifier {
         final targetDate = DateFormat('yyyy-MM-dd').format(currentDate);
         final url =
             '${Constants.baseUrl}tsm_daily_report.php?is_external_client=1&date=$targetDate';
-        final response = await dio.get(url);
+        final response = await dio.get(
+          url,
+          options: Options(
+            headers: {'Accept': 'application/json', 'Bearer': Constants.token},
+          ),
+        );
 
         if (response.statusCode == 200) {
           final r = ExternalClientReportModel.fromJson(response.data);

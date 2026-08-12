@@ -1,7 +1,7 @@
 // ignore_for_file: must_be_immutable, file_names
 
 import 'package:flutter/material.dart';
-import 'package:icons_plus/icons_plus.dart';
+import 'package:iconsx_plus/iconsx_plus.dart';
 import '../../core/extensions/sizer.dart';
 import '../../core/resources/app_colors.dart';
 import 'custom_field.dart';
