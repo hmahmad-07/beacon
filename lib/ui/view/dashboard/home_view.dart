@@ -88,19 +88,6 @@ class _HomeViewState extends State<HomeView> {
                       children: [
                         if (!isAll)
                           _buildProjectTitle(visibleDepts.length, displayName),
-                        if (isAll)
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 1.h),
-                            child: Text(
-                              displayName,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 5.sp,
-                                height: 1.2,
-                                color: AppColor.appDarkColor,
-                              ),
-                            ),
-                          ),
                         Expanded(
                           child: visibleDepts.isEmpty
                               ? _buildEmptyState(
@@ -138,10 +125,7 @@ class _HomeViewState extends State<HomeView> {
             gradient: LinearGradient(
               colors: [AppColor.appColor1, AppColor.appDarkColor],
             ),
-            borderRadius: BorderRadius.only(
-              // bottomLeft: Radius.circular(5.w),
-              bottomRight: Radius.circular(7.w),
-            ),
+            borderRadius: BorderRadius.only(bottomRight: Radius.circular(10.w)),
           ),
           child: Padding(
             padding: EdgeInsets.only(
@@ -259,39 +243,34 @@ class _HomeViewState extends State<HomeView> {
         child: Column(
           children: [
             0.4.height,
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              height: 18.w,
-              width: 18.w,
+            Container(
               padding: EdgeInsets.all(1.w),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
                 color: AppColor.white,
+                shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected
                       ? AppColor.appDarkColor
                       : AppColor.appLightColor,
                   width: isSelected ? 1.5 : 1,
                 ),
-                boxShadow: isSelected ? AppShadow.soft : null,
               ),
-              child: Icon(
-                Icons.star_rounded,
-                color: isSelected ? AppColor.appDarkColor : AppColor.grey,
-                size: 8.w,
-              ),
-            ),
-            0.8.height,
-            Text(
-              "All",
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 3.sp,
-                height: 1.2,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? AppColor.appDarkColor : AppColor.grey,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                height: 15.w,
+                width: 15.w,
+                padding: EdgeInsets.all(1.w),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected ? AppColor.appDarkColor : AppColor.white,
+
+                  boxShadow: isSelected ? AppShadow.soft : null,
+                ),
+                child: Icon(
+                  Icons.star_rounded,
+                  color: isSelected ? AppColor.white : AppColor.grey,
+                  size: 8.w,
+                ),
               ),
             ),
             0.5.height,
@@ -304,7 +283,6 @@ class _HomeViewState extends State<HomeView> {
   Widget _railLogout() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(vertical: 1.5.h),
       decoration: BoxDecoration(
         color: AppColor.white,
         border: Border(
@@ -315,8 +293,8 @@ class _HomeViewState extends State<HomeView> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => _showLogoutDialog(context),
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 0.8.h),
+          child: Container(
+            padding: EdgeInsets.symmetric(vertical: 2.h),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -336,7 +314,7 @@ class _HomeViewState extends State<HomeView> {
                 Text(
                   "Logout",
                   style: TextStyle(
-                    fontSize: 3.4.sp,
+                    fontSize: 3.5.sp,
                     fontWeight: FontWeight.bold,
                     color: AppColor.appDarkColor,
                   ),
@@ -399,7 +377,7 @@ class _HomeViewState extends State<HomeView> {
               style: TextStyle(
                 fontSize: 3.sp,
                 height: 1.2,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected ? project.accent : AppColor.grey,
               ),
             ),
@@ -443,22 +421,6 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          if (deptCount > 0)
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.4.h),
-              decoration: BoxDecoration(
-                color: _accentColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                deptCount.toString(),
-                style: TextStyle(
-                  fontSize: 2.8.sp,
-                  fontWeight: FontWeight.bold,
-                  color: _accentColor,
-                ),
-              ),
-            ),
         ],
       ),
     );

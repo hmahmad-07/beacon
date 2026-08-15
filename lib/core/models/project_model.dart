@@ -20,15 +20,22 @@ class AppProject {
     name: "Corporate Canteen",
     shortName: "Corporate Canteen",
     asset: "assets/corporate-canteen.jpg",
-    accent: Color(0xFFC0392B),
+    accent: Color(0xFFAF2F03),
   );
 
   static const AppProject paani = AppProject(
     id: "paani",
     name: "Paani.",
     shortName: "Paani.",
-    asset: "assets/appIcon.png",
-    accent: Color(0xFF1E88E5),
+    asset: "assets/paani.png",
+    accent: Color(0xFF3A8C9E),
+  );
+  static const AppProject rabiaTrust = AppProject(
+    id: "rabia_trust",
+    name: "Rabia Trust Hospital",
+    shortName: "Rabia Trust Hospital",
+    asset: "assets/Rabia-Trust.png",
+    accent: Color(0xFFD01372),
   );
 
   static const AppProject alAzeem = AppProject(
@@ -39,18 +46,10 @@ class AppProject {
     accent: Color(0xFFC9922B),
   );
 
-  static const AppProject rabiaTrust = AppProject(
-    id: "rabia_trust",
-    name: "Rabia Trust Hospital",
-    shortName: "Rabia Trust Hospital",
-    asset: "assets/Rabia-Trust.jpg",
-    accent: Color(0xFFD81B60),
-  );
-
   static const List<AppProject> all = [
     corporateCanteen,
     paani,
-    alAzeem,
     rabiaTrust,
+    alAzeem,
   ];
 }

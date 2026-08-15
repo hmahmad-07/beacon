@@ -194,7 +194,6 @@ class _EmployeeListViewState extends State<EmployeeListView> {
         }
       }
 
-      // Fetch External Report for the same date
       await controller.fetchExternalReport(context, date: selectedAuditDate);
 
       if (Navigator.canPop(context)) Navigator.pop(context);
@@ -432,11 +431,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                       ),
                     ),
                     errorWidget: (context, url, error) => Center(
-                      child: Icon(
-                        Icons.person_rounded,
-                        size: 18.h,
-                        color: AppColor.grey,
-                      ),
+                      child: Icon(Icons.person_rounded, color: AppColor.grey),
                     ),
                   ),
                 ),
