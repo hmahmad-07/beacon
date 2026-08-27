@@ -3,6 +3,7 @@ import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/models/employes_model.dart';
 import 'package:beacon/core/models/project_model.dart';
 import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/view/dashboard/CC/HR/human_resource_view.dart';
 import 'package:beacon/ui/view/employees/employee_list_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -10,10 +11,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:provider/provider.dart';
-import '../../../core/controllers/auth_controller.dart';
-import '../../../core/constants/constants.dart';
-import '../../../core/extensions/sizer.dart';
-import '../../../core/resources/app_colors.dart';
+import '../../../../core/controllers/auth_controller.dart';
+import '../../../../core/constants/constants.dart';
+import '../../../../core/extensions/sizer.dart';
+import '../../../../core/resources/app_colors.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -290,16 +291,7 @@ class _HomeViewState extends State<HomeView> {
                 ),
               ),
             ),
-            0.5.height,
-            Text(
-              "All",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 3.sp,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppColor.appDarkColor : AppColor.grey,
-              ),
-            ),
+            0.4.height,
           ],
         ),
       ),
@@ -574,86 +566,42 @@ class _HomeViewState extends State<HomeView> {
     String? shopName,
   }) {
     final name = dept.departmentName ?? "Department";
-    final controller = Provider.of<EmployesController>(context, listen: false);
-    final activeCount = controller.getActiveCount(
-      dept.departmentId,
-      shopId: shopId,
-    );
-    final displayCount = activeCount >= 0 ? activeCount : (dept.employeeCount ?? 0);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        borderRadius: BorderRadius.circular(3.r),
-        boxShadow: AppShadow.soft,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => AppRoutes.push(
+    return _AnimatedDepartmentCard(
+      name: name,
+      icon: _getDeptIcon(name),
+      accentColor: accentColor,
+      onTap: () {
+        if (shopId == "POS-0002" && shopName == "CORPORATE CANTEEN") {
+          if (name == "HUMAN RESOURCES") {
+            AppRoutes.push(
+              CCHumanResourceView(
+                siteName: shopName ?? "N/A",
+                siteID: shopId ?? "N/A",
+                deptName: name,
+                deptID: dept.departmentId!,
+              ),
+            );
+          } else {
+            AppRoutes.push(
+              EmployeeListView(
+                department: name,
+                departmentId: dept.departmentId,
+                shopId: shopId,
+                shopName: shopName,
+              ),
+            );
+          }
+        } else {
+          AppRoutes.push(
             EmployeeListView(
               department: name,
               departmentId: dept.departmentId,
               shopId: shopId,
               shopName: shopName,
             ),
-          ),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 1.h),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(2.6.w),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        accentColor.withValues(alpha: 0.85),
-                        accentColor,
-                      ],
-                    ),
-                  ),
-                  child: Icon(
-                    _getDeptIcon(name),
-                    color: AppColor.white,
-                    size: 5.5.w,
-                  ),
-                ),
-                1.height,
-                Flexible(
-                  child: Text(
-                    name,
-                    textAlign: TextAlign.center,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 2.7.sp,
-                      height: 1.2,
-                      color: AppColor.appDarkColor,
-                    ),
-                  ),
-                ),
-                0.4.height,
-                Text(
-                  "$displayCount Members",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 2.4.sp,
-                    color: AppColor.grey,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+          );
+        }
+      },
     );
   }
 
@@ -732,5 +680,134 @@ class _HomeViewState extends State<HomeView> {
     if (d.contains("supply chain")) return BoxIcons.bx_package;
     if (d.contains("store")) return BoxIcons.bx_store;
     return BoxIcons.bx_buildings;
+  }
+}
+
+class _AnimatedDepartmentCard extends StatefulWidget {
+  const _AnimatedDepartmentCard({
+    required this.name,
+    required this.icon,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final String name;
+  final IconData icon;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  State<_AnimatedDepartmentCard> createState() =>
+      _AnimatedDepartmentCardState();
+}
+
+class _AnimatedDepartmentCardState extends State<_AnimatedDepartmentCard> {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4.5.r),
+        boxShadow: AppShadow.soft,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4.5.r),
+        child: Material(
+          color: AppColor.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColor.white,
+                          AppColor.white,
+                          AppColor.white,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: -7.w,
+                  right: -6.w,
+                  child: _glassOrb(size: 22.w),
+                ),
+                Positioned(
+                  bottom: -10.w,
+                  left: -8.w,
+                  child: _glassOrb(size: 25.w),
+                ),
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 2.w,
+                      vertical: 2.2.h,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(3.5.w),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: widget.accentColor,
+                          ),
+                          child: Icon(
+                            widget.icon,
+                            color: AppColor.white,
+                            size: 7.w,
+                          ),
+                        ),
+                        1.5.height,
+                        Flexible(
+                          child: Text(
+                            widget.name,
+                            textAlign: TextAlign.center,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: AppColor.black,
+                              fontSize: 3.sp,
+                              height: 1.2,
+                              fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(
+                                  color: AppColor.appDarkColor.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _glassOrb({required double size}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: widget.accentColor.withValues(alpha: 0.1),
+        border: Border.all(color: AppColor.white.withValues(alpha: 0.12)),
+      ),
+    );
   }
 }

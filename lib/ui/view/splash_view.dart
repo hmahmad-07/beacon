@@ -6,12 +6,12 @@ import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/ui/view/auth/login_view.dart';
 import 'package:beacon/ui/components/loading_view.dart';
-import 'package:beacon/ui/view/dashboard/home_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
 import '../../core/extensions/sizer.dart';
 import '../../core/resources/app_colors.dart';
+import 'dashboard/home_view.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
