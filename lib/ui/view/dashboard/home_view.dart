@@ -1,5 +1,6 @@
 import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
+import 'package:beacon/core/models/employes_model.dart';
 import 'package:beacon/core/models/project_model.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/view/employees/employee_list_view.dart';
@@ -22,24 +23,43 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  late String _selectedProjectId;
+  late String _selectedShopId;
 
   @override
   void initState() {
     super.initState();
-    _selectedProjectId = "all";
+    _selectedShopId = "all";
   }
 
-  Color get _accentColor {
-    if (_selectedProjectId == "all") {
-      return AppColor.appColor1;
+  AppProject? _getMatchingProject(Shop shop) {
+    final name = (shop.shopName ?? "")
+        .toLowerCase()
+        .replaceAll(" ", "")
+        .replaceAll(".", "");
+    final id = (shop.shopId ?? "").toLowerCase();
+
+    for (final project in AppProject.all) {
+      final pName = project.name
+          .toLowerCase()
+          .replaceAll(" ", "")
+          .replaceAll(".", "");
+      final pShort = project.shortName
+          .toLowerCase()
+          .replaceAll(" ", "")
+          .replaceAll(".", "");
+      if (name.contains(pName) ||
+          pName.contains(name) ||
+          name.contains(pShort) ||
+          pShort.contains(name) ||
+          id == project.id) {
+        return project;
+      }
     }
-    return AppProject.all
-        .firstWhere(
-          (p) => p.id == _selectedProjectId,
-          orElse: () => AppProject.all.first,
-        )
-        .accent;
+    return null;
+  }
+
+  Color _getShopAccent(Shop shop) {
+    return _getMatchingProject(shop)?.accent ?? AppColor.appColor1;
   }
 
   @override
@@ -64,39 +84,39 @@ class _HomeViewState extends State<HomeView> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final grouped = controller.projectDepartments;
-              final isAll = _selectedProjectId == "all";
-              final visibleDepts = isAll
-                  ? controller.allDepartments
-                  : grouped[_selectedProjectId] ?? const <String>[];
+              final isAll = _selectedShopId == "all";
+              final shops = controller.shops;
+
+              Shop? selectedShop;
+              if (!isAll) {
+                selectedShop = shops.firstWhere(
+                  (s) => s.shopId == _selectedShopId,
+                  orElse: () => Shop(shopId: _selectedShopId, shopName: "Shop"),
+                );
+              }
+
               final displayName = isAll
                   ? "All Departments"
-                  : AppProject.all
-                        .firstWhere(
-                          (p) => p.id == _selectedProjectId,
-                          orElse: () => AppProject.all.first,
-                        )
-                        .name;
+                  : selectedShop?.shopName ?? "Shop";
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildProjectRail(),
+                  _buildProjectRail(controller),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (!isAll)
-                          _buildProjectTitle(visibleDepts.length, displayName),
+                        if (!isAll && selectedShop != null)
+                          _buildProjectTitle(
+                            selectedShop.departments?.length ?? 0,
+                            displayName,
+                            _getShopAccent(selectedShop),
+                          ),
                         Expanded(
-                          child: visibleDepts.isEmpty
-                              ? _buildEmptyState(
-                                  icon: Icons.folder_off_rounded,
-                                  message: "No departments in $displayName",
-                                )
-                              : isAll
-                              ? _buildAllProjectsGrid(controller)
-                              : _buildDeptGrid(controller, visibleDepts),
+                          child: isAll
+                              ? _buildAllShopsView(controller)
+                              : _buildSingleShopView(selectedShop),
                         ),
                       ],
                     ),
@@ -118,7 +138,6 @@ class _HomeViewState extends State<HomeView> {
         final statusBarHeight = MediaQuery.of(context).padding.top;
         return Container(
           width: double.infinity,
-
           height: double.infinity,
           padding: EdgeInsets.only(top: statusBarHeight),
           decoration: BoxDecoration(
@@ -193,7 +212,8 @@ class _HomeViewState extends State<HomeView> {
 
   // ========================================= Project Rail =========================================
 
-  Widget _buildProjectRail() {
+  Widget _buildProjectRail(EmployesController controller) {
+    final shops = controller.shops;
     return Container(
       width: 28.w,
       decoration: BoxDecoration(
@@ -209,9 +229,7 @@ class _HomeViewState extends State<HomeView> {
               padding: EdgeInsets.symmetric(vertical: 1.h),
               children: [
                 _allTab(),
-                ...AppProject.all.map(
-                  (project) => _projectTab(project: project),
-                ),
+                ...shops.map((shop) => _shopTab(shop: shop)),
               ],
             ),
           ),
@@ -222,12 +240,12 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _allTab() {
-    final bool isSelected = _selectedProjectId == "all";
+    final bool isSelected = _selectedShopId == "all";
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
         if (isSelected) return;
-        setState(() => _selectedProjectId = "all");
+        setState(() => _selectedShopId = "all");
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
@@ -263,7 +281,6 @@ class _HomeViewState extends State<HomeView> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isSelected ? AppColor.appDarkColor : AppColor.white,
-
                   boxShadow: isSelected ? AppShadow.soft : null,
                 ),
                 child: Icon(
@@ -271,6 +288,86 @@ class _HomeViewState extends State<HomeView> {
                   color: isSelected ? AppColor.white : AppColor.grey,
                   size: 8.w,
                 ),
+              ),
+            ),
+            0.5.height,
+            Text(
+              "All",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 3.sp,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? AppColor.appDarkColor : AppColor.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _shopTab({required Shop shop}) {
+    final bool isSelected = _selectedShopId == shop.shopId;
+    final project = _getMatchingProject(shop);
+    final accentColor = project?.accent ?? AppColor.appColor1;
+    final title = project?.shortName ?? shop.shopName ?? "Shop";
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (isSelected) return;
+        setState(() => _selectedShopId = shop.shopId ?? "");
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        margin: EdgeInsets.only(bottom: 0.8.h, right: 1.5.w),
+        padding: EdgeInsets.symmetric(vertical: 1.2.h, horizontal: 1.w),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? accentColor.withValues(alpha: 0.1)
+              : AppColor.transparent,
+          borderRadius: BorderRadius.horizontal(right: Radius.circular(8.r)),
+        ),
+        child: Column(
+          children: [
+            0.4.height,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              height: 18.w,
+              width: 18.w,
+              padding: EdgeInsets.all(1.w),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColor.white,
+                border: Border.all(
+                  color: isSelected ? accentColor : AppColor.appLightColor,
+                  width: isSelected ? 1.5 : 1,
+                ),
+                boxShadow: isSelected ? AppShadow.soft : null,
+              ),
+              child: project != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8.r),
+                      child: Image.asset(project.asset, fit: BoxFit.contain),
+                    )
+                  : Icon(
+                      Icons.storefront_rounded,
+                      color: isSelected ? accentColor : AppColor.grey,
+                      size: 7.w,
+                    ),
+            ),
+            0.8.height,
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 3.sp,
+                height: 1.2,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? accentColor : AppColor.grey,
               ),
             ),
             0.5.height,
@@ -327,86 +424,18 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _projectTab({required AppProject project}) {
-    final bool isSelected = _selectedProjectId == project.id;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (isSelected) return;
-        setState(() => _selectedProjectId = project.id);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-        margin: EdgeInsets.only(bottom: 0.8.h, right: 1.5.w),
-        padding: EdgeInsets.symmetric(vertical: 1.2.h, horizontal: 1.w),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? project.accent.withValues(alpha: 0.1)
-              : AppColor.transparent,
-          borderRadius: BorderRadius.horizontal(right: Radius.circular(8.r)),
-        ),
-        child: Column(
-          children: [
-            0.4.height,
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              height: 18.w,
-              width: 18.w,
-              padding: EdgeInsets.all(1.w),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColor.white,
-                border: Border.all(
-                  color: isSelected ? project.accent : AppColor.appLightColor,
-                  width: isSelected ? 1.5 : 1,
-                ),
-                boxShadow: isSelected ? AppShadow.soft : null,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8.r),
-                child: Image.asset(project.asset, fit: BoxFit.contain),
-              ),
-            ),
-            0.8.height,
-            Text(
-              project.shortName,
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 3.sp,
-                height: 1.2,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? project.accent : AppColor.grey,
-              ),
-            ),
-            0.5.height,
-          ],
-        ),
-      ),
-    );
-  }
-
   // ========================================= Department Grid =========================================
 
-  Widget _buildProjectTitle(int deptCount, String displayName) {
+  Widget _buildProjectTitle(
+    int deptCount,
+    String displayName,
+    Color accentColor,
+  ) {
     return Padding(
       padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 1.h),
       child: Row(
         children: [
-          Container(
-            width: 1.w,
-            height: 3.h,
-            color: _selectedProjectId == "all"
-                ? AppColor.appColor1
-                : AppProject.all
-                      .firstWhere(
-                        (p) => p.id == _selectedProjectId,
-                        orElse: () => AppProject.all.first,
-                      )
-                      .accent,
-          ),
+          Container(width: 1.w, height: 3.h, color: accentColor),
           2.width,
           Expanded(
             child: Text(
@@ -426,9 +455,19 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildDeptGrid(EmployesController controller, List<String> depts) {
+  Widget _buildSingleShopView(Shop? shop) {
+    final depts = shop?.departments ?? [];
+    if (depts.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.folder_off_rounded,
+        message: "No departments in ${shop?.shopName ?? 'this shop'}",
+      );
+    }
+
+    final accent = shop != null ? _getShopAccent(shop) : AppColor.appColor1;
+
     return AnimationLimiter(
-      key: ValueKey(_selectedProjectId),
+      key: ValueKey(_selectedShopId),
       child: GridView.builder(
         padding: EdgeInsets.fromLTRB(4.w, 0.5.h, 4.w, 4.h),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -440,7 +479,6 @@ class _HomeViewState extends State<HomeView> {
         itemCount: depts.length,
         itemBuilder: (context, index) {
           final dept = depts[index];
-          final count = controller.getEmployeesByDept(dept).length;
           return AnimationConfiguration.staggeredGrid(
             position: index,
             columnCount: 3,
@@ -448,7 +486,12 @@ class _HomeViewState extends State<HomeView> {
             child: ScaleAnimation(
               scale: 0.92,
               child: FadeInAnimation(
-                child: _deptCard(dept: dept, memberCount: count),
+                child: _deptCard(
+                  dept: dept,
+                  accentColor: accent,
+                  shopId: shop?.shopId,
+                  shopName: shop?.shopName,
+                ),
               ),
             ),
           );
@@ -457,91 +500,25 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _deptCard({required String dept, required int memberCount}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        borderRadius: BorderRadius.circular(3.r),
-        boxShadow: AppShadow.soft,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => AppRoutes.push(EmployeeListView(department: dept)),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 1.h),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(2.6.w),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        _accentColor.withValues(alpha: 0.85),
-                        _accentColor,
-                      ],
-                    ),
-                  ),
-                  child: Icon(
-                    _getDeptIcon(dept),
-                    color: AppColor.white,
-                    size: 5.5.w,
-                  ),
-                ),
-                1.height,
-                Flexible(
-                  child: Text(
-                    dept,
-                    textAlign: TextAlign.center,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 2.7.sp,
-                      height: 1.2,
-                      color: AppColor.appDarkColor,
-                    ),
-                  ),
-                ),
-                0.4.height,
-                Text(
-                  "$memberCount Members",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 2.4.sp,
-                    color: AppColor.grey,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildAllShopsView(EmployesController controller) {
+    final shops = controller.shops;
 
-  Widget _buildAllProjectsGrid(EmployesController controller) {
+    if (shops.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.storefront_rounded,
+        message: "No shops available",
+      );
+    }
+
     return ListView.builder(
       padding: EdgeInsets.fromLTRB(4.w, 0.5.h, 4.w, 4.h),
-      itemCount: AppProject.all.length,
-      itemBuilder: (context, projectIndex) {
-        final project = AppProject.all[projectIndex];
-        final grouped = controller.projectDepartments;
-        final projectDepts = grouped[project.id] ?? const <String>[];
-        final nonEmptyDepts = projectDepts
-            .where((dept) => controller.getEmployeesByDept(dept).isNotEmpty)
-            .toList();
+      itemCount: shops.length,
+      itemBuilder: (context, shopIndex) {
+        final shop = shops[shopIndex];
+        final depts = shop.departments ?? [];
+        if (depts.isEmpty) return const SizedBox.shrink();
 
-        if (nonEmptyDepts.isEmpty) {
-          return const SizedBox.shrink();
-        }
+        final accent = _getShopAccent(shop);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,10 +527,10 @@ class _HomeViewState extends State<HomeView> {
               padding: EdgeInsets.only(top: 1.5.h, bottom: 1.h),
               child: Row(
                 children: [
-                  Container(width: 1.w, height: 2.5.h, color: project.accent),
+                  Container(width: 1.w, height: 2.5.h, color: accent),
                   2.width,
                   Text(
-                    project.name,
+                    shop.shopName ?? "Shop",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 4.2.sp,
@@ -573,14 +550,14 @@ class _HomeViewState extends State<HomeView> {
                 crossAxisSpacing: 3.w,
                 childAspectRatio: 0.72,
               ),
-              itemCount: nonEmptyDepts.length,
+              itemCount: depts.length,
               itemBuilder: (context, deptIndex) {
-                final dept = nonEmptyDepts[deptIndex];
-                final count = controller.getEmployeesByDept(dept).length;
-                return _deptCardWithProjectAccent(
+                final dept = depts[deptIndex];
+                return _deptCard(
                   dept: dept,
-                  memberCount: count,
-                  accentColor: project.accent,
+                  accentColor: accent,
+                  shopId: shop.shopId,
+                  shopName: shop.shopName,
                 );
               },
             ),
@@ -590,11 +567,20 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _deptCardWithProjectAccent({
-    required String dept,
-    required int memberCount,
+  Widget _deptCard({
+    required Department dept,
     required Color accentColor,
+    String? shopId,
+    String? shopName,
   }) {
+    final name = dept.departmentName ?? "Department";
+    final controller = Provider.of<EmployesController>(context, listen: false);
+    final activeCount = controller.getActiveCount(
+      dept.departmentId,
+      shopId: shopId,
+    );
+    final displayCount = activeCount >= 0 ? activeCount : (dept.employeeCount ?? 0);
+
     return Container(
       decoration: BoxDecoration(
         color: AppColor.white,
@@ -605,7 +591,14 @@ class _HomeViewState extends State<HomeView> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => AppRoutes.push(EmployeeListView(department: dept)),
+          onTap: () => AppRoutes.push(
+            EmployeeListView(
+              department: name,
+              departmentId: dept.departmentId,
+              shopId: shopId,
+              shopName: shopName,
+            ),
+          ),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 1.h),
             child: Column(
@@ -625,7 +618,7 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ),
                   child: Icon(
-                    _getDeptIcon(dept),
+                    _getDeptIcon(name),
                     color: AppColor.white,
                     size: 5.5.w,
                   ),
@@ -633,7 +626,7 @@ class _HomeViewState extends State<HomeView> {
                 1.height,
                 Flexible(
                   child: Text(
-                    dept,
+                    name,
                     textAlign: TextAlign.center,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
@@ -647,7 +640,7 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 0.4.height,
                 Text(
-                  "$memberCount Members",
+                  "$displayCount Members",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

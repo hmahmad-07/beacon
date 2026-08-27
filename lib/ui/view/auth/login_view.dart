@@ -308,9 +308,7 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
                                     if (success && context.mounted) {
                                       final empController = context
                                           .read<EmployesController>();
-                                      await empController.fetchEmployees(
-                                        context,
-                                      );
+                                      await empController.getSites(context);
                                     }
                                   },
                                 ),

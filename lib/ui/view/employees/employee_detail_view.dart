@@ -574,95 +574,45 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
   Widget _buildEnhancedUserCard({required bool isOnline}) {
     return Container(
       width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.5.w),
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(5.r),
-        boxShadow: AppShadow.soft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColor.appLightColor.withValues(alpha: 0.8),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Stack(
+      child: Row(
         children: [
-          Positioned(
-            right: -20,
-            top: -20,
-            child: Container(
-              width: 40.w,
-              height: 40.w,
-              decoration: BoxDecoration(
-                color: AppColor.appColor1.withValues(alpha: 0.03),
-                shape: BoxShape.circle,
+          _buildProfileAvatarPremium(),
+          4.width,
+          Expanded(
+            child: Text(
+              widget.user.userName ?? 'Employee',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 4.8.sp,
+                fontWeight: FontWeight.bold,
+                color: AppColor.appDarkColor,
+                letterSpacing: -0.3,
               ),
             ),
           ),
-          Padding(
-            padding: EdgeInsets.all(5.w),
-            child: Row(
-              children: [
-                _buildProfileAvatarPremium(),
-                5.width,
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: .spaceBetween,
-                        children: [
-                          Text(
-                            widget.user.userName ?? 'Employee',
-                            style: TextStyle(
-                              fontSize: 5.sp,
-                              fontWeight: FontWeight.bold,
-                              color: AppColor.appDarkColor,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          _statusIndicatorPremium(isOnline: isOnline),
-                        ],
-                      ),
-                      0.8.height,
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _smallBadge(
-                            widget.user.designation?.toUpperCase() ?? 'N/A',
-                            AppColor.appColor1,
-                          ),
-                          2.width,
-                          _smallBadge(
-                            widget.user.department?.toUpperCase() ?? 'N/A',
-                            AppColor.grey,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          3.width,
+          _statusIndicatorPremium(isOnline: isOnline),
         ],
       ),
     );
   }
-
-  Widget _smallBadge(String text, Color color) => Container(
-    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.4.h),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(4.r),
-    ),
-    child: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 2.4.sp,
-          color: color,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.5,
-        ),
-      ),
-    ),
-  );
 
   Widget _statusIndicatorPremium({required bool isOnline}) {
     return Container(
@@ -742,12 +692,11 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
 
   Widget _buildRichAnalyticsCard(EmployesWorkingDetailModel? detail) {
     final total = detail?.visits.length ?? 0;
+    final isSales =
+        widget.user.department?.toLowerCase().contains("sales") == true;
 
-    final isSalesOrMarketing =
-        widget.user.department?.toLowerCase().contains("sales") == true ||
-        widget.user.department?.toLowerCase().contains("marketing") == true;
-
-    if (!isSalesOrMarketing) {
+    log(isSales.toString());
+    if (!isSales) {
       return _buildSimpleVisitsCard(total);
     }
 

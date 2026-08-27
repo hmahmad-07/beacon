@@ -15,6 +15,14 @@ class AppProject {
     required this.accent,
   });
 
+  static const AppProject snackShack = AppProject(
+    id: "snack_shack",
+    name: "Snack Shack",
+    shortName: "Snack Shack",
+    asset: "assets/Snack-Shak.png",
+    accent: Color(0xFFF28C28),
+  );
+
   static const AppProject corporateCanteen = AppProject(
     id: "corporate_canteen",
     name: "Corporate Canteen",
@@ -47,6 +55,7 @@ class AppProject {
   );
 
   static const List<AppProject> all = [
+    snackShack,
     corporateCanteen,
     paani,
     rabiaTrust,

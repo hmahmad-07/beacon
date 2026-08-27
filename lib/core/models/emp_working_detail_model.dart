@@ -89,21 +89,32 @@ class EmployesWorkingDetailModel {
 
     final finalVisits = uniqueVisits.values.toList();
 
+    final int parsedError = json["error"] is int
+        ? json["error"]
+        : (int.tryParse(json["error"]?.toString() ?? "0") ?? 0);
+
+    final String parsedErrorMsg =
+        json["error_msg"]?.toString() ?? json["message"]?.toString() ?? "";
+
+    final DateTime parsedDate = json["date"] != null
+        ? (DateTime.tryParse(json["date"].toString()) ?? DateTime.now())
+        : DateTime.now();
+
     return EmployesWorkingDetailModel(
-      error: json["error"] as int,
-      errorMsg: json["error_msg"] as String,
-      date: DateTime.parse(json["date"] as String),
+      error: parsedError,
+      errorMsg: parsedErrorMsg,
+      date: parsedDate,
       checkin:
           (json["checkin"] != null &&
               json["checkin"] is Map &&
               (json["checkin"] as Map).isNotEmpty)
-          ? Checkin.fromJson(json["checkin"] as Map<String, dynamic>)
+          ? Checkin.fromJson(Map<String, dynamic>.from(json["checkin"] as Map))
           : null,
       checkout:
           (json["checkout"] != null &&
               json["checkout"] is Map &&
               (json["checkout"] as Map).isNotEmpty)
-          ? Checkout.fromJson(json["checkout"] as Map<String, dynamic>)
+          ? Checkout.fromJson(Map<String, dynamic>.from(json["checkout"] as Map))
           : null,
       totalVisits: finalVisits.length,
       visits: finalVisits,
@@ -145,7 +156,7 @@ class Checkin {
     latitude: (json["latitude"] ?? "").toString(),
     longitude: (json["longitude"] ?? "").toString(),
     imageUrl: (json["image_url"] ?? "").toString(),
-    reason: json["reason"] as String?,
+    reason: json["reason"]?.toString(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -181,7 +192,7 @@ class Checkout {
     latitude: (json["latitude"] ?? "").toString(),
     longitude: (json["longitude"] ?? "").toString(),
     imageUrl: (json["image_url"] ?? "").toString(),
-    reason: json["reason"] as String?,
+    reason: json["reason"]?.toString(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -261,7 +272,7 @@ class Visit {
     latitude: (json["latitude"] ?? "").toString(),
     longitude: (json["longitude"] ?? "").toString(),
     createdAt: (json["created_at"] ?? "").toString(),
-    remarks: json["remarks"] as String?,
+    remarks: json["remarks"]?.toString(),
     photos: json["photos"] != null
         ? (json["photos"] as List<dynamic>).map((x) => x.toString()).toList()
         : [],
@@ -321,7 +332,7 @@ class Order {
         (json["is_productive"] == true ||
         json["is_productive"] == 1 ||
         json["is_productive"] == "1"),
-    remarks: json["remarks"] as String?,
+    remarks: json["remarks"]?.toString(),
     orderDate: (json["order_date"] ?? "").toString(),
     createdAt: (json["created_at"] ?? "").toString(),
     photos: json["photos"] != null

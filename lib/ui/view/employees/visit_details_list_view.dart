@@ -243,8 +243,7 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
               children: [
                 Row(
                   children: [
-                    if (widget.dept.toLowerCase().contains("sales") ||
-                        widget.dept.toLowerCase().contains("marketing")) ...[
+                    if (widget.dept.toLowerCase().contains("sales")) ...[
                       _statusBadge(isProductive),
                       const Spacer(),
                     ],

@@ -10,23 +10,30 @@ import 'package:intl/intl.dart';
 import '../models/emp_working_detail_model.dart';
 import '../models/employes_model.dart';
 import '../models/external_client_model.dart';
-import '../models/project_model.dart';
 import '../utils/utils.dart';
 
 class EmployesController extends ChangeNotifier {
-  // ============================================= Employee List =============================================
+  // ============================================= Sites Detail =============================================
 
   bool isLoading = false;
-  EmployesModel? employesModel;
+  SitesDetailModel? sitesDetailModel;
 
-  Future<void> fetchEmployees(BuildContext context) async {
+  SitesDetailModel? get employesModel => sitesDetailModel;
+
+  Future<void> getSites(BuildContext context, {String? shopId}) async {
     try {
       isLoading = true;
       notifyListeners();
 
       final dio = Dio();
+      final Map<String, dynamic> queryParams = {};
+      if (shopId != null && shopId.isNotEmpty && shopId != 'all') {
+        queryParams['shop_id'] = shopId;
+      }
+
       final response = await dio.get(
-        '${Constants.baseUrl}tsm_users_list.php',
+        '${Constants.baseUrl}shop_departments.php',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
         options: Options(
           headers: {
             'Accept': 'application/json',
@@ -35,15 +42,16 @@ class EmployesController extends ChangeNotifier {
         ),
       );
       if (response.statusCode == 200) {
-        employesModel = EmployesModel.fromJson(response.data);
+        sitesDetailModel = SitesDetailModel.fromJson(response.data);
 
-        if (employesModel?.error == 0) {
-          log("Employees Fetched Successfully: ${employesModel?.totalUsers}");
+        if (sitesDetailModel?.error == 0) {
+          log("Sites Fetched Successfully: ${sitesDetailModel?.totalShops}");
+          _prefetchActiveEmployeeCounts();
         } else {
           if (context.mounted) {
             Utils.showSnackBar(
               context,
-              employesModel?.errorMsg ?? 'Failed to load employees',
+              sitesDetailModel?.errorMsg ?? 'Failed to load sites',
             );
           }
         }
@@ -74,94 +82,180 @@ class EmployesController extends ChangeNotifier {
     }
   }
 
-  // =============================================> Filtering Logic
+  // ============================================= Active Count Cache =============================================
 
-  List<String> get departments {
-    if (employesModel?.users == null) return [];
-    final depts = employesModel!.users!
-        .map((u) {
-          final d = u.department?.trim() ?? "";
-          if (d.isEmpty) return "Others";
-          if (d.toLowerCase().contains("sales") ||
-              d.toLowerCase().contains("marketing")) {
-            return "Sales & Marketing";
+  // Key: "deptId" or "deptId_shopId"
+  final Map<String, int> _activeCountCache = {};
+
+  int getActiveCount(dynamic deptId, {String? shopId}) {
+    final key = shopId != null && shopId.isNotEmpty && shopId != 'all'
+        ? '${deptId}_$shopId'
+        : '$deptId';
+    return _activeCountCache[key] ?? -1; // -1 means not yet fetched
+  }
+
+  Future<void> _prefetchActiveEmployeeCounts() async {
+    if (sitesDetailModel?.shops == null) return;
+    final dio = Dio();
+    final headers = {
+      'Accept': 'application/json',
+      'Authorization': 'Bearer ${Constants.token}',
+    };
+
+    for (var shop in sitesDetailModel!.shops!) {
+      if (shop.departments == null) continue;
+      for (var dept in shop.departments!) {
+        if (dept.departmentId == null) continue;
+        try {
+          final queryParams = <String, dynamic>{'dept_id': dept.departmentId};
+          if (shop.shopId != null && shop.shopId!.isNotEmpty) {
+            queryParams['shop_id'] = shop.shopId;
           }
-          return d;
-        })
-        .toSet()
-        .toList();
 
-    final priority = [
-      "management",
-      "administration",
-      "human resource",
-      "it",
-      "internal audit",
-      "account",
-      "finance",
-      "sales",
-      "marketing",
-      "production",
-      "purchase",
-      "supply chain",
-      "main store",
-      "others",
-    ];
+          final response = await dio.get(
+            '${Constants.baseUrl}employees.php',
+            queryParameters: queryParams,
+            options: Options(headers: headers),
+          );
 
-    depts.sort((a, b) {
-      final aL = a.toLowerCase();
-      final bL = b.toLowerCase();
-
-      int getScore(String s) {
-        for (int i = 0; i < priority.length; i++) {
-          if (s.contains(priority[i])) return i;
+          if (response.statusCode == 200) {
+            final model = DepartmentEmployeesModel.fromJson(response.data);
+            if (model.error == 0 && model.employees != null) {
+              final activeCount = model.employees!
+                  .where((e) => e.status?.toUpperCase() == 'A')
+                  .length;
+              final key = shop.shopId != null && shop.shopId!.isNotEmpty
+                  ? '${dept.departmentId}_${shop.shopId}'
+                  : '${dept.departmentId}';
+              _activeCountCache[key] = activeCount;
+            }
+          }
+        } catch (e) {
+          log('Prefetch active count error for dept ${dept.departmentId}: $e');
         }
-        return priority.length;
+      }
+    }
+    notifyListeners();
+  }
+
+  // ============================================= Department Employees =============================================
+
+  bool isDeptEmployeesLoading = false;
+  DepartmentEmployeesModel? departmentEmployeesModel;
+
+  Future<void> fetchDepartmentEmployees(
+    dynamic deptId, [
+    BuildContext? context,
+    String? shopId,
+  ]) async {
+    try {
+      isDeptEmployeesLoading = true;
+      departmentEmployeesModel = null;
+      notifyListeners();
+
+      final dio = Dio();
+      final Map<String, dynamic> queryParams = {'dept_id': deptId};
+      if (shopId != null && shopId.isNotEmpty && shopId != 'all') {
+        queryParams['shop_id'] = shopId;
       }
 
-      return getScore(aL).compareTo(getScore(bL));
-    });
+      final response = await dio.get(
+        '${Constants.baseUrl}employees.php',
+        queryParameters: queryParams,
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${Constants.token}',
+          },
+        ),
+      );
 
-    return depts;
+      if (response.statusCode == 200) {
+        departmentEmployeesModel = DepartmentEmployeesModel.fromJson(
+          response.data,
+        );
+        if (departmentEmployeesModel?.error == 0) {
+          log(
+            "Department Employees Fetched Successfully: ${departmentEmployeesModel?.totalEmployees}",
+          );
+        } else if (context != null && context.mounted) {
+          Utils.showSnackBar(
+            context,
+            departmentEmployeesModel?.errorMsg ?? 'Failed to load employees',
+          );
+        }
+      }
+    } on DioException catch (e) {
+      log('Dio error fetching department employees: ${e.message}');
+      if (context != null && context.mounted) {
+        Utils.showSnackBar(
+          context,
+          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+        );
+      }
+    } catch (e) {
+      log('Unexpected error fetching department employees: $e');
+    } finally {
+      isDeptEmployeesLoading = false;
+      notifyListeners();
+    }
   }
 
-  /// Departments bucketed per project, keyed by [AppProject.id].
-  ///
-  /// The users API carries no project field, so the split is manual for now:
-  /// the first half of [departments] goes to Corporate Canteen and the rest to
-  /// Paani. Al Azeem Foundation and Rabia Trust Hospital have no departments on
-  /// the API yet, so they stay empty. Replace this once a user carries a real
-  /// project.
-  Map<String, List<String>> get projectDepartments {
-    final all = departments;
-    final grouped = {for (final p in AppProject.all) p.id: <String>[]};
-    if (all.isEmpty) return grouped;
-
-    final mid = (all.length / 2).ceil();
-    grouped[AppProject.corporateCanteen.id] = all.sublist(0, mid);
-    grouped[AppProject.paani.id] = all.sublist(mid);
-    return grouped;
+  int? getDepartmentIdByName(String deptName) {
+    if (sitesDetailModel?.shops != null) {
+      for (var shop in sitesDetailModel!.shops!) {
+        if (shop.departments != null) {
+          for (var d in shop.departments!) {
+            if (d.departmentName?.toLowerCase().trim() ==
+                deptName.toLowerCase().trim()) {
+              return d.departmentId;
+            }
+          }
+        }
+      }
+    }
+    return null;
   }
 
-  /// All departments, excluding empty ones.
-  List<String> get allDepartments {
-    return departments
-        .where((dept) => getEmployeesByDept(dept).isNotEmpty)
-        .toList();
+  // =============================================> Filtering & Helper Logic
+
+  List<Shop> get shops => sitesDetailModel?.shops ?? [];
+
+  List<String> get departments {
+    if (sitesDetailModel?.shops == null) return [];
+    final set = <String>{};
+    for (var shop in sitesDetailModel!.shops!) {
+      if (shop.departments != null) {
+        for (var dept in shop.departments!) {
+          if (dept.departmentName != null &&
+              dept.departmentName!.trim().isNotEmpty) {
+            set.add(dept.departmentName!.trim());
+          }
+        }
+      }
+    }
+    return set.toList();
   }
 
-  List<User> getEmployeesByDept(String dept) {
-    if (employesModel?.users == null) return [];
-    return employesModel!.users!.where((u) {
-      final d = u.department?.trim() ?? "";
-      final normalizedDept = d.isEmpty
-          ? "Others"
-          : (d.toLowerCase().contains("sales") ||
-                d.toLowerCase().contains("marketing"))
-          ? "Sales & Marketing"
-          : d;
-      return normalizedDept == dept;
-    }).toList();
+  List<String> get allDepartments => departments;
+
+  List<User> getEmployeesByDept(String dept, {String? shopId}) {
+    if (departmentEmployeesModel?.employees != null) {
+      var list = departmentEmployeesModel!.employees!;
+      // Only show active employees (status == "A")
+      list = list.where((e) => e.status?.toUpperCase() == 'A').toList();
+      if (shopId != null && shopId.isNotEmpty && shopId != 'all') {
+        list = list
+            .where(
+              (e) =>
+                  e.shopId?.toLowerCase().trim() == shopId.toLowerCase().trim(),
+            )
+            .toList();
+      }
+      final currentDeptName = departmentEmployeesModel?.departmentName ?? dept;
+      return list.map((e) => e.toUser(currentDeptName)).toList();
+    }
+    return [];
   }
 
   // ============================================= External Clients Report =============================================

@@ -60,7 +60,7 @@ class ConnectivityController extends ChangeNotifier {
       final ctx = AppRoutes.navigatorKey.currentContext;
       if (ctx == null || !ctx.mounted) return;
       try {
-        ctx.read<EmployesController>().fetchEmployees(ctx);
+        ctx.read<EmployesController>().getSites(ctx);
       } catch (_) {}
     });
   }

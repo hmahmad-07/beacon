@@ -38,14 +38,13 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
 
       final formData = {
-        'tag': 'login',
-        'email': employeeCodeController.text.trim(),
+        'employee_id': employeeCodeController.text.trim(),
         'password': passwordController.text.trim(),
       };
 
       final dio = Dio();
       final response = await dio.post(
-        '${Constants.baseUrl}login_api_cspmobile_user.php',
+        '${Constants.baseUrl}login_admin.php',
         data: formData,
         options: Options(
           headers: {

@@ -76,7 +76,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
           );
 
           if (context.mounted) {
-            await context.read<EmployesController>().fetchEmployees(context);
+            await context.read<EmployesController>().getSites(context);
             AppRoutes.pushAndRemoveAll(const HomeView());
           }
         } else {

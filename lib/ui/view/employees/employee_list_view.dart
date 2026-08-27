@@ -23,7 +23,17 @@ import 'external_orders_view.dart';
 
 class EmployeeListView extends StatefulWidget {
   final String department;
-  const EmployeeListView({super.key, required this.department});
+  final int? departmentId;
+  final String? shopId;
+  final String? shopName;
+
+  const EmployeeListView({
+    super.key,
+    required this.department,
+    this.departmentId,
+    this.shopId,
+    this.shopName,
+  });
 
   @override
   State<EmployeeListView> createState() => _EmployeeListViewState();
@@ -31,6 +41,21 @@ class EmployeeListView extends StatefulWidget {
 
 class _EmployeeListViewState extends State<EmployeeListView> {
   DateTime selectedAuditDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = context.read<EmployesController>();
+      final targetId =
+          widget.departmentId ??
+          controller.getDepartmentIdByName(widget.department);
+      if (targetId != null) {
+        controller.fetchDepartmentEmployees(targetId, context, widget.shopId);
+      }
+    });
+  }
+
   Future<void> _handleGenerateAuditReport(
     BuildContext context,
     EmployesController controller,
@@ -224,8 +249,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
       appBar: CustomAppBar(
         title: widget.department,
         actions: [
-          if (widget.department.toLowerCase().contains("sales") ||
-              widget.department.toLowerCase().contains("marketing"))
+          if (widget.department.toLowerCase().contains("sales"))
             IconButton(
               icon: Icon(Icons.assessment_rounded, color: AppColor.white),
               tooltip: "Generate Audit Report",
@@ -236,6 +260,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                 );
                 final employees = controller.getEmployeesByDept(
                   widget.department,
+                  shopId: widget.shopId,
                 );
                 _handleGenerateAuditReport(context, controller, employees);
               },
@@ -245,7 +270,19 @@ class _EmployeeListViewState extends State<EmployeeListView> {
       ),
       body: Consumer<EmployesController>(
         builder: (context, controller, child) {
-          final employees = controller.getEmployeesByDept(widget.department);
+          if (controller.isDeptEmployeesLoading) {
+            return Center(
+              child: CupertinoActivityIndicator(
+                radius: 7.r,
+                color: AppColor.appColor1,
+              ),
+            );
+          }
+
+          final employees = controller.getEmployeesByDept(
+            widget.department,
+            shopId: widget.shopId,
+          );
 
           if (employees.isEmpty) {
             return Center(
@@ -270,8 +307,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              if (widget.department.toLowerCase().contains("sales") ||
-                  widget.department.toLowerCase().contains("marketing"))
+              if (widget.department.toLowerCase().contains("sales"))
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(6.w, 4.w, 6.w, 0.w),
@@ -285,11 +321,10 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 4.w,
                     mainAxisSpacing: 4.w,
-                    childAspectRatio: 0.72,
+                    childAspectRatio: 0.58,
                   ),
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final user = employees[index];
-
                     return AnimationConfiguration.staggeredGrid(
                       position: index,
                       columnCount: 2,
@@ -389,8 +424,13 @@ class _EmployeeListViewState extends State<EmployeeListView> {
   }
 
   Widget _buildEmployeeCard(BuildContext context, User user) {
+    final bool hasMobile =
+        user.mobile != null && user.mobile!.trim().isNotEmpty;
+    final bool hasShop =
+        user.shopName != null && user.shopName!.trim().isNotEmpty;
+
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 2.w),
+      padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 1.5.w),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -404,37 +444,70 @@ class _EmployeeListViewState extends State<EmployeeListView> {
       ),
       child: InkWell(
         onTap: () => AppRoutes.push(EmployeeDetailView(user: user)),
-        borderRadius: BorderRadius.circular(6.r),
+        borderRadius: BorderRadius.circular(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Container(
-                margin: EdgeInsets.all(2.w),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: AppColor.appLightColor.withValues(alpha: 0.35),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4.r),
-                  child: CachedNetworkImage(
-                    imageUrl: user.profilePic ?? "",
-                    fit: BoxFit.fill,
-                    placeholder: (context, url) => Shimmer.fromColors(
-                      baseColor: AppColor.grey.withValues(alpha: 0.15),
-                      highlightColor: AppColor.grey.withValues(alpha: 0.05),
-                      child: Container(
-                        width: double.infinity,
-                        height: double.infinity,
-                        color: AppColor.appLightColor,
+              child: Stack(
+                children: [
+                  Container(
+                    margin: EdgeInsets.all(2.w),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: AppColor.appLightColor.withValues(alpha: 0.35),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: user.profilePic ?? "",
+                        fit: BoxFit.fill,
+                        placeholder: (context, url) => Shimmer.fromColors(
+                          baseColor: AppColor.grey.withValues(alpha: 0.15),
+                          highlightColor: AppColor.grey.withValues(alpha: 0.05),
+                          child: Container(
+                            width: double.infinity,
+                            height: double.infinity,
+                            color: AppColor.appLightColor,
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Center(
+                          child: Icon(
+                            Icons.person_rounded,
+                            color: AppColor.grey,
+                            size: 10.w,
+                          ),
+                        ),
                       ),
                     ),
-                    errorWidget: (context, url, error) => Center(
-                      child: Icon(Icons.person_rounded, color: AppColor.grey),
-                    ),
                   ),
-                ),
+                  if (user.gender != null && user.gender!.trim().isNotEmpty)
+                    Positioned(
+                      top: 3.w,
+                      right: 3.w,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 2.w,
+                          vertical: 0.5.w,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColor.appDarkColor.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          user.gender == 'M'
+                              ? 'Male'
+                              : (user.gender == 'F' ? 'Female' : user.gender!),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 2.4.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             Padding(
@@ -452,7 +525,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                       color: AppColor.appDarkColor,
                     ),
                   ),
-                  0.6.height,
+                  0.4.height,
                   Row(
                     children: [
                       Icon(Icons.work, size: 3.w, color: AppColor.appColor2),
@@ -463,7 +536,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 3.sp,
+                            fontSize: 2.8.sp,
                             color: AppColor.appDarkColor,
                             fontWeight: FontWeight.bold,
                           ),
@@ -471,29 +544,79 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                       ),
                     ],
                   ),
-                  .5.height,
+                  0.3.height,
                   Row(
                     children: [
                       Icon(Icons.badge, size: 3.w, color: AppColor.appColor2),
                       1.width,
                       Text(
-                        "Emp Code: ",
+                        "Code: ",
                         style: TextStyle(
-                          fontSize: 2.6.sp,
+                          fontSize: 2.5.sp,
                           color: AppColor.grey,
                         ),
                       ),
                       Text(
                         user.empCode ?? "N/A",
                         style: TextStyle(
-                          fontSize: 2.6.sp,
+                          fontSize: 2.5.sp,
                           fontWeight: FontWeight.bold,
                           color: AppColor.appColor1,
                         ),
                       ),
                     ],
                   ),
-                  1.height,
+                  if (hasShop) ...[
+                    0.3.height,
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.storefront_rounded,
+                          size: 3.w,
+                          color: AppColor.appColor2,
+                        ),
+                        1.width,
+                        Expanded(
+                          child: Text(
+                            user.shopName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 2.5.sp,
+                              color: AppColor.grey,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (hasMobile) ...[
+                    0.3.height,
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.phone_rounded,
+                          size: 3.w,
+                          color: AppColor.green,
+                        ),
+                        1.width,
+                        Expanded(
+                          child: Text(
+                            user.mobile!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 2.5.sp,
+                              color: AppColor.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  0.5.height,
                 ],
               ),
             ),
