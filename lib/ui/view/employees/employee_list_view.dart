@@ -26,6 +26,7 @@ class EmployeeListView extends StatefulWidget {
   final int? departmentId;
   final String? shopId;
   final String? shopName;
+  final String? siteImage;
 
   const EmployeeListView({
     super.key,
@@ -33,6 +34,7 @@ class EmployeeListView extends StatefulWidget {
     this.departmentId,
     this.shopId,
     this.shopName,
+    this.siteImage,
   });
 
   @override
@@ -242,6 +244,70 @@ class _EmployeeListViewState extends State<EmployeeListView> {
     }
   }
 
+  Widget _buildSiteHeader() {
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.fromLTRB(6.w, 2.h, 6.w, 1.h),
+      padding: EdgeInsets.all(3.5.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColor.appColor1, AppColor.appDarkColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 11.w,
+            height: 11.w,
+            padding: EdgeInsets.all(1.2.w),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+            child: widget.siteImage != null && widget.siteImage!.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(11.w),
+                    child: Image.asset(widget.siteImage!, fit: BoxFit.contain),
+                  )
+                : Icon(
+                    Icons.storefront_rounded,
+                    color: AppColor.appColor1,
+                    size: 5.w,
+                  ),
+          ),
+          3.width,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.shopName!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColor.white,
+                    fontSize: 4.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  widget.department,
+                  style: TextStyle(
+                    color: AppColor.white.withValues(alpha: 0.85),
+                    fontSize: 3.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -307,6 +373,8 @@ class _EmployeeListViewState extends State<EmployeeListView> {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
+              if (widget.shopName != null && widget.shopName!.isNotEmpty)
+                SliverToBoxAdapter(child: _buildSiteHeader()),
               if (widget.department.toLowerCase().contains("sales"))
                 SliverToBoxAdapter(
                   child: Padding(

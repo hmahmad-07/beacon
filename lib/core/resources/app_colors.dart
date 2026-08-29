@@ -16,6 +16,13 @@ class AppColor {
   static Color black = const Color(0xFF111111);
   static Color white = const Color(0xFFFFFFFF);
   static Color transparent = Colors.transparent;
+  static Color cc = Color(0xFFAF2F03);
+  static Color paani = Color(0xFF3A8C9E);
+  static Color rth = Color(0xFFD01372);
+  static Color aa = Color(0xFFC9922B);
+  static Color ss = Color(0xFFF28C28);
+  static Color opd = Color(0xFF00897B);
+  static Color amtax = Color(0xFF37474F);
 
   static void swapColors() {
     final tempWhite = white;

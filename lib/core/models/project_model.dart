@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../resources/app_colors.dart';
+
 class AppProject {
   final String id;
   final String name;
@@ -15,50 +17,69 @@ class AppProject {
     required this.accent,
   });
 
-  static const AppProject snackShack = AppProject(
-    id: "snack_shack",
+  static AppProject snackShack = AppProject(
+    id: "POS-0001",
     name: "Snack Shack",
     shortName: "Snack Shack",
     asset: "assets/Snack-Shak.png",
-    accent: Color(0xFFF28C28),
+    accent: AppColor.ss,
   );
 
-  static const AppProject corporateCanteen = AppProject(
-    id: "corporate_canteen",
+  static AppProject corporateCanteen = AppProject(
+    id: "POS-0002",
     name: "Corporate Canteen",
     shortName: "Corporate Canteen",
     asset: "assets/corporate-canteen.jpg",
-    accent: Color(0xFFAF2F03),
+    accent: AppColor.cc,
   );
 
-  static const AppProject paani = AppProject(
-    id: "paani",
+  static AppProject paani = AppProject(
+    id: "POS-0003",
     name: "Paani.",
     shortName: "Paani.",
     asset: "assets/paani.png",
-    accent: Color(0xFF3A8C9E),
+    accent: AppColor.paani,
   );
-  static const AppProject rabiaTrust = AppProject(
-    id: "rabia_trust",
+
+  static AppProject rabiaTrust = AppProject(
+    id: "POS-0010",
     name: "Rabia Trust Hospital",
     shortName: "Rabia Trust Hospital",
     asset: "assets/Rabia-Trust.png",
-    accent: Color(0xFFD01372),
+    accent: AppColor.rth,
   );
 
-  static const AppProject alAzeem = AppProject(
-    id: "al_azeem",
+  static AppProject alAzeem = AppProject(
+    id: "POS-0011",
     name: "Al Azeem Foundation",
     shortName: "Al Azeem Foundation",
     asset: "assets/Al-Azeem.jpeg",
-    accent: Color(0xFFC9922B),
+    accent: AppColor.aa,
   );
 
-  static const List<AppProject> all = [
+  static AppProject opd = AppProject(
+    id: "POS-0012",
+    name: "OPD",
+    shortName: "OPD",
+    asset: "assets/Rth-OPD.png",
+    accent: AppColor.opd,
+  );
+
+  static AppProject amtax = AppProject(
+    id: "POS-0009",
+    name: "AMTEX",
+    shortName: "AMTEX",
+    asset: "assets/amtex.png",
+    accent: AppColor.amtax,
+  );
+
+  static List<AppProject> all = [
     snackShack,
     corporateCanteen,
     paani,
     rabiaTrust,
     alAzeem,
+    opd,
+    amtax,
   ];
 }

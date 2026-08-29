@@ -2,9 +2,6 @@ import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/models/employes_model.dart';
 import 'package:beacon/core/models/project_model.dart';
-import 'package:beacon/ui/components/app_constants.dart';
-import 'package:beacon/ui/view/dashboard/CC/HR/human_resource_view.dart';
-import 'package:beacon/ui/view/employees/employee_list_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +12,8 @@ import '../../../../core/controllers/auth_controller.dart';
 import '../../../../core/constants/constants.dart';
 import '../../../../core/extensions/sizer.dart';
 import '../../../../core/resources/app_colors.dart';
+import '../../components/app_constants.dart';
+import 'department_options_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -52,7 +51,7 @@ class _HomeViewState extends State<HomeView> {
           pName.contains(name) ||
           name.contains(pShort) ||
           pShort.contains(name) ||
-          id == project.id) {
+          id == project.id.toLowerCase()) {
         return project;
       }
     }
@@ -483,6 +482,9 @@ class _HomeViewState extends State<HomeView> {
                   accentColor: accent,
                   shopId: shop?.shopId,
                   shopName: shop?.shopName,
+                  siteImage: shop != null
+                      ? _getMatchingProject(shop)?.asset
+                      : null,
                 ),
               ),
             ),
@@ -550,6 +552,7 @@ class _HomeViewState extends State<HomeView> {
                   accentColor: accent,
                   shopId: shop.shopId,
                   shopName: shop.shopName,
+                  siteImage: _getMatchingProject(shop)?.asset,
                 );
               },
             ),
@@ -564,43 +567,25 @@ class _HomeViewState extends State<HomeView> {
     required Color accentColor,
     String? shopId,
     String? shopName,
+    String? siteImage,
   }) {
     final name = dept.departmentName ?? "Department";
+
     return _AnimatedDepartmentCard(
       name: name,
       icon: _getDeptIcon(name),
       accentColor: accentColor,
       onTap: () {
-        if (shopId == "POS-0002" && shopName == "CORPORATE CANTEEN") {
-          if (name == "HUMAN RESOURCES") {
-            AppRoutes.push(
-              CCHumanResourceView(
-                siteName: shopName ?? "N/A",
-                siteID: shopId ?? "N/A",
-                deptName: name,
-                deptID: dept.departmentId!,
-              ),
-            );
-          } else {
-            AppRoutes.push(
-              EmployeeListView(
-                department: name,
-                departmentId: dept.departmentId,
-                shopId: shopId,
-                shopName: shopName,
-              ),
-            );
-          }
-        } else {
-          AppRoutes.push(
-            EmployeeListView(
-              department: name,
-              departmentId: dept.departmentId,
-              shopId: shopId,
-              shopName: shopName,
-            ),
-          );
-        }
+        AppRoutes.push(
+          DepartmentOptionsView(
+            siteImage: siteImage,
+            deptName: name,
+            deptId: dept.departmentId ?? 0,
+            shopId: shopId ?? "N/A",
+            shopName: shopName ?? "N/A",
+            accentColor: accentColor,
+          ),
+        );
       },
     );
   }

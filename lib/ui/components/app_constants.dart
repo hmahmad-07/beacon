@@ -16,4 +16,12 @@ class AppShadow {
       offset: const Offset(0, 1),
     ),
   ];
+
+  static List<BoxShadow> textShadow = [
+    BoxShadow(
+      color: AppColor.appDarkColor.withValues(alpha: 0.3),
+      blurRadius: 2,
+      offset: const Offset(0, 2),
+    ),
+  ];
 }

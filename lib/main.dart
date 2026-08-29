@@ -12,6 +12,7 @@ import 'core/network/internet_connectivity.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/controllers/auth_controller.dart';
 import 'package:beacon/core/controllers/employes_controller.dart';
+import 'package:beacon/core/controllers/hr_controller.dart';
 import 'package:beacon/core/controllers/connectivity_controller.dart';
 
 Future<void> main() async {
@@ -46,6 +47,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeManager()),
         ChangeNotifierProvider(create: (_) => AuthController()),
         ChangeNotifierProvider(create: (_) => EmployesController()),
+        ChangeNotifierProvider(create: (_) => HRController()),
         ChangeNotifierProvider(create: (_) => ConnectivityController()),
       ],
       child: Consumer<ThemeManager>(
@@ -61,6 +63,7 @@ class MyApp extends StatelessWidget {
             ),
             home: const SplashView(),
             builder: (context, child) {
+              SizeConfig.init(context);
               return GestureDetector(
                 onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
                 behavior: HitTestBehavior.translucent,

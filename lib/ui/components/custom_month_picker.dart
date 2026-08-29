@@ -22,9 +22,11 @@ class CustomMonthPicker extends StatelessWidget {
     this.lastDate,
   });
 
-  Future<void> pickMonth(BuildContext context) async {
-    FocusScope.of(context).requestFocus(FocusNode());
-
+  static Future<void> showMonthPickerDialog({
+    required BuildContext context,
+    required DateTime selectedMonth,
+    required ValueChanged<DateTime> onMonthSelected,
+  }) async {
     final DateTime now = DateTime.now();
     final List<String> months = [
       "January",
@@ -41,69 +43,128 @@ class CustomMonthPicker extends StatelessWidget {
       "December",
     ];
 
+    int selectedYear = selectedMonth.year;
+
     final DateTime? pickedMonth = await showDialog<DateTime>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            "Select Month (${now.year})",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 4.5.sp),
-          ),
-          content: SizedBox(
-            width: 80.w,
-            child: GridView.builder(
-              shrinkWrap: true,
-              itemCount: 12,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 2,
-                crossAxisSpacing: 2.w,
-                mainAxisSpacing: 1.h,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-              itemBuilder: (context, index) {
-                final bool isSelected = selectedMonth?.month == (index + 1);
-                final bool isFuture =
-                    (index + 1) > now.month &&
-                    now.year == now.year; // Simplified for current year
-
-                return GestureDetector(
-                  onTap: isFuture
-                      ? null
-                      : () {
-                          Navigator.pop(context, DateTime(now.year, index + 1));
-                        },
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColor.appColor1
-                          : isFuture
-                          ? AppColor.grey.withValues(alpha: 0.1)
-                          : AppColor.scaffold,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      months[index].substring(0, 3).toUpperCase(),
-                      style: TextStyle(
-                        color: isSelected
-                            ? Colors.white
-                            : isFuture
-                            ? AppColor.grey.withValues(alpha: 0.3)
-                            : AppColor.appDarkColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 3.2.sp,
-                      ),
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Select Month",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 4.2.sp,
+                      color: AppColor.appDarkColor,
                     ),
                   ),
-                );
-              },
-            ),
-          ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          BoxIcons.bx_chevron_left,
+                          size: 5.w,
+                          color: AppColor.appColor1,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            selectedYear--;
+                          });
+                        },
+                      ),
+                      Text(
+                        "$selectedYear",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 3.8.sp,
+                          color: AppColor.appColor1,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          BoxIcons.bx_chevron_right,
+                          size: 5.w,
+                          color: selectedYear >= now.year
+                              ? AppColor.grey.withValues(alpha: 0.3)
+                              : AppColor.appColor1,
+                        ),
+                        onPressed: selectedYear >= now.year
+                            ? null
+                            : () {
+                                setState(() {
+                                  selectedYear++;
+                                });
+                              },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 80.w,
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  itemCount: 12,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 2,
+                    crossAxisSpacing: 2.w,
+                    mainAxisSpacing: 1.h,
+                  ),
+                  itemBuilder: (context, index) {
+                    final bool isSelected =
+                        selectedMonth.month == (index + 1) &&
+                        selectedMonth.year == selectedYear;
+                    final bool isFuture =
+                        selectedYear == now.year && (index + 1) > now.month;
+
+                    return GestureDetector(
+                      onTap: isFuture
+                          ? null
+                          : () {
+                              Navigator.pop(
+                                context,
+                                DateTime(selectedYear, index + 1),
+                              );
+                            },
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColor.appColor1
+                              : isFuture
+                              ? AppColor.grey.withValues(alpha: 0.1)
+                              : AppColor.scaffold,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          months[index].substring(0, 3).toUpperCase(),
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : isFuture
+                                ? AppColor.grey.withValues(alpha: 0.3)
+                                : AppColor.appDarkColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 3.2.sp,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -111,6 +172,14 @@ class CustomMonthPicker extends StatelessWidget {
     if (pickedMonth != null) {
       onMonthSelected(pickedMonth);
     }
+  }
+
+  Future<void> pickMonth(BuildContext context) async {
+    await showMonthPickerDialog(
+      context: context,
+      selectedMonth: selectedMonth ?? DateTime.now(),
+      onMonthSelected: onMonthSelected,
+    );
   }
 
   @override
