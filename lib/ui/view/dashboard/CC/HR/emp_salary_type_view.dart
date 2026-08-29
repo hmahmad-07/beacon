@@ -62,9 +62,13 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
   Animation<double> get _safeChartAnim =>
       _chartAnim ?? const AlwaysStoppedAnimation<double>(1);
 
+  late final PageController _graphPageController;
+  int _graphPageIndex = 0;
+
   @override
   void initState() {
     super.initState();
+    _graphPageController = PageController();
     _chartAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1600),
@@ -80,6 +84,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
 
   @override
   void dispose() {
+    _graphPageController.dispose();
     _chartAnimController?.dispose();
     super.dispose();
   }
@@ -773,13 +778,8 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     );
   }
 
-  // Modern Professional Executive Bar Chart Card (Staff Count / Employment Nature Focus)
   double _natureChartHeight(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    return (size.height * 0.32).clamp(
-      size.shortestSide < 600 ? 230.0 : 270.0,
-      size.shortestSide < 600 ? 320.0 : 380.0,
-    );
+    return (20.h).clamp(170, 235);
   }
 
   Widget _buildExecutiveBarChartCard(
@@ -799,10 +799,6 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
 
     final isAllSelected = controller.selectedJobType == "ALL";
 
-    final activeFilterText = isAllSelected
-        ? "All Job Types"
-        : "${controller.selectedJobType} Only";
-
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.2.h),
       decoration: BoxDecoration(
@@ -820,7 +816,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
         children: [
           Container(
             width: double.infinity,
-            padding: EdgeInsets.fromLTRB(4.w, 3.5.w, 4.w, 2.5.w),
+            padding: EdgeInsets.fromLTRB(4.w, 2.5.w, 4.w, 1.8.w),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -875,48 +871,11 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                     ],
                   ),
                 ),
-                2.width,
-                Flexible(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 2.5.w,
-                      vertical: 0.4.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isAllSelected
-                          ? AppColor.appColor1.withValues(alpha: 0.1)
-                          : _getJobTypeColor(
-                              controller.selectedJobType,
-                            ).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isAllSelected
-                            ? AppColor.appColor1.withValues(alpha: 0.3)
-                            : _getJobTypeColor(
-                                controller.selectedJobType,
-                              ).withValues(alpha: 0.4),
-                      ),
-                    ),
-                    child: Text(
-                      activeFilterText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 2.3.sp,
-                        fontWeight: FontWeight.w800,
-                        color: isAllSelected
-                            ? AppColor.appColor1
-                            : _getJobTypeColor(controller.selectedJobType),
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(3.w, 0, 4.w, 2.5.w),
+            padding: EdgeInsets.fromLTRB(2.5.w, 1.h, 3.w, 2.w),
             child: SizedBox(
               height: _natureChartHeight(context),
               child: AnimatedBuilder(
@@ -940,8 +899,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                       0,
                       double.infinity,
                     );
-                    final double rodWidth = isSelectedFilter ? 18.0 : 14.0;
-
+                    final double rodWidth = isSelectedFilter ? 9.0 : 7.0;
                     final rodGradient = LinearGradient(
                       colors: [
                         item.color.withValues(
@@ -958,13 +916,14 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                     animatedBarGroups.add(
                       BarChartGroupData(
                         x: i,
+                        barsSpace: 5,
                         barRods: [
                           BarChartRodData(
                             toY: barHeight.toDouble(),
                             gradient: rodGradient,
                             width: rodWidth,
                             borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(6),
+                              top: Radius.circular(4),
                             ),
                             backDrawRodData: BackgroundBarChartRodData(
                               show: true,
@@ -983,9 +942,120 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                     child: BarChart(
                       BarChartData(
                         alignment: BarChartAlignment.spaceAround,
-                        maxY: (maxYValue * 1.25).toDouble(),
+                        maxY: (maxYValue * 1.2).toDouble(),
                         minY: 0,
-                        groupsSpace: 12,
+                        groupsSpace: 3,
+                        barGroups: animatedBarGroups,
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: AppColor.appLightColor.withValues(
+                              alpha: 0.6,
+                            ),
+                            strokeWidth: 0.8,
+                            dashArray: [4, 4],
+                          ),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        titlesData: FlTitlesData(
+                          show: true,
+
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: 1,
+                              reservedSize: 40, // pehle 36 tha
+                              getTitlesWidget: (value, meta) {
+                                int idx = value.toInt();
+                                if (idx >= 0 && idx < jobTypeList.length) {
+                                  final item = jobTypeList[idx];
+                                  final isSelected =
+                                      controller.selectedJobType
+                                          .toUpperCase() ==
+                                      item.displayName.toUpperCase();
+                                  final countLabel = (item.count * animValue)
+                                      .round();
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: 4,
+                                    ), // pehle 6 tha
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            item.displayName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: isSelected
+                                                  ? 2.1.sp
+                                                  : 1.9.sp,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w900
+                                                  : FontWeight.bold,
+                                              color: isSelected
+                                                  ? item.color
+                                                  : AppColor.appDarkColor,
+                                            ),
+                                          ),
+                                        ),
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            '$countLabel',
+                                            style: TextStyle(
+                                              fontSize: 1.7.sp,
+                                              fontWeight: FontWeight.w700,
+                                              color: item.color,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+                          ),
+
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 13, // pehle 16
+                              getTitlesWidget: (value, meta) {
+                                if (value <= 0) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                    right: 1,
+                                  ), // pehle 2
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      value.toInt().toString(),
+                                      style: TextStyle(
+                                        fontSize: 1.4.sp, // pehle 1.6
+                                        color: AppColor.grey,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                        ),
                         barTouchData: BarTouchData(
                           enabled: true,
                           touchCallback:
@@ -1015,13 +1085,13 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                           touchTooltipData: BarTouchTooltipData(
                             fitInsideHorizontally: true,
                             fitInsideVertically: true,
-                            getTooltipColor: (group) =>
+                            getTooltipColor: (_) =>
                                 AppColor.appDarkColor.withValues(alpha: 0.95),
                             tooltipBorder: BorderSide(
                               color: AppColor.appLightColor,
                             ),
                             tooltipPadding: const EdgeInsets.symmetric(
-                              horizontal: 10,
+                              horizontal: 8,
                               vertical: 6,
                             ),
                             tooltipMargin: 6,
@@ -1036,7 +1106,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                                 TextStyle(
                                   color: item.color,
                                   fontWeight: FontWeight.w900,
-                                  fontSize: 3.0.sp,
+                                  fontSize: 2.6.sp,
                                 ),
                                 children: [
                                   TextSpan(
@@ -1044,7 +1114,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                                     style: TextStyle(
                                       color: AppColor.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 2.6.sp,
+                                      fontSize: 2.2.sp,
                                     ),
                                   ),
                                   TextSpan(
@@ -1053,7 +1123,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                                     style: TextStyle(
                                       color: AppColor.appLightColor,
                                       fontWeight: FontWeight.w500,
-                                      fontSize: 2.2.sp,
+                                      fontSize: 1.9.sp,
                                     ),
                                   ),
                                 ],
@@ -1061,101 +1131,6 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                             },
                           ),
                         ),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: 1,
-                              reservedSize: 42,
-                              getTitlesWidget: (value, meta) {
-                                int idx = value.toInt();
-                                if (idx >= 0 && idx < jobTypeList.length) {
-                                  final item = jobTypeList[idx];
-                                  final isSelected =
-                                      controller.selectedJobType
-                                          .toUpperCase() ==
-                                      item.displayName.toUpperCase();
-                                  final countLabel = (item.count * animValue)
-                                      .round();
-
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            item.displayName,
-                                            style: TextStyle(
-                                              fontSize: isSelected
-                                                  ? 2.4.sp
-                                                  : 2.1.sp,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w900
-                                                  : FontWeight.bold,
-                                              color: isSelected
-                                                  ? item.color
-                                                  : AppColor.appDarkColor,
-                                            ),
-                                          ),
-                                        ),
-                                        Text(
-                                          '$countLabel',
-                                          style: TextStyle(
-                                            fontSize: 1.9.sp,
-                                            fontWeight: FontWeight.w700,
-                                            color: item.color,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }
-                                return const SizedBox.shrink();
-                              },
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 28,
-                              getTitlesWidget: (value, meta) {
-                                if (value <= 0) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Text(
-                                  value.toInt().toString(),
-                                  style: TextStyle(
-                                    fontSize: 2.1.sp,
-                                    color: AppColor.grey,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                        ),
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          getDrawingHorizontalLine: (value) => FlLine(
-                            color: AppColor.appLightColor.withValues(
-                              alpha: 0.6,
-                            ),
-                            strokeWidth: 0.8,
-                            dashArray: [4, 4],
-                          ),
-                        ),
-                        borderData: FlBorderData(show: false),
-                        barGroups: animatedBarGroups,
                       ),
                       duration: Duration.zero,
                     ),
@@ -1169,7 +1144,6 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     );
   }
 
-  // Job Type Filter Chips
   Widget _buildJobTypeFilterChips(
     HRController controller,
     SalaryTypeReportModel model,
@@ -1723,13 +1697,148 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     );
   }
 
-  int _graphTab = 0;
+  Widget _buildGraphSection(
+    HRController controller,
+    SalaryTypeReportModel model,
+  ) {
+    final jobTypeList = _extractJobTypeData(model);
+    if (jobTypeList.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 5.w),
+          child: Row(
+            children: [
+              _graphTabChip(0, "Overview", BoxIcons.bxs_pie_chart_alt_2),
+              2.width,
+              _graphTabChip(1, "Chart", BoxIcons.bx_bar_chart_alt_2),
+            ],
+          ),
+        ),
+        1.height,
+        SizedBox(
+          height: _graphViewportHeight(context),
+          child: PageView(
+            controller: _graphPageController,
+            clipBehavior: Clip.hardEdge,
+            allowImplicitScrolling: false,
+            physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
+            onPageChanged: (index) => setState(() => _graphPageIndex = index),
+            children: [
+              SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: _buildNatureDistributionPanel(model),
+              ),
+              SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: _buildExecutiveBarChartCard(controller, model),
+              ),
+            ],
+          ),
+        ),
+        1.height,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(2, (index) {
+            final isActive = _graphPageIndex == index;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: EdgeInsets.symmetric(horizontal: 1.w),
+              width: isActive ? 5.w : 2.w,
+              height: 0.7.h,
+              decoration: BoxDecoration(
+                color: isActive
+                    ? AppColor.appColor1
+                    : AppColor.grey.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        ),
+        1.2.height,
+      ],
+    );
+  }
+
+  double _graphViewportHeight(BuildContext context) {
+    return (24.h).clamp(220.0, 310.0);
+  }
+
+  // Widget _buildGraphSection(
+  //   HRController controller,
+  //   SalaryTypeReportModel model,
+  // ) {
+  //   final jobTypeList = _extractJobTypeData(model);
+  //   if (jobTypeList.isEmpty) return const SizedBox.shrink();
+
+  //   return Column(
+  //     children: [
+  //       Padding(
+  //         padding: EdgeInsets.symmetric(horizontal: 5.w),
+  //         child: Row(
+  //           children: [
+  //             _graphTabChip(0, "Overview", BoxIcons.bxs_pie_chart_alt_2),
+  //             2.width,
+  //             _graphTabChip(1, "Chart", BoxIcons.bx_bar_chart_alt_2),
+  //           ],
+  //         ),
+  //       ),
+  //       1.height,
+  //       SizedBox(
+  //         height: _graphViewportHeight(context),
+  //         child: PageView(
+  //           controller: _graphPageController,
+  //           clipBehavior: Clip.hardEdge,
+  //           allowImplicitScrolling: false,
+  //           physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
+  //           onPageChanged: (index) => setState(() => _graphPageIndex = index),
+  //           children: [
+  //             _buildNatureDistributionPanel(model),
+  //             _buildExecutiveBarChartCard(controller, model),
+  //           ],
+  //         ),
+  //       ),
+  //       1.height,
+  //       Row(
+  //         mainAxisAlignment: MainAxisAlignment.center,
+  //         children: List.generate(2, (index) {
+  //           final isActive = _graphPageIndex == index;
+  //           return AnimatedContainer(
+  //             duration: const Duration(milliseconds: 250),
+  //             margin: EdgeInsets.symmetric(horizontal: 1.w),
+  //             width: isActive ? 5.w : 2.w,
+  //             height: 0.7.h,
+  //             decoration: BoxDecoration(
+  //               color: isActive
+  //                   ? AppColor.appColor1
+  //                   : AppColor.grey.withValues(alpha: 0.35),
+  //               borderRadius: BorderRadius.circular(4),
+  //             ),
+  //           );
+  //         }),
+  //       ),
+  //       1.2.height,
+  //     ],
+  //   );
+  // }
+
+  // double _graphViewportHeight(BuildContext context) {
+  //   return (23.h).clamp(210.0, 300.0);
+  // }
 
   Widget _graphTabChip(int index, String label, IconData icon) {
-    final selected = _graphTab == index;
+    final selected = _graphPageIndex == index;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _graphTab = index),
+        onTap: () {
+          setState(() => _graphPageIndex = index);
+          _graphPageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+          );
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: EdgeInsets.symmetric(vertical: 1.h),
@@ -1765,43 +1874,6 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildGraphSection(
-    HRController controller,
-    SalaryTypeReportModel model,
-  ) {
-    final jobTypeList = _extractJobTypeData(model);
-    if (jobTypeList.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 5.w),
-          child: Row(
-            children: [
-              _graphTabChip(0, "Overview", BoxIcons.bxs_pie_chart_alt_2),
-              2.width,
-              _graphTabChip(1, "Chart", BoxIcons.bx_bar_chart_alt_2),
-            ],
-          ),
-        ),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          child: _graphTab == 0
-              ? KeyedSubtree(
-                  key: const ValueKey('overview'),
-                  child: _buildNatureDistributionPanel(model),
-                )
-              : KeyedSubtree(
-                  key: const ValueKey('chart'),
-                  child: _buildExecutiveBarChartCard(controller, model),
-                ),
-        ),
-      ],
     );
   }
 }
