@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:beacon/core/controllers/hr_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/HR/attendance_report_model.dart';
@@ -107,14 +109,64 @@ class _EmployeeAttendanceDetailViewState
     _chartAnimController?.forward();
   }
 
+  // Unconditionally replays the 0 -> max grow-in animation, bypassing the
+  // data-key guard above. Used when the visible chart changes (tab switch)
+  // even though the underlying report data hasn't changed.
+  void _replayChartAnimation() {
+    _chartAnimController?.reset();
+    _chartAnimController?.forward();
+  }
+
+  double _chartViewportHeight(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final shortest = size.shortestSide;
+    return (size.height * 0.24).clamp(
+      shortest < 600 ? 190.0 : 220.0,
+      shortest < 600 ? 250.0 : 280.0,
+    );
+  }
+
   AttendanceEmployee? _resolvedEmployee(AttendanceReportModel? model) {
     return model?.employee ?? widget.employee;
   }
 
+  // Derives the status breakdown from the same daily-attendance rows the
+  // table below renders, instead of trusting the API's separate aggregate
+  // fields (data.tableData / employee.attendance) which can drift out of
+  // sync with the actual per-day records.
   List<AttendanceStatusCount> _statusCounts(AttendanceReportModel? model) {
+    final dailyList = model?.employee?.dailyAttendance ?? [];
+    if (dailyList.isNotEmpty) return _deriveStatusCounts(dailyList);
+
     final fromTable = model?.data?.tableData ?? [];
     if (fromTable.isNotEmpty) return fromTable;
     return model?.employee?.attendance ?? [];
+  }
+
+  List<AttendanceStatusCount> _deriveStatusCounts(List<DailyAttendance> days) {
+    final tally = <String, int>{};
+    for (final day in days) {
+      final isHoliday = _isHoliday(day);
+      final raw = isHoliday ? 'H' : (_rawStatusCode(day) ?? 'UNKNOWN');
+      final code = raw.trim().isEmpty ? 'UNKNOWN' : raw.trim().toUpperCase();
+      tally[code] = (tally[code] ?? 0) + 1;
+    }
+    return tally.entries
+        .map((e) => AttendanceStatusCount(status: e.key, totalDays: e.value))
+        .toList();
+  }
+
+  bool _isHoliday(DailyAttendance day) {
+    return _isSundayDate(day.dateIso) ||
+        _isSundayDate(day.date) ||
+        (day.day?.trim().toLowerCase() == 'sunday');
+  }
+
+  String? _rawStatusCode(DailyAttendance day) {
+    if (day.statusCode != null && day.statusCode!.trim().isNotEmpty) {
+      return day.statusCode;
+    }
+    return day.status;
   }
 
   @override
@@ -166,7 +218,12 @@ class _EmployeeAttendanceDetailViewState
                           (employee?.dailyAttendance ?? []).isEmpty))
                     _buildEmpty()
                   else ...[
-                    _buildStatusMetrics(counts, employee?.totalDays),
+                    _buildStatusMetrics(
+                      counts,
+                      (employee?.dailyAttendance ?? []).isNotEmpty
+                          ? employee!.dailyAttendance!.length
+                          : employee?.totalDays,
+                    ),
                     _buildCharts(counts, model),
                     _buildDailyList(employee?.dailyAttendance ?? []),
                     4.height,
@@ -286,9 +343,7 @@ class _EmployeeAttendanceDetailViewState
                       ),
                       2.width,
                       Text(
-                        _isCurrentMonth
-                            ? "$formattedMonth  •  till today"
-                            : formattedMonth,
+                        _isCurrentMonth ? formattedMonth : formattedMonth,
                         style: TextStyle(
                           color: AppColor.white,
                           fontWeight: FontWeight.bold,
@@ -427,13 +482,30 @@ class _EmployeeAttendanceDetailViewState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Attendance Graphs",
-            style: TextStyle(
-              fontSize: 3.6.sp,
-              fontWeight: FontWeight.bold,
-              color: AppColor.appDarkColor,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(1.8.w),
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  BoxIcons.bxs_bar_chart_square,
+                  color: _accent,
+                  size: 4.w,
+                ),
+              ),
+              2.width,
+              Text(
+                "Attendance Graphs",
+                style: TextStyle(
+                  fontSize: 3.6.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColor.appDarkColor,
+                ),
+              ),
+            ],
           ),
           1.height,
           Row(
@@ -445,7 +517,7 @@ class _EmployeeAttendanceDetailViewState
           ),
           1.5.height,
           SizedBox(
-            height: 28.h,
+            height: _chartViewportHeight(context),
             child: _chartTab == 0
                 ? _statusPie(counts)
                 : _dailyBarChart(model.dailyChartData),
@@ -459,7 +531,10 @@ class _EmployeeAttendanceDetailViewState
     final selected = _chartTab == index;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _chartTab = index),
+        onTap: () {
+          setState(() => _chartTab = index);
+          _replayChartAnimation();
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: EdgeInsets.symmetric(vertical: 1.h),
@@ -514,27 +589,32 @@ class _EmployeeAttendanceDetailViewState
           children: [
             Expanded(
               flex: 3,
-              child: PieChart(
-                PieChartData(
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 34,
-                  startDegreeOffset: -90,
-                  sections: items.map((item) {
-                    final days = item.totalDays ?? 0;
-                    return PieChartSectionData(
-                      color: AttendanceStatusStyle.colorOf(item.status),
-                      value: (days * anim).clamp(0, double.infinity),
-                      title: anim > 0.65 ? '$days' : '',
-                      radius: 44,
-                      titleStyle: TextStyle(
-                        fontSize: 2.5.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColor.white,
-                      ),
-                    );
-                  }).toList(),
+              // Spins the pie into place (two full turns, eased by
+              // _safeChartAnim) instead of just filling in flat.
+              child: Transform.rotate(
+                angle: (1 - anim) * 4 * math.pi,
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 34,
+                    startDegreeOffset: -90,
+                    sections: items.map((item) {
+                      final days = item.totalDays ?? 0;
+                      return PieChartSectionData(
+                        color: AttendanceStatusStyle.colorOf(item.status),
+                        value: (days * anim).clamp(0, double.infinity),
+                        title: anim > 0.65 ? '$days' : '',
+                        radius: 44,
+                        titleStyle: TextStyle(
+                          fontSize: 2.5.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColor.white,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  duration: Duration.zero,
                 ),
-                duration: Duration.zero,
               ),
             ),
             Expanded(
@@ -809,15 +889,8 @@ class _EmployeeAttendanceDetailViewState
     );
 
     for (final day in days) {
-      final isSunday =
-          _isSundayDate(day.dateIso) ||
-          _isSundayDate(day.date) ||
-          (day.day?.trim().toLowerCase() == 'sunday');
-      final code = isSunday
-          ? 'H'
-          : ((day.statusCode != null && day.statusCode!.isNotEmpty)
-                ? day.statusCode
-                : day.status);
+      final isSunday = _isHoliday(day);
+      final code = isSunday ? 'H' : _rawStatusCode(day);
       final label = isSunday
           ? 'Holiday'
           : (day.status?.isNotEmpty == true
@@ -923,27 +996,44 @@ class _EmployeeAttendanceDetailViewState
       children: [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
-          child: Text(
-            "Daily Attendance",
-            style: TextStyle(
-              fontSize: 4.sp,
-              fontWeight: FontWeight.bold,
-              color: AppColor.appDarkColor,
-            ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(1.8.w),
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  BoxIcons.bxs_calendar_check,
+                  color: _accent,
+                  size: 4.w,
+                ),
+              ),
+              2.width,
+              Text(
+                "Daily Attendance",
+                style: TextStyle(
+                  fontSize: 4.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColor.appDarkColor,
+                ),
+              ),
+            ],
           ),
         ),
         Container(
           margin: EdgeInsets.symmetric(horizontal: 5.w),
           decoration: BoxDecoration(
             color: AppColor.white,
-            borderRadius: BorderRadius.circular(2.r),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: AppColor.appLightColor.withValues(alpha: 0.7),
             ),
             boxShadow: AppShadow.soft,
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(2.r),
+            borderRadius: BorderRadius.circular(16),
             child: Table(
               columnWidths: const {
                 0: FlexColumnWidth(1.0),

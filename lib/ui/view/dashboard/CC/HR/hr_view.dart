@@ -9,6 +9,9 @@ import '../../../../../core/extensions/sizer.dart';
 import 'package:beacon/ui/view/dashboard/CC/HR/emp_salary_type_view.dart';
 import 'package:beacon/ui/view/dashboard/CC/HR/salary_cost_report_view.dart';
 import 'package:beacon/ui/view/dashboard/CC/HR/attendance_report_view.dart';
+import 'package:beacon/ui/view/dashboard/CC/HR/headcount_report_view.dart';
+import 'package:beacon/ui/view/dashboard/CC/HR/monthly_hr_report_view.dart';
+import 'package:beacon/ui/view/dashboard/CC/HR/budget_headcount_report_view.dart';
 
 class CCHumanResourceView extends StatefulWidget {
   final String siteName;
@@ -88,6 +91,36 @@ class _CCHumanResourceViewState extends State<CCHumanResourceView> {
     } else if (r.contains('attendance')) {
       AppRoutes.push(
         AttendanceReportView(
+          siteName: widget.siteName,
+          siteID: widget.siteID,
+          deptName: widget.deptName,
+          deptID: widget.deptID,
+          siteImage: widget.siteImage,
+        ),
+      );
+    } else if (r.contains('budget')) {
+      AppRoutes.push(
+        BudgetHeadcountReportView(
+          siteName: widget.siteName,
+          siteID: widget.siteID,
+          deptName: widget.deptName,
+          deptID: widget.deptID,
+          siteImage: widget.siteImage,
+        ),
+      );
+    } else if (r.contains('headcount')) {
+      AppRoutes.push(
+        HeadcountReportView(
+          siteName: widget.siteName,
+          siteID: widget.siteID,
+          deptName: widget.deptName,
+          deptID: widget.deptID,
+          siteImage: widget.siteImage,
+        ),
+      );
+    } else if (r.contains('monthly')) {
+      AppRoutes.push(
+        MonthlyHRReportView(
           siteName: widget.siteName,
           siteID: widget.siteID,
           deptName: widget.deptName,

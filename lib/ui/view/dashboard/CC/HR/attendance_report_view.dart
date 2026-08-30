@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:beacon/core/controllers/hr_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
@@ -72,6 +74,15 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
     _animationKey = key;
     _chartAnimController?.reset();
     _chartAnimController?.forward();
+  }
+
+  double _chartViewportHeight(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final shortest = size.shortestSide;
+    return (size.height * 0.22).clamp(
+      shortest < 600 ? 160.0 : 190.0,
+      shortest < 600 ? 210.0 : 240.0,
+    );
   }
 
   void _fetchReportData() {
@@ -266,7 +277,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
                       2.width,
                       Text(
                         isCurrentMonth
-                            ? "Month: $formattedMonth (till today)"
+                            ? "Month: $formattedMonth"
                             : "Month: $formattedMonth",
                         style: TextStyle(
                           color: AppColor.white,
@@ -430,7 +441,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
           ),
           1.5.height,
           SizedBox(
-            height: 22.h,
+            height: _chartViewportHeight(context),
             child: AnimatedBuilder(
               animation: _safeChartAnim,
               builder: (context, child) {
@@ -438,30 +449,33 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
                 return Row(
                   children: [
                     Expanded(
-                      child: PieChart(
-                        PieChartData(
-                          sectionsSpace: 2,
-                          centerSpaceRadius: 32,
-                          startDegreeOffset: -90,
-                          sections: counts.map((item) {
-                            final days = item.totalDays ?? 0;
-                            final color = AttendanceStatusStyle.colorOf(
-                              item.status,
-                            );
-                            return PieChartSectionData(
-                              color: color,
-                              value: (days * anim).clamp(0, double.infinity),
-                              title: anim > 0.7 ? '$days' : '',
-                              radius: 42,
-                              titleStyle: TextStyle(
-                                fontSize: 2.4.sp,
-                                fontWeight: FontWeight.bold,
-                                color: AppColor.white,
-                              ),
-                            );
-                          }).toList(),
+                      child: Transform.rotate(
+                        angle: (1 - anim) * 4 * math.pi,
+                        child: PieChart(
+                          PieChartData(
+                            sectionsSpace: 2,
+                            centerSpaceRadius: 32,
+                            startDegreeOffset: -90,
+                            sections: counts.map((item) {
+                              final days = item.totalDays ?? 0;
+                              final color = AttendanceStatusStyle.colorOf(
+                                item.status,
+                              );
+                              return PieChartSectionData(
+                                color: color,
+                                value: (days * anim).clamp(0, double.infinity),
+                                title: anim > 0.7 ? '$days' : '',
+                                radius: 42,
+                                titleStyle: TextStyle(
+                                  fontSize: 2.4.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColor.white,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          duration: Duration.zero,
                         ),
-                        duration: Duration.zero,
                       ),
                     ),
                     2.width,
@@ -531,17 +545,44 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "Department Employees",
-                style: TextStyle(
-                  fontSize: 4.sp,
-                  fontWeight: FontWeight.bold,
-                  color: AppColor.appDarkColor,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(1.8.w),
+                    decoration: BoxDecoration(
+                      color: _accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(BoxIcons.bxs_group, color: _accent, size: 4.w),
+                  ),
+                  2.width,
+                  Text(
+                    "Department Employees",
+                    style: TextStyle(
+                      fontSize: 4.sp,
+                      fontWeight: FontWeight.bold,
+                      color: AppColor.appDarkColor,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                "${employees.length} staff",
-                style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 2.5.w,
+                  vertical: 0.4.h,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColor.grey.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Text(
+                  "${employees.length} staff",
+                  style: TextStyle(
+                    fontSize: 2.8.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColor.appDarkColor,
+                  ),
+                ),
               ),
             ],
           ),
@@ -573,8 +614,14 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
 
   Widget _employeeCard(AttendanceEmployee emp, HRController controller) {
     final isActive = emp.status?.toUpperCase() == "A";
+    final statusColor = isActive ? AppColor.green : AppColor.red;
+
+    final hasJoinDate = emp.joinDate != null && emp.joinDate!.trim().isNotEmpty;
+    final hasMobile = emp.mobile != null && emp.mobile!.trim().isNotEmpty;
+
     return Material(
       color: AppColor.white,
+      surfaceTintColor: AppColor.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -592,77 +639,130 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
           );
         },
         child: Container(
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
+            color: AppColor.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _accent.withValues(alpha: 0.18)),
             boxShadow: AppShadow.soft,
           ),
-          padding: EdgeInsets.all(4.w),
-          child: Row(
-            children: [
-              _avatar(emp),
-              3.width,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      emp.name ?? "Unknown",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 3.8.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColor.appDarkColor,
-                      ),
-                    ),
-                    Text(
-                      emp.designation ?? "Employee",
-                      style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
-                    ),
-                    if (emp.employeeCode != null)
-                      Text(
-                        "Code: ${emp.employeeCode}",
-                        style: TextStyle(
-                          fontSize: 2.4.sp,
-                          color: AppColor.grey,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(width: 1.1.w, color: statusColor),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.all(4.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            _avatar(emp, haloColor: statusColor),
+                            3.width,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    emp.name ?? "Unknown",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 3.8.sp,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColor.appDarkColor,
+                                    ),
+                                  ),
+                                  0.3.height,
+                                  Text(
+                                    emp.designation ?? "Employee",
+                                    style: TextStyle(
+                                      fontSize: 2.8.sp,
+                                      color: AppColor.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 3.5.w,
+                              color: AppColor.grey,
+                            ),
+                          ],
                         ),
-                      ),
-                  ],
-                ),
-              ),
-              Column(
-                children: [
-                  Container(
-                    width: 2.8.w,
-                    height: 2.8.w,
-                    decoration: BoxDecoration(
-                      color: isActive ? AppColor.green : AppColor.red,
-                      shape: BoxShape.circle,
+                        if (hasJoinDate || hasMobile) ...[
+                          1.2.height,
+                          Divider(height: 1, color: AppColor.scaffold),
+                          1.height,
+                          Wrap(
+                            spacing: 2.w,
+                            runSpacing: 0.8.h,
+                            children: [
+                              if (hasJoinDate)
+                                _infoPill(
+                                  icon: BoxIcons.bx_calendar_check,
+                                  label: "Joined ${emp.joinDate}",
+                                ),
+                              if (hasMobile)
+                                _infoPill(
+                                  icon: BoxIcons.bx_phone,
+                                  label: emp.mobile!,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  0.8.height,
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 3.5.w,
-                    color: AppColor.grey,
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _avatar(AttendanceEmployee emp) {
+  Widget _infoPill({required IconData icon, required String label}) {
     return Container(
-      width: 12.w,
-      height: 12.w,
+      padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.7.h),
+      decoration: BoxDecoration(
+        color: AppColor.scaffold,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 3.3.w, color: _accent),
+          1.3.width,
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 2.6.sp,
+              color: AppColor.appDarkColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _avatar(AttendanceEmployee emp, {Color? haloColor}) {
+    final color = haloColor ?? _accent;
+    return Container(
+      width: 13.w,
+      height: 13.w,
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: _accent.withValues(alpha: 0.3), width: 2),
+        gradient: LinearGradient(
+          colors: [color.withValues(alpha: 0.35), color.withValues(alpha: 0.1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(50),

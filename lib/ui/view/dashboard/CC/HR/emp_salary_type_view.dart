@@ -57,7 +57,6 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     with SingleTickerProviderStateMixin {
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
-  String? _animationKey;
 
   Animation<double> get _safeChartAnim =>
       _chartAnim ?? const AlwaysStoppedAnimation<double>(1);
@@ -89,26 +88,38 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     super.dispose();
   }
 
-  void _triggerChartAnimation(String key) {
-    if (_animationKey == key) return;
-    _animationKey = key;
+  void _replayChartAnimation() {
     _chartAnimController?.reset();
     _chartAnimController?.forward();
   }
 
-  void _fetchReportData() {
-    _animationKey = null;
+  // Deliberately awaits the fetch and replays the animation off its
+  // completion, rather than detecting "data is ready" from a Consumer
+  // rebuild. HRController is a shared, app-wide singleton — on a repeat
+  // visit to this screen (same site/dept/month), the very first build
+  // sees the PREVIOUS visit's leftover data before this fetch even
+  // starts, animating that instead. The animKey computed from that stale
+  // data (same date + same employee count) then matches the key computed
+  // once the fresh data lands, so the real arrival gets silently
+  // skipped — the entrance animation only ever seemed to fire once, on
+  // truly first-ever load.
+  Future<void> _fetchReportData() async {
     final hrController = context.read<HRController>();
     final monthStr = DateFormat('MM').format(hrController.selectedDate);
     final yearStr = DateFormat('yyyy').format(hrController.selectedDate);
 
-    hrController.getEmpSalaryTypeReport(
+    await hrController.getEmpSalaryTypeReport(
       context,
       month: monthStr,
       year: yearStr,
       shopId: widget.siteID,
       deptId: widget.deptID.toString(),
     );
+    if (!mounted) return;
+    final employees = hrController.salaryTypeReportModel?.departmentEmployees;
+    if (employees != null && employees.isNotEmpty) {
+      _replayChartAnimation();
+    }
   }
 
   String _formatJobTypeName(String raw) {
@@ -119,6 +130,39 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
       return "TEMPORARY";
     }
     return upper;
+  }
+
+  // Short label used only for the bar chart's x-axis so long names
+  // ("PERMANENT", "TEMPORARY") don't crowd/overlap under each bar.
+  String _shortJobTypeLabel(String displayName) {
+    final upper = displayName.trim().toUpperCase();
+    if (upper.contains("PERMANENT")) return "Perm";
+    if (upper.contains("CONTRACTUAL") || upper.contains("CONTRACT")) {
+      return "Cont";
+    }
+    if (upper.contains("DAILY")) return "Daily";
+    if (upper.contains("TEMP")) return "Temp";
+    final trimmed = displayName.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final words = trimmed.split(RegExp(r'\s+'));
+    final short = words.length > 1
+        ? words.map((w) => w.isNotEmpty ? w[0] : '').take(4).join()
+        : (trimmed.length > 5 ? trimmed.substring(0, 5) : trimmed);
+    return short.isEmpty
+        ? short
+        : short[0].toUpperCase() + short.substring(1).toLowerCase();
+  }
+
+  // Round, human-friendly y-axis steps (1, 2, 5, 10, 20, 50, 100...) so the
+  // bar chart's grid reads as clean numbers instead of odd auto-computed ones.
+  double _niceYAxisInterval(num maxValue) {
+    if (maxValue <= 5) return 1;
+    if (maxValue <= 10) return 2;
+    if (maxValue <= 25) return 5;
+    if (maxValue <= 60) return 10;
+    if (maxValue <= 120) return 20;
+    if (maxValue <= 300) return 50;
+    return 100;
   }
 
   Color _getJobTypeColor(String? type) {
@@ -305,18 +349,6 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
         builder: (context, controller, child) {
           final model = controller.salaryTypeReportModel;
           final isLoading = controller.isSalaryReportLoading;
-
-          if (!isLoading &&
-              model != null &&
-              model.departmentEmployees != null &&
-              model.departmentEmployees!.isNotEmpty) {
-            final animKey =
-                '${controller.selectedDate.millisecondsSinceEpoch}_'
-                '${model.departmentEmployees!.length}';
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _triggerChartAnimation(animKey);
-            });
-          }
 
           return RefreshIndicator(
             color: AppColor.appColor1,
@@ -631,22 +663,23 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     );
   }
 
-  Widget _buildNatureDistributionPanel(SalaryTypeReportModel model) {
+  Widget _buildNatureDistributionPanel(
+    SalaryTypeReportModel model, {
+    required double height,
+  }) {
     final jobTypeList = _extractJobTypeData(model);
-    if (jobTypeList.isEmpty) return const SizedBox.shrink();
+    if (jobTypeList.isEmpty) return SizedBox(height: height);
 
     final totalCount = jobTypeList.fold<int>(0, (sum, e) => sum + e.count);
-    if (totalCount <= 0) return const SizedBox.shrink();
+    if (totalCount <= 0) return SizedBox(height: height);
 
     return Container(
+      height: height,
       margin: EdgeInsets.symmetric(horizontal: 5.w, vertical: 0.8.h),
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColor.white, AppColor.appColor1.withValues(alpha: 0.03)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColor.white,
+
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColor.appLightColor.withValues(alpha: 0.7),
@@ -697,97 +730,105 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
             ],
           ),
           1.5.height,
-          ...jobTypeList.map((item) {
-            final pct = totalCount > 0 ? item.count / totalCount : 0.0;
-            return Padding(
-              padding: EdgeInsets.only(bottom: 1.2.h),
-              child: AnimatedBuilder(
-                animation: _safeChartAnim,
-                builder: (context, child) {
-                  final animatedPct = pct * _safeChartAnim.value;
-                  final animatedCount = (item.count * _safeChartAnim.value)
-                      .round();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(item.icon, size: 3.8.w, color: item.color),
-                          2.width,
-                          Expanded(
-                            child: Text(
-                              item.displayName,
-                              style: TextStyle(
-                                fontSize: 2.8.sp,
-                                fontWeight: FontWeight.w700,
-                                color: AppColor.appDarkColor,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            "$animatedCount",
-                            style: TextStyle(
-                              fontSize: 2.8.sp,
-                              fontWeight: FontWeight.bold,
-                              color: item.color,
-                            ),
-                          ),
-                          2.width,
-                          Text(
-                            "${(animatedPct * 100).toStringAsFixed(1)}%",
-                            style: TextStyle(
-                              fontSize: 2.5.sp,
-                              fontWeight: FontWeight.w600,
-                              color: AppColor.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                      0.6.height,
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Stack(
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                spacing: 2.h,
+                children: jobTypeList.map((item) {
+                  final pct = totalCount > 0 ? item.count / totalCount : 0.0;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 1.2.h),
+                    child: AnimatedBuilder(
+                      animation: _safeChartAnim,
+                      builder: (context, child) {
+                        final animatedPct = pct * _safeChartAnim.value;
+                        final animatedCount =
+                            (item.count * _safeChartAnim.value).round();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(height: 0.7.h, color: AppColor.scaffold),
-                            FractionallySizedBox(
-                              widthFactor: animatedPct.clamp(0.0, 1.0),
-                              child: Container(
-                                height: 0.7.h,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      item.color.withValues(alpha: 0.65),
-                                      item.color,
-                                    ],
+                            Row(
+                              children: [
+                                Icon(item.icon, size: 3.8.w, color: item.color),
+                                2.width,
+                                Expanded(
+                                  child: Text(
+                                    item.displayName,
+                                    style: TextStyle(
+                                      fontSize: 2.8.sp,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColor.appDarkColor,
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(6),
                                 ),
+                                Text(
+                                  "$animatedCount",
+                                  style: TextStyle(
+                                    fontSize: 2.8.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: item.color,
+                                  ),
+                                ),
+                                2.width,
+                                Text(
+                                  "${(animatedPct * 100).toStringAsFixed(1)}%",
+                                  style: TextStyle(
+                                    fontSize: 2.5.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColor.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            0.6.height,
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    height: 0.7.h,
+                                    color: AppColor.scaffold,
+                                  ),
+                                  FractionallySizedBox(
+                                    widthFactor: animatedPct.clamp(0.0, 1.0),
+                                    child: Container(
+                                      height: 0.7.h,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            item.color.withValues(alpha: 0.65),
+                                            item.color,
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   );
-                },
+                }).toList(),
               ),
-            );
-          }),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  double _natureChartHeight(BuildContext context) {
-    return (20.h).clamp(170, 235);
-  }
-
   Widget _buildExecutiveBarChartCard(
     HRController controller,
-    SalaryTypeReportModel model,
-  ) {
+    SalaryTypeReportModel model, {
+    required double height,
+  }) {
     final jobTypeList = _extractJobTypeData(model);
-    if (jobTypeList.isEmpty) return const SizedBox.shrink();
+    if (jobTypeList.isEmpty) return SizedBox(height: height);
 
     num grandTotalCount = jobTypeList.fold(0, (sum, v) => sum + v.count);
 
@@ -797,9 +838,16 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     );
     if (maxYValue <= 0) maxYValue = 10;
 
+    // Round, human-readable axis steps (1, 2, 5, 10, 20...) instead of
+    // whatever fraction fl_chart's auto-interval would otherwise pick.
+    final double yInterval = _niceYAxisInterval(maxYValue);
+    final double chartMaxY =
+        (maxYValue / yInterval).ceil() * yInterval + yInterval;
+
     final isAllSelected = controller.selectedJobType == "ALL";
 
     return Container(
+      height: height,
       margin: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.2.h),
       decoration: BoxDecoration(
         color: AppColor.white,
@@ -812,20 +860,11 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: double.infinity,
             padding: EdgeInsets.fromLTRB(4.w, 2.5.w, 4.w, 1.8.w),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColor.appColor1.withValues(alpha: 0.06),
-                  AppColor.white,
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
               ),
@@ -874,265 +913,313 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
               ],
             ),
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(2.5.w, 1.h, 3.w, 2.w),
-            child: SizedBox(
-              height: _natureChartHeight(context),
-              child: AnimatedBuilder(
-                animation: _safeChartAnim,
-                builder: (context, child) {
-                  final animValue = _safeChartAnim.value.clamp(0.0, 1.0);
-                  final animatedBarGroups = <BarChartGroupData>[];
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(2.5.w, 0.8.h, 3.w, 1.2.w),
+              // Bars stay tap-only for tab switching (see PageView physics
+              // above); if there are more bars than fit, this scrolls them
+              // horizontally instead.
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final itemWidth = 22.w;
+                  final contentWidth = jobTypeList.length * itemWidth;
+                  final chartWidth = contentWidth > constraints.maxWidth
+                      ? contentWidth
+                      : constraints.maxWidth;
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: SizedBox(
+                      width: chartWidth,
+                      child: AnimatedBuilder(
+                        animation: _safeChartAnim,
+                        builder: (context, child) {
+                          final animValue = _safeChartAnim.value.clamp(
+                            0.0,
+                            1.0,
+                          );
+                          final animatedBarGroups = <BarChartGroupData>[];
 
-                  for (int i = 0; i < jobTypeList.length; i++) {
-                    final item = jobTypeList[i];
-                    final isSelectedFilter =
-                        controller.selectedJobType.toUpperCase() ==
-                        item.displayName.toUpperCase();
+                          for (int i = 0; i < jobTypeList.length; i++) {
+                            final item = jobTypeList[i];
+                            final isSelectedFilter =
+                                controller.selectedJobType.toUpperCase() ==
+                                item.displayName.toUpperCase();
 
-                    double targetHeight = 0.0;
-                    if (isAllSelected || isSelectedFilter) {
-                      targetHeight = item.count.toDouble();
-                    }
+                            double targetHeight = 0.0;
+                            if (isAllSelected || isSelectedFilter) {
+                              targetHeight = item.count.toDouble();
+                            }
 
-                    final barHeight = (targetHeight * animValue).clamp(
-                      0,
-                      double.infinity,
-                    );
-                    final double rodWidth = isSelectedFilter ? 9.0 : 7.0;
-                    final rodGradient = LinearGradient(
-                      colors: [
-                        item.color.withValues(
-                          alpha: isSelectedFilter || isAllSelected ? 0.7 : 0.25,
-                        ),
-                        isSelectedFilter || isAllSelected
-                            ? item.color
-                            : item.color.withValues(alpha: 0.35),
-                      ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                    );
-
-                    animatedBarGroups.add(
-                      BarChartGroupData(
-                        x: i,
-                        barsSpace: 5,
-                        barRods: [
-                          BarChartRodData(
-                            toY: barHeight.toDouble(),
-                            gradient: rodGradient,
-                            width: rodWidth,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(4),
-                            ),
-                            backDrawRodData: BackgroundBarChartRodData(
-                              show: true,
-                              toY: (maxYValue * 1.15).toDouble(),
-                              color: isSelectedFilter
-                                  ? item.color.withValues(alpha: 0.08)
-                                  : AppColor.scaffold.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ClipRect(
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: (maxYValue * 1.2).toDouble(),
-                        minY: 0,
-                        groupsSpace: 3,
-                        barGroups: animatedBarGroups,
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          getDrawingHorizontalLine: (value) => FlLine(
-                            color: AppColor.appLightColor.withValues(
-                              alpha: 0.6,
-                            ),
-                            strokeWidth: 0.8,
-                            dashArray: [4, 4],
-                          ),
-                        ),
-                        borderData: FlBorderData(show: false),
-                        titlesData: FlTitlesData(
-                          show: true,
-
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: 1,
-                              reservedSize: 40, // pehle 36 tha
-                              getTitlesWidget: (value, meta) {
-                                int idx = value.toInt();
-                                if (idx >= 0 && idx < jobTypeList.length) {
-                                  final item = jobTypeList[idx];
-                                  final isSelected =
-                                      controller.selectedJobType
-                                          .toUpperCase() ==
-                                      item.displayName.toUpperCase();
-                                  final countLabel = (item.count * animValue)
-                                      .round();
-
-                                  return Padding(
-                                    padding: const EdgeInsets.only(
-                                      top: 4,
-                                    ), // pehle 6 tha
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            item.displayName,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: isSelected
-                                                  ? 2.1.sp
-                                                  : 1.9.sp,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w900
-                                                  : FontWeight.bold,
-                                              color: isSelected
-                                                  ? item.color
-                                                  : AppColor.appDarkColor,
-                                            ),
-                                          ),
-                                        ),
-                                        FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            '$countLabel',
-                                            style: TextStyle(
-                                              fontSize: 1.7.sp,
-                                              fontWeight: FontWeight.w700,
-                                              color: item.color,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }
-                                return const SizedBox.shrink();
-                              },
-                            ),
-                          ),
-
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 13, // pehle 16
-                              getTitlesWidget: (value, meta) {
-                                if (value <= 0) return const SizedBox.shrink();
-                                return Padding(
-                                  padding: const EdgeInsets.only(
-                                    right: 1,
-                                  ), // pehle 2
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      value.toInt().toString(),
-                                      style: TextStyle(
-                                        fontSize: 1.4.sp, // pehle 1.6
-                                        color: AppColor.grey,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                        ),
-                        barTouchData: BarTouchData(
-                          enabled: true,
-                          touchCallback:
-                              (FlTouchEvent event, barTouchResponse) {
-                                if (event is FlTapUpEvent &&
-                                    barTouchResponse != null &&
-                                    barTouchResponse.spot != null) {
-                                  final groupIndex = barTouchResponse
-                                      .spot!
-                                      .touchedBarGroupIndex;
-                                  if (groupIndex >= 0 &&
-                                      groupIndex < jobTypeList.length) {
-                                    final selectedType =
-                                        jobTypeList[groupIndex].displayName;
-                                    if (controller.selectedJobType
-                                            .toUpperCase() ==
-                                        selectedType.toUpperCase()) {
-                                      controller.setSelectedJobType("ALL");
-                                    } else {
-                                      controller.setSelectedJobType(
-                                        selectedType,
-                                      );
-                                    }
-                                  }
-                                }
-                              },
-                          touchTooltipData: BarTouchTooltipData(
-                            fitInsideHorizontally: true,
-                            fitInsideVertically: true,
-                            getTooltipColor: (_) =>
-                                AppColor.appDarkColor.withValues(alpha: 0.95),
-                            tooltipBorder: BorderSide(
-                              color: AppColor.appLightColor,
-                            ),
-                            tooltipPadding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                            tooltipMargin: 6,
-                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                              final item = jobTypeList[groupIndex];
-                              final pct = grandTotalCount > 0
-                                  ? (item.count / grandTotalCount) * 100
-                                  : 0;
-
-                              return BarTooltipItem(
-                                "${item.displayName}\n",
-                                TextStyle(
-                                  color: item.color,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 2.6.sp,
+                            final barHeight = (targetHeight * animValue).clamp(
+                              0,
+                              double.infinity,
+                            );
+                            final double rodWidth = isSelectedFilter
+                                ? 24.0
+                                : 20.0;
+                            final rodGradient = LinearGradient(
+                              colors: [
+                                item.color.withValues(
+                                  alpha: isSelectedFilter || isAllSelected
+                                      ? 0.7
+                                      : 0.25,
                                 ),
-                                children: [
-                                  TextSpan(
-                                    text: "${item.count} Staff Members\n",
-                                    style: TextStyle(
-                                      color: AppColor.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 2.2.sp,
+                                isSelectedFilter || isAllSelected
+                                    ? item.color
+                                    : item.color.withValues(alpha: 0.35),
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            );
+
+                            animatedBarGroups.add(
+                              BarChartGroupData(
+                                x: i,
+                                barsSpace: 5,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: barHeight.toDouble(),
+                                    gradient: rodGradient,
+                                    width: rodWidth,
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(4),
                                     ),
-                                  ),
-                                  TextSpan(
-                                    text:
-                                        "${pct.toStringAsFixed(1)}% of Total Staff",
-                                    style: TextStyle(
-                                      color: AppColor.appLightColor,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 1.9.sp,
+                                    backDrawRodData: BackgroundBarChartRodData(
+                                      show: true,
+                                      toY: chartMaxY,
+                                      color: isSelectedFilter
+                                          ? item.color.withValues(alpha: 0.08)
+                                          : AppColor.scaffold.withValues(
+                                              alpha: 0.6,
+                                            ),
                                     ),
                                   ),
                                 ],
-                              );
-                            },
-                          ),
-                        ),
+                              ),
+                            );
+                          }
+
+                          return ClipRect(
+                            child: BarChart(
+                              BarChartData(
+                                alignment: BarChartAlignment.spaceAround,
+                                maxY: chartMaxY,
+                                minY: 0,
+                                groupsSpace: 3,
+                                barGroups: animatedBarGroups,
+                                gridData: FlGridData(
+                                  show: true,
+                                  drawVerticalLine: false,
+                                  horizontalInterval: yInterval,
+                                  getDrawingHorizontalLine: (value) => FlLine(
+                                    color: AppColor.appLightColor.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                    strokeWidth: 0.8,
+                                    dashArray: [4, 4],
+                                  ),
+                                ),
+                                borderData: FlBorderData(show: false),
+                                titlesData: FlTitlesData(
+                                  show: true,
+
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      interval: 1,
+                                      reservedSize: 30,
+                                      getTitlesWidget: (value, meta) {
+                                        int idx = value.toInt();
+                                        if (idx >= 0 &&
+                                            idx < jobTypeList.length) {
+                                          final item = jobTypeList[idx];
+                                          final isSelected =
+                                              controller.selectedJobType
+                                                  .toUpperCase() ==
+                                              item.displayName.toUpperCase();
+                                          final countLabel =
+                                              (item.count * animValue).round();
+
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 6,
+                                            ),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  child: Text(
+                                                    _shortJobTypeLabel(
+                                                      item.displayName,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize: isSelected
+                                                          ? 2.4.sp
+                                                          : 2.2.sp,
+                                                      fontWeight: isSelected
+                                                          ? FontWeight.w900
+                                                          : FontWeight.bold,
+                                                      color: isSelected
+                                                          ? item.color
+                                                          : AppColor
+                                                                .appDarkColor,
+                                                    ),
+                                                  ),
+                                                ),
+                                                FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  child: Text(
+                                                    '$countLabel',
+                                                    style: TextStyle(
+                                                      fontSize: 1.7.sp,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: item.color,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      },
+                                    ),
+                                  ),
+
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      interval: yInterval,
+                                      reservedSize: 26,
+                                      getTitlesWidget: (value, meta) {
+                                        if (value <= 0) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 4,
+                                          ),
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              value.toInt().toString(),
+                                              style: TextStyle(
+                                                fontSize: 1.9.sp,
+                                                color: AppColor.grey,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+
+                                  topTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 14,
+                                      getTitlesWidget: (value, meta) =>
+                                          const SizedBox.shrink(),
+                                    ),
+                                  ),
+                                  rightTitles: const AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                ),
+                                barTouchData: BarTouchData(
+                                  enabled: true,
+                                  touchCallback:
+                                      (FlTouchEvent event, barTouchResponse) {
+                                        if (event is FlTapUpEvent &&
+                                            barTouchResponse != null &&
+                                            barTouchResponse.spot != null) {
+                                          final groupIndex = barTouchResponse
+                                              .spot!
+                                              .touchedBarGroupIndex;
+                                          if (groupIndex >= 0 &&
+                                              groupIndex < jobTypeList.length) {
+                                            final selectedType =
+                                                jobTypeList[groupIndex]
+                                                    .displayName;
+                                            if (controller.selectedJobType
+                                                    .toUpperCase() ==
+                                                selectedType.toUpperCase()) {
+                                              controller.setSelectedJobType(
+                                                "ALL",
+                                              );
+                                            } else {
+                                              controller.setSelectedJobType(
+                                                selectedType,
+                                              );
+                                            }
+                                            _replayChartAnimation();
+                                          }
+                                        }
+                                      },
+                                  touchTooltipData: BarTouchTooltipData(
+                                    fitInsideHorizontally: true,
+                                    fitInsideVertically: true,
+                                    getTooltipColor: (_) => AppColor
+                                        .appDarkColor
+                                        .withValues(alpha: 0.95),
+                                    tooltipBorder: BorderSide(
+                                      color: AppColor.appLightColor,
+                                    ),
+                                    tooltipPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 6,
+                                    ),
+                                    tooltipMargin: 6,
+                                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                      final item = jobTypeList[groupIndex];
+                                      final pct = grandTotalCount > 0
+                                          ? (item.count / grandTotalCount) * 100
+                                          : 0;
+
+                                      return BarTooltipItem(
+                                        "${item.displayName}\n",
+                                        TextStyle(
+                                          color: item.color,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 2.6.sp,
+                                        ),
+                                        children: [
+                                          TextSpan(
+                                            text:
+                                                "${item.count} Staff Members\n",
+                                            style: TextStyle(
+                                              color: AppColor.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 2.2.sp,
+                                            ),
+                                          ),
+                                          TextSpan(
+                                            text:
+                                                "${pct.toStringAsFixed(1)}% of Total Staff",
+                                            style: TextStyle(
+                                              color: AppColor.appLightColor,
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 1.9.sp,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              duration: Duration.zero,
+                            ),
+                          );
+                        },
                       ),
-                      duration: Duration.zero,
                     ),
                   );
                 },
@@ -1155,28 +1242,6 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 0.5.h),
-          child: Row(
-            children: [
-              Icon(
-                BoxIcons.bx_filter_alt,
-                size: 4.w,
-                color: AppColor.appColor1,
-              ),
-              1.5.width,
-              Text(
-                "Filter by Employment Nature",
-                style: TextStyle(
-                  fontSize: 3.8.sp,
-                  fontWeight: FontWeight.bold,
-                  color: AppColor.appDarkColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-        1.height,
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: EdgeInsets.symmetric(horizontal: 5.w),
@@ -1249,6 +1314,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                   shadowColor: AppColor.appColor1.withValues(alpha: 0.3),
                   onSelected: (selected) {
                     controller.setSelectedJobType(type);
+                    _replayChartAnimation();
                   },
                 ),
               );
@@ -1260,7 +1326,6 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     );
   }
 
-  // Employee List Section
   Widget _buildEmployeeList(
     HRController controller,
     SalaryTypeReportModel model,
@@ -1314,13 +1379,30 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "Employee Records",
-                style: TextStyle(
-                  fontSize: 4.sp,
-                  fontWeight: FontWeight.bold,
-                  color: AppColor.appDarkColor,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(1.8.w),
+                    decoration: BoxDecoration(
+                      color: AppColor.appColor1.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      BoxIcons.bxs_group,
+                      color: AppColor.appColor1,
+                      size: 4.w,
+                    ),
+                  ),
+                  2.width,
+                  Text(
+                    "Employee Records",
+                    style: TextStyle(
+                      fontSize: 4.sp,
+                      fontWeight: FontWeight.bold,
+                      color: AppColor.appDarkColor,
+                    ),
+                  ),
+                ],
               ),
               Container(
                 padding: EdgeInsets.symmetric(
@@ -1329,7 +1411,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                 ),
                 decoration: BoxDecoration(
                   color: AppColor.grey.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Text(
                   "${filteredEmployees.length} Shown",
@@ -1376,187 +1458,215 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     final isActive = emp.status?.toUpperCase() == "A";
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.25), width: 1.2),
+        border: Border.all(
+          color: AppColor.appLightColor.withValues(alpha: 0.6),
+        ),
         boxShadow: AppShadow.soft,
       ),
-      child: Padding(
-        padding: EdgeInsets.all(4.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
+            // Job-nature accent strip for quick visual scanning.
+            Container(width: 1.1.w, color: color),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(4.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 13.w,
-                      height: 13.w,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: color.withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(50),
-                        child:
-                            emp.profilePic != null && emp.profilePic!.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: emp.profilePic!,
-                                fit: BoxFit.cover,
-                                placeholder: (c, u) => Shimmer.fromColors(
-                                  baseColor: Colors.grey[300]!,
-                                  highlightColor: Colors.grey[100]!,
-                                  child: Container(color: Colors.white),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Stack(
+                          children: [
+                            Container(
+                              width: 14.w,
+                              height: 14.w,
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    color.withValues(alpha: 0.35),
+                                    color.withValues(alpha: 0.1),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                                errorWidget: (c, u, e) => _avatarFallback(emp),
-                              )
-                            : _avatarFallback(emp),
-                      ),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: 3.5.w,
-                        height: 3.5.w,
-                        decoration: BoxDecoration(
-                          color: isActive ? AppColor.green : AppColor.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColor.white, width: 1.5),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                3.width,
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        emp.name ?? "Unknown Employee",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 4.sp,
-                          fontWeight: FontWeight.bold,
-                          color: AppColor.appDarkColor,
-                        ),
-                      ),
-                      0.5.height,
-                      Row(
-                        children: [
-                          Icon(
-                            BoxIcons.bx_briefcase,
-                            size: 3.5.w,
-                            color: AppColor.grey,
-                          ),
-                          1.width,
-                          Expanded(
-                            child: Text(
-                              emp.designation ?? "Employee",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 3.sp,
-                                color: AppColor.grey,
-                                fontWeight: FontWeight.w500,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(50),
+                                child:
+                                    emp.profilePic != null &&
+                                        emp.profilePic!.isNotEmpty
+                                    ? CachedNetworkImage(
+                                        imageUrl: emp.profilePic!,
+                                        fit: BoxFit.cover,
+                                        placeholder: (c, u) =>
+                                            Shimmer.fromColors(
+                                              baseColor: Colors.grey[300]!,
+                                              highlightColor: Colors.grey[100]!,
+                                              child: Container(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                        errorWidget: (c, u, e) =>
+                                            _avatarFallback(emp),
+                                      )
+                                    : _avatarFallback(emp),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                2.width,
-                // Prominent Employment Nature Tag
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 3.w,
-                    vertical: 0.6.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: color.withValues(alpha: 0.4),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(jobIcon, size: 3.5.w, color: color),
-                      1.5.width,
-                      Text(
-                        fmtJobType,
-                        style: TextStyle(
-                          fontSize: 2.7.sp,
-                          fontWeight: FontWeight.w900,
-                          color: color,
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                width: 3.5.w,
+                                height: 3.5.w,
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? AppColor.green
+                                      : AppColor.red,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColor.white,
+                                    width: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            1.5.height,
-            Divider(height: 1, color: AppColor.scaffold),
-            1.2.height,
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      BoxIcons.bx_calendar_check,
-                      size: 3.8.w,
-                      color: AppColor.appColor1,
+                        3.width,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                emp.name ?? "Unknown Employee",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 4.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColor.appDarkColor,
+                                ),
+                              ),
+                              0.4.height,
+                              Row(
+                                children: [
+                                  Icon(
+                                    BoxIcons.bx_briefcase,
+                                    size: 3.3.w,
+                                    color: AppColor.grey,
+                                  ),
+                                  1.width,
+                                  Expanded(
+                                    child: Text(
+                                      emp.designation ?? "Employee",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 2.9.sp,
+                                        color: AppColor.grey,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        2.width,
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 2.6.w,
+                            vertical: 0.6.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: color.withValues(alpha: 0.4),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(jobIcon, size: 3.3.w, color: color),
+                              1.2.width,
+                              Text(
+                                fmtJobType,
+                                style: TextStyle(
+                                  fontSize: 2.5.sp,
+                                  fontWeight: FontWeight.w900,
+                                  color: color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    1.5.width,
-                    Text(
-                      emp.joinDate != null && emp.joinDate!.trim().isNotEmpty
-                          ? "Joined: ${emp.joinDate}"
-                          : "Joining: N/A",
-                      style: TextStyle(
-                        fontSize: 2.8.sp,
-                        color: AppColor.appDarkColor,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    1.5.height,
+                    Divider(height: 1, color: AppColor.scaffold),
+                    1.2.height,
+                    Wrap(
+                      spacing: 2.w,
+                      runSpacing: 1.h,
+                      children: [
+                        _infoPill(
+                          icon: BoxIcons.bx_calendar_check,
+                          label:
+                              emp.joinDate != null &&
+                                  emp.joinDate!.trim().isNotEmpty
+                              ? "Joined ${emp.joinDate}"
+                              : "Joining: N/A",
+                        ),
+                        if (emp.mobile != null && emp.mobile!.isNotEmpty)
+                          _infoPill(
+                            icon: BoxIcons.bx_phone,
+                            label: emp.mobile!,
+                          ),
+                      ],
                     ),
                   ],
                 ),
-                if (emp.mobile != null && emp.mobile!.isNotEmpty)
-                  Row(
-                    children: [
-                      Icon(
-                        BoxIcons.bx_phone,
-                        size: 3.5.w,
-                        color: AppColor.grey,
-                      ),
-                      1.width,
-                      Text(
-                        emp.mobile!,
-                        style: TextStyle(
-                          fontSize: 2.8.sp,
-                          fontWeight: FontWeight.w600,
-                          color: AppColor.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _infoPill({required IconData icon, required String label}) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.7.h),
+      decoration: BoxDecoration(
+        color: AppColor.scaffold,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 3.3.w, color: AppColor.appColor1),
+          1.3.width,
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 2.6.sp,
+              color: AppColor.appDarkColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1704,6 +1814,8 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     final jobTypeList = _extractJobTypeData(model);
     if (jobTypeList.isEmpty) return const SizedBox.shrink();
 
+    final cardHeight = _graphViewportHeight(context);
+
     return Column(
       children: [
         Padding(
@@ -1718,21 +1830,24 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
         ),
         1.height,
         SizedBox(
-          height: _graphViewportHeight(context),
+          height: cardHeight,
           child: PageView(
             controller: _graphPageController,
             clipBehavior: Clip.hardEdge,
             allowImplicitScrolling: false,
-            physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
-            onPageChanged: (index) => setState(() => _graphPageIndex = index),
+            // Tab tap only — swipes are reserved for horizontally scrolling
+            // a chart's own content (e.g. many bars), not switching tabs.
+            physics: const NeverScrollableScrollPhysics(),
+            onPageChanged: (index) {
+              setState(() => _graphPageIndex = index);
+              _replayChartAnimation();
+            },
             children: [
-              SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: _buildNatureDistributionPanel(model),
-              ),
-              SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: _buildExecutiveBarChartCard(controller, model),
+              _buildNatureDistributionPanel(model, height: cardHeight),
+              _buildExecutiveBarChartCard(
+                controller,
+                model,
+                height: cardHeight,
               ),
             ],
           ),
@@ -1762,70 +1877,8 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
   }
 
   double _graphViewportHeight(BuildContext context) {
-    return (24.h).clamp(220.0, 310.0);
+    return (23.h).clamp(220.0, 260.0);
   }
-
-  // Widget _buildGraphSection(
-  //   HRController controller,
-  //   SalaryTypeReportModel model,
-  // ) {
-  //   final jobTypeList = _extractJobTypeData(model);
-  //   if (jobTypeList.isEmpty) return const SizedBox.shrink();
-
-  //   return Column(
-  //     children: [
-  //       Padding(
-  //         padding: EdgeInsets.symmetric(horizontal: 5.w),
-  //         child: Row(
-  //           children: [
-  //             _graphTabChip(0, "Overview", BoxIcons.bxs_pie_chart_alt_2),
-  //             2.width,
-  //             _graphTabChip(1, "Chart", BoxIcons.bx_bar_chart_alt_2),
-  //           ],
-  //         ),
-  //       ),
-  //       1.height,
-  //       SizedBox(
-  //         height: _graphViewportHeight(context),
-  //         child: PageView(
-  //           controller: _graphPageController,
-  //           clipBehavior: Clip.hardEdge,
-  //           allowImplicitScrolling: false,
-  //           physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
-  //           onPageChanged: (index) => setState(() => _graphPageIndex = index),
-  //           children: [
-  //             _buildNatureDistributionPanel(model),
-  //             _buildExecutiveBarChartCard(controller, model),
-  //           ],
-  //         ),
-  //       ),
-  //       1.height,
-  //       Row(
-  //         mainAxisAlignment: MainAxisAlignment.center,
-  //         children: List.generate(2, (index) {
-  //           final isActive = _graphPageIndex == index;
-  //           return AnimatedContainer(
-  //             duration: const Duration(milliseconds: 250),
-  //             margin: EdgeInsets.symmetric(horizontal: 1.w),
-  //             width: isActive ? 5.w : 2.w,
-  //             height: 0.7.h,
-  //             decoration: BoxDecoration(
-  //               color: isActive
-  //                   ? AppColor.appColor1
-  //                   : AppColor.grey.withValues(alpha: 0.35),
-  //               borderRadius: BorderRadius.circular(4),
-  //             ),
-  //           );
-  //         }),
-  //       ),
-  //       1.2.height,
-  //     ],
-  //   );
-  // }
-
-  // double _graphViewportHeight(BuildContext context) {
-  //   return (23.h).clamp(210.0, 300.0);
-  // }
 
   Widget _graphTabChip(int index, String label, IconData icon) {
     final selected = _graphPageIndex == index;

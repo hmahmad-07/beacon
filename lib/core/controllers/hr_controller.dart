@@ -7,6 +7,9 @@ import '../constants/constants.dart';
 import '../models/HR/employee_salary_type_model.dart';
 import '../models/HR/department_salary_cost_model.dart';
 import '../models/HR/attendance_report_model.dart';
+import '../models/HR/department_headcount_model.dart';
+import '../models/HR/hr_summary_model.dart';
+import '../models/HR/budget_headcount_model.dart';
 import '../utils/utils.dart';
 
 class HRController extends ChangeNotifier {
@@ -373,5 +376,227 @@ class HRController extends ChangeNotifier {
         .toList();
     attendanceReportModel?.totalDepartmentEmployees =
         attendanceReportModel?.departmentEmployees?.length;
+  }
+
+  // ================================================== Headcount Report State ==================================================
+
+  bool isHeadcountReportLoading = false;
+  DepartmentHeadcountModel? headcountReportModel;
+  DateTime headcountSelectedDate = DateTime.now();
+
+  void setHeadcountSelectedDate(DateTime date) {
+    headcountSelectedDate = date;
+    notifyListeners();
+  }
+
+  Future<void> getHeadcountReport(
+    BuildContext context, {
+    required String month,
+    required String year,
+    String? shopId,
+    String? deptId,
+  }) async {
+    try {
+      isHeadcountReportLoading = true;
+      headcountReportModel = null;
+      notifyListeners();
+
+      final dio = Dio();
+      final response = await dio.request(
+        '${Constants.baseUrl}report_dept_headcount.php',
+        queryParameters: {
+          'month': month,
+          'year': year,
+          if (shopId != null && shopId.isNotEmpty) 'shop_id': shopId,
+          if (deptId != null && deptId.isNotEmpty) 'dept_id': deptId,
+        },
+        options: Options(
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${Constants.token}',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        headcountReportModel = DepartmentHeadcountModel.fromJson(response.data);
+        if (headcountReportModel?.error != 0 && context.mounted) {
+          Utils.showSnackBar(
+            context,
+            headcountReportModel?.errorMsg ?? 'Failed to load headcount report',
+          );
+        }
+      } else if (context.mounted) {
+        Utils.showSnackBar(
+          context,
+          'Server Error: ${response.statusCode} - ${response.statusMessage}',
+        );
+      }
+    } on DioException catch (e) {
+      log('Dio error fetching headcount report: ${e.message}');
+      if (context.mounted) {
+        Utils.showSnackBar(
+          context,
+          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+        );
+      }
+    } catch (e) {
+      log('Unexpected error fetching headcount report: $e');
+      if (context.mounted) {
+        Utils.showSnackBar(context, 'Something went wrong. Please try again.');
+      }
+    } finally {
+      isHeadcountReportLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ================================================== Monthly HR Summary State ==================================================
+
+  bool isHrSummaryLoading = false;
+  HRSummaryModel? hrSummaryModel;
+  DateTime hrSummarySelectedDate = DateTime.now();
+
+  void setHrSummarySelectedDate(DateTime date) {
+    hrSummarySelectedDate = date;
+    notifyListeners();
+  }
+
+  Future<void> getHRSummaryReport(
+    BuildContext context, {
+    required String month,
+    required String year,
+    String? shopId,
+    String? deptId,
+  }) async {
+    try {
+      isHrSummaryLoading = true;
+      hrSummaryModel = null;
+      notifyListeners();
+
+      final dio = Dio();
+      final response = await dio.request(
+        '${Constants.baseUrl}report_hr_summary.php',
+        queryParameters: {
+          'month': month,
+          'year': year,
+          if (shopId != null && shopId.isNotEmpty) 'shop_id': shopId,
+          if (deptId != null && deptId.isNotEmpty) 'dept_id': deptId,
+        },
+        options: Options(
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${Constants.token}',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        hrSummaryModel = HRSummaryModel.fromJson(response.data);
+        if (hrSummaryModel?.error != 0 && context.mounted) {
+          Utils.showSnackBar(
+            context,
+            hrSummaryModel?.errorMsg ?? 'Failed to load HR summary',
+          );
+        }
+      } else if (context.mounted) {
+        Utils.showSnackBar(
+          context,
+          'Server Error: ${response.statusCode} - ${response.statusMessage}',
+        );
+      }
+    } on DioException catch (e) {
+      log('Dio error fetching HR summary: ${e.message}');
+      if (context.mounted) {
+        Utils.showSnackBar(
+          context,
+          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+        );
+      }
+    } catch (e) {
+      log('Unexpected error fetching HR summary: $e');
+      if (context.mounted) {
+        Utils.showSnackBar(context, 'Something went wrong. Please try again.');
+      }
+    } finally {
+      isHrSummaryLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ================================================== Budget vs Actual Headcount State ==================================================
+
+  bool isBudgetHeadcountLoading = false;
+  BudgetHeadcountModel? budgetHeadcountModel;
+  DateTime budgetSelectedDate = DateTime.now();
+
+  void setBudgetSelectedDate(DateTime date) {
+    budgetSelectedDate = date;
+    notifyListeners();
+  }
+
+  Future<void> getBudgetHeadcountReport(
+    BuildContext context, {
+    String? shopId,
+    String? deptId,
+    String? month,
+    String? year,
+  }) async {
+    try {
+      isBudgetHeadcountLoading = true;
+      budgetHeadcountModel = null;
+      notifyListeners();
+
+      final dio = Dio();
+      final response = await dio.request(
+        '${Constants.baseUrl}report_budget_headcount.php',
+        queryParameters: {
+          if (shopId != null && shopId.isNotEmpty) 'shop_id': shopId,
+          if (deptId != null && deptId.isNotEmpty) 'dept_id': deptId,
+          if (month != null && month.isNotEmpty) 'month': month,
+          if (year != null && year.isNotEmpty) 'year': year,
+        },
+        options: Options(
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${Constants.token}',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        budgetHeadcountModel = BudgetHeadcountModel.fromJson(response.data);
+        if (budgetHeadcountModel?.error != 0 && context.mounted) {
+          Utils.showSnackBar(
+            context,
+            budgetHeadcountModel?.errorMsg ?? 'Failed to load budget report',
+          );
+        }
+      } else if (context.mounted) {
+        Utils.showSnackBar(
+          context,
+          'Server Error: ${response.statusCode} - ${response.statusMessage}',
+        );
+      }
+    } on DioException catch (e) {
+      log('Dio error fetching budget headcount report: ${e.message}');
+      if (context.mounted) {
+        Utils.showSnackBar(
+          context,
+          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+        );
+      }
+    } catch (e) {
+      log('Unexpected error fetching budget headcount report: $e');
+      if (context.mounted) {
+        Utils.showSnackBar(context, 'Something went wrong. Please try again.');
+      }
+    } finally {
+      isBudgetHeadcountLoading = false;
+      notifyListeners();
+    }
   }
 }

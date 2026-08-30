@@ -1,10 +1,14 @@
+import 'dart:math' as math;
+
 import 'package:beacon/core/controllers/hr_controller.dart';
+import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/HR/department_salary_cost_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
+import 'package:beacon/ui/view/dashboard/CC/HR/employee_salary_detail_view.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -53,9 +57,9 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
   double _chartViewportHeight(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final shortest = size.shortestSide;
-    return (size.height * 0.38).clamp(
-      shortest < 600 ? 280.0 : 320.0,
-      shortest < 600 ? 380.0 : 440.0,
+    return (size.height * 0.3).clamp(
+      shortest < 600 ? 230.0 : 260.0,
+      shortest < 600 ? 300.0 : 340.0,
     );
   }
 
@@ -84,6 +88,14 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
   void _triggerChartAnimation(String key) {
     if (_animationKey == key) return;
     _animationKey = key;
+    _chartAnimController?.reset();
+    _chartAnimController?.forward();
+  }
+
+  // Unconditionally replays the 0 -> max grow-in animation, bypassing the
+  // data-key guard above. Used when the visible chart changes (tab switch)
+  // even though the underlying report data hasn't changed.
+  void _replayChartAnimation() {
     _chartAnimController?.reset();
     _chartAnimController?.forward();
   }
@@ -189,7 +201,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
                   else ...[
                     _buildMetricsRow(model),
                     _buildChartsSection(model),
-                    _buildEmployeeList(model),
+                    _buildEmployeeList(model, controller.selectedDate),
                     4.height,
                   ],
                 ],
@@ -509,13 +521,13 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(4.w, 3.5.w, 4.w, 0),
+            padding: EdgeInsets.fromLTRB(4.w, 2.5.w, 4.w, 0),
             child: Row(
               children: [
                 Icon(
                   BoxIcons.bxs_bar_chart_square,
                   color: _salaryColor,
-                  size: 5.w,
+                  size: 4.5.w,
                 ),
                 2.width,
                 Expanded(
@@ -543,7 +555,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
               ],
             ),
           ),
-          1.5.height,
+          1.height,
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 3.w),
             child: Row(
@@ -557,7 +569,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
                       onTap: () => _goToChartPage(index),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
-                        padding: EdgeInsets.symmetric(vertical: 1.h),
+                        padding: EdgeInsets.symmetric(vertical: 0.7.h),
                         decoration: BoxDecoration(
                           color: isSelected
                               ? tab.color.withValues(alpha: 0.12)
@@ -600,15 +612,20 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
               }),
             ),
           ),
-          1.2.height,
+          0.8.height,
           SizedBox(
             height: _chartViewportHeight(context),
             child: PageView(
               controller: _chartPageController,
               clipBehavior: Clip.hardEdge,
               allowImplicitScrolling: false,
-              physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
-              onPageChanged: (index) => setState(() => _chartPageIndex = index),
+              // Tab tap only — swipes are reserved for horizontally
+              // scrolling a chart's own content, not switching tabs.
+              physics: const NeverScrollableScrollPhysics(),
+              onPageChanged: (index) {
+                setState(() => _chartPageIndex = index);
+                _replayChartAnimation();
+              },
               children: [
                 _chartPageFrame(child: _buildSalaryOverviewContent(model)),
                 _chartPageFrame(
@@ -620,7 +637,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
               ],
             ),
           ),
-          1.height,
+          0.7.height,
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(tabs.length, (index) {
@@ -639,7 +656,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
               );
             }),
           ),
-          1.2.height,
+          1.height,
         ],
       ),
     );
@@ -648,7 +665,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
   Widget _chartPageFrame({required Widget child}) {
     return ClipRect(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(4.w, 0.4.h, 4.w, 0.6.h),
+        padding: EdgeInsets.fromLTRB(4.w, 0.3.h, 4.w, 0.4.h),
         child: child,
       ),
     );
@@ -801,7 +818,9 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
       );
     }
 
-    final chartEmployees = employees.take(6).toList();
+    // Show every employee from the list below — the chart now scrolls
+    // horizontally instead of being capped to a handful of bars.
+    final chartEmployees = employees;
     num maxY = 0;
     for (final emp in chartEmployees) {
       final salary = emp.salary ?? 0;
@@ -833,154 +852,180 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
         ),
         0.8.height,
         Expanded(
-          child: AnimatedBuilder(
-            animation: _safeChartAnim,
-            builder: (context, child) {
-              final animValue = _safeChartAnim.value.clamp(0.0, 1.0);
-              final barGroups = <BarChartGroupData>[];
+          // Tab tap only — swipes scroll this chart's own bars
+          // horizontally instead of switching tabs (see PageView above).
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = 20.w;
+              final contentWidth = chartEmployees.length * itemWidth;
+              final chartWidth = contentWidth > constraints.maxWidth
+                  ? contentWidth
+                  : constraints.maxWidth;
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: SizedBox(
+                  width: chartWidth,
+                  child: AnimatedBuilder(
+                    animation: _safeChartAnim,
+                    builder: (context, child) {
+                      final animValue = _safeChartAnim.value.clamp(0.0, 1.0);
+                      final barGroups = <BarChartGroupData>[];
 
-              for (int i = 0; i < chartEmployees.length; i++) {
-                final emp = chartEmployees[i];
-                barGroups.add(
-                  BarChartGroupData(
-                    x: i,
-                    barsSpace: 3,
-                    barRods: [
-                      BarChartRodData(
-                        toY: ((emp.salary ?? 0).toDouble() * animValue).clamp(
-                          0,
-                          double.infinity,
-                        ),
-                        width: 7,
-                        color: _salaryColor.withValues(alpha: 0.85),
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(4),
-                        ),
-                      ),
-                      BarChartRodData(
-                        toY: ((emp.paidSalary ?? 0).toDouble() * animValue)
-                            .clamp(0, double.infinity),
-                        width: 7,
-                        color: _paidColor,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(4),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return BarChart(
-                BarChartData(
-                  maxY: maxY.toDouble() * 1.25,
-                  minY: 0,
-                  groupsSpace: 10,
-                  alignment: BarChartAlignment.spaceAround,
-                  barGroups: barGroups,
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: AppColor.appLightColor.withValues(alpha: 0.5),
-                      dashArray: [4, 4],
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 42,
-                        getTitlesWidget: (value, meta) {
-                          if (value <= 0) return const SizedBox.shrink();
-                          return Padding(
-                            padding: EdgeInsets.only(right: 1.w),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                _formatCompactCurrency(value),
-                                style: TextStyle(
-                                  fontSize: 1.7.sp,
-                                  color: AppColor.grey,
+                      for (int i = 0; i < chartEmployees.length; i++) {
+                        final emp = chartEmployees[i];
+                        barGroups.add(
+                          BarChartGroupData(
+                            x: i,
+                            barsSpace: 3,
+                            barRods: [
+                              BarChartRodData(
+                                toY: ((emp.salary ?? 0).toDouble() * animValue)
+                                    .clamp(0, double.infinity),
+                                width: 7,
+                                color: _salaryColor.withValues(alpha: 0.85),
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(4),
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 36,
-                        getTitlesWidget: (value, meta) {
-                          final idx = value.toInt();
-                          if (idx < 0 || idx >= chartEmployees.length) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: SizedBox(
-                              width: 12.w,
-                              child: Text(
-                                _shortName(chartEmployees[idx].name),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 1.8.sp,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColor.appDarkColor,
-                                  height: 1.1,
+                              BarChartRodData(
+                                toY:
+                                    ((emp.paidSalary ?? 0).toDouble() *
+                                            animValue)
+                                        .clamp(0, double.infinity),
+                                width: 7,
+                                color: _paidColor,
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(4),
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      fitInsideHorizontally: true,
-                      fitInsideVertically: true,
-                      getTooltipColor: (_) =>
-                          AppColor.appDarkColor.withValues(alpha: 0.95),
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final emp = chartEmployees[group.x];
-                        final isSalary = rodIndex == 0;
-                        final val = isSalary ? emp.salary : emp.paidSalary;
-                        return BarTooltipItem(
-                          '${emp.name}\n',
-                          TextStyle(
-                            color: AppColor.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 2.6.sp,
+                            ],
                           ),
-                          children: [
-                            TextSpan(
-                              text:
-                                  '${isSalary ? "Salary" : "Paid"}: ${_formatCurrency(val ?? 0)}',
-                              style: TextStyle(
-                                color: isSalary ? _salaryColor : _paidColor,
-                                fontSize: 2.4.sp,
+                        );
+                      }
+
+                      return BarChart(
+                        BarChartData(
+                          maxY: maxY.toDouble() * 1.25,
+                          minY: 0,
+                          groupsSpace: 10,
+                          alignment: BarChartAlignment.spaceAround,
+                          barGroups: barGroups,
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: false,
+                            getDrawingHorizontalLine: (value) => FlLine(
+                              color: AppColor.appLightColor.withValues(
+                                alpha: 0.5,
+                              ),
+                              dashArray: [4, 4],
+                            ),
+                          ),
+                          borderData: FlBorderData(show: false),
+                          titlesData: FlTitlesData(
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 42,
+                                getTitlesWidget: (value, meta) {
+                                  if (value <= 0) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding: EdgeInsets.only(right: 1.w),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        _formatCompactCurrency(value),
+                                        style: TextStyle(
+                                          fontSize: 1.7.sp,
+                                          color: AppColor.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
-                          ],
-                        );
-                      },
-                    ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 36,
+                                getTitlesWidget: (value, meta) {
+                                  final idx = value.toInt();
+                                  if (idx < 0 || idx >= chartEmployees.length) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: SizedBox(
+                                      width: 12.w,
+                                      child: Text(
+                                        _shortName(chartEmployees[idx].name),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 1.8.sp,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColor.appDarkColor,
+                                          height: 1.1,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                          ),
+                          barTouchData: BarTouchData(
+                            enabled: true,
+                            touchTooltipData: BarTouchTooltipData(
+                              fitInsideHorizontally: true,
+                              fitInsideVertically: true,
+                              getTooltipColor: (_) =>
+                                  AppColor.appDarkColor.withValues(alpha: 0.95),
+                              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                final emp = chartEmployees[group.x];
+                                final isSalary = rodIndex == 0;
+                                final val = isSalary
+                                    ? emp.salary
+                                    : emp.paidSalary;
+                                return BarTooltipItem(
+                                  '${emp.name}\n',
+                                  TextStyle(
+                                    color: AppColor.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 2.6.sp,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text:
+                                          '${isSalary ? "Salary" : "Paid"}: ${_formatCurrency(val ?? 0)}',
+                                      style: TextStyle(
+                                        color: isSalary
+                                            ? _salaryColor
+                                            : _paidColor,
+                                        fontSize: 2.4.sp,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        duration: Duration.zero,
+                      );
+                    },
                   ),
                 ),
-                duration: Duration.zero,
               );
             },
           ),
@@ -1050,50 +1095,55 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
               return LayoutBuilder(
                 builder: (context, constraints) {
                   final isNarrow = constraints.maxWidth < 280;
-                  final pie = AspectRatio(
-                    aspectRatio: 1,
-                    child: hasSlice
-                        ? PieChart(
-                            PieChartData(
-                              sectionsSpace: 2,
-                              centerSpaceRadius: isNarrow ? 24 : 30,
-                              startDegreeOffset: -90,
-                              sections: [
-                                PieChartSectionData(
-                                  color: _paidColor,
-                                  value: paidChartValue <= 0
-                                      ? 0.0
-                                      : paidChartValue,
-                                  title: animValue > 0.65
-                                      ? '${(paidRatio * 100).toStringAsFixed(0)}%'
-                                      : '',
-                                  radius: isNarrow ? 38 : 46,
-                                  titleStyle: TextStyle(
-                                    fontSize: 2.4.sp,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColor.white,
+                  // Spins the pie into place (two full turns, eased by
+                  // _safeChartAnim) instead of just filling in flat.
+                  final pie = Transform.rotate(
+                    angle: (1 - animValue) * 4 * math.pi,
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: hasSlice
+                          ? PieChart(
+                              PieChartData(
+                                sectionsSpace: 2,
+                                centerSpaceRadius: isNarrow ? 24 : 30,
+                                startDegreeOffset: -90,
+                                sections: [
+                                  PieChartSectionData(
+                                    color: _paidColor,
+                                    value: paidChartValue <= 0
+                                        ? 0.0
+                                        : paidChartValue,
+                                    title: animValue > 0.65
+                                        ? '${(paidRatio * 100).toStringAsFixed(0)}%'
+                                        : '',
+                                    radius: isNarrow ? 38 : 46,
+                                    titleStyle: TextStyle(
+                                      fontSize: 2.4.sp,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColor.white,
+                                    ),
                                   ),
-                                ),
-                                PieChartSectionData(
-                                  color: _pendingColor,
-                                  value: pendingChartValue <= 0
-                                      ? 0.0
-                                      : pendingChartValue,
-                                  title: animValue > 0.65
-                                      ? '${(pendingRatio * 100).toStringAsFixed(0)}%'
-                                      : '',
-                                  radius: isNarrow ? 38 : 46,
-                                  titleStyle: TextStyle(
-                                    fontSize: 2.4.sp,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColor.white,
+                                  PieChartSectionData(
+                                    color: _pendingColor,
+                                    value: pendingChartValue <= 0
+                                        ? 0.0
+                                        : pendingChartValue,
+                                    title: animValue > 0.65
+                                        ? '${(pendingRatio * 100).toStringAsFixed(0)}%'
+                                        : '',
+                                    radius: isNarrow ? 38 : 46,
+                                    titleStyle: TextStyle(
+                                      fontSize: 2.4.sp,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColor.white,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            duration: Duration.zero,
-                          )
-                        : const SizedBox.shrink(),
+                                ],
+                              ),
+                              duration: Duration.zero,
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                   );
 
                   final legend = Column(
@@ -1177,7 +1227,10 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
     );
   }
 
-  Widget _buildEmployeeList(SalaryCostReportModel model) {
+  Widget _buildEmployeeList(
+    SalaryCostReportModel model,
+    DateTime selectedMonth,
+  ) {
     final employees = _sortedEmployees(model);
     if (employees.isEmpty) return const SizedBox.shrink();
 
@@ -1191,17 +1244,48 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "Employee Salary Records",
-                style: TextStyle(
-                  fontSize: 4.sp,
-                  fontWeight: FontWeight.bold,
-                  color: AppColor.appDarkColor,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(1.8.w),
+                    decoration: BoxDecoration(
+                      color: _salaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      BoxIcons.bxs_wallet,
+                      color: _salaryColor,
+                      size: 4.w,
+                    ),
+                  ),
+                  2.width,
+                  Text(
+                    "Employee Salary Records",
+                    style: TextStyle(
+                      fontSize: 4.sp,
+                      fontWeight: FontWeight.bold,
+                      color: AppColor.appDarkColor,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                "${employees.length} employees",
-                style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 2.5.w,
+                  vertical: 0.4.h,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColor.grey.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Text(
+                  "${employees.length} employees",
+                  style: TextStyle(
+                    fontSize: 2.8.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColor.appDarkColor,
+                  ),
+                ),
               ),
             ],
           ),
@@ -1225,6 +1309,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
                       employees[index],
                       totalSalary: totalSalary,
                       rank: index + 1,
+                      selectedMonth: selectedMonth,
                     ),
                   ),
                 ),
@@ -1240,6 +1325,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
     SalaryCostEmployee emp, {
     required num totalSalary,
     required int rank,
+    required DateTime selectedMonth,
   }) {
     final salary = emp.salary ?? 0;
     final paid = emp.paidSalary ?? 0;
@@ -1248,165 +1334,164 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
     final sharePct = totalSalary > 0 ? (salary / totalSalary) * 100 : 0.0;
     final isFullyPaid = paid >= salary && salary > 0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColor.white,
+    final statusColor = isFullyPaid ? _paidColor : _salaryColor;
+
+    return Material(
+      color: AppColor.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isFullyPaid
-              ? _paidColor.withValues(alpha: 0.25)
-              : _salaryColor.withValues(alpha: 0.2),
-        ),
-        boxShadow: AppShadow.soft,
-      ),
-      padding: EdgeInsets.all(4.w),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 7.w,
-                height: 7.w,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _accentBlue.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  '#$rank',
-                  style: TextStyle(
-                    fontSize: 2.4.sp,
-                    fontWeight: FontWeight.bold,
-                    color: _accentBlue,
-                  ),
-                ),
-              ),
-              2.5.width,
-              _employeeAvatar(emp),
-              3.width,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      emp.name ?? "Unknown",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 3.8.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColor.appDarkColor,
-                      ),
-                    ),
-                    Text(
-                      emp.designation ?? "Employee",
-                      style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
-                    ),
-                    if (emp.employeeCode != null &&
-                        emp.employeeCode!.isNotEmpty)
-                      Text(
-                        "Code: ${emp.employeeCode}",
-                        style: TextStyle(
-                          fontSize: 2.4.sp,
-                          color: AppColor.grey,
+        onTap: () {
+          AppRoutes.push(
+            EmployeeSalaryDetailView(
+              siteName: widget.siteName,
+              deptName: widget.deptName,
+              employee: emp,
+              reportMonth: selectedMonth,
+            ),
+          );
+        },
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: AppColor.white,
+            borderRadius: BorderRadius.circular(5.r),
+            boxShadow: AppShadow.soft,
+          ),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(width: 1.1.w, color: statusColor),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.all(4.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 7.w,
+                              height: 7.w,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _accentBlue.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '#$rank',
+                                style: TextStyle(
+                                  fontSize: 2.4.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: _accentBlue,
+                                ),
+                              ),
+                            ),
+                            2.5.width,
+                            _employeeAvatar(emp, haloColor: statusColor),
+                            3.width,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    emp.name ?? "Unknown",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 3.8.sp,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColor.appDarkColor,
+                                    ),
+                                  ),
+                                  Text(
+                                    emp.designation ?? "Employee",
+                                    style: TextStyle(
+                                      fontSize: 2.8.sp,
+                                      color: AppColor.grey,
+                                    ),
+                                  ),
+                                  if (emp.employeeCode != null &&
+                                      emp.employeeCode!.isNotEmpty)
+                                    Text(
+                                      "Code: ${emp.employeeCode}",
+                                      style: TextStyle(
+                                        fontSize: 2.4.sp,
+                                        color: AppColor.grey,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  _formatCompactCurrency(salary),
+                                  style: TextStyle(
+                                    fontSize: 3.2.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: _salaryColor,
+                                  ),
+                                ),
+                                Text(
+                                  "${sharePct.toStringAsFixed(1)}% of dept.",
+                                  style: TextStyle(
+                                    fontSize: 2.2.sp,
+                                    color: AppColor.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    _formatCompactCurrency(salary),
-                    style: TextStyle(
-                      fontSize: 3.2.sp,
-                      fontWeight: FontWeight.bold,
-                      color: _salaryColor,
+                        1.5.height,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _salaryInfoTile(
+                                "Monthly Salary",
+                                _formatCurrency(salary),
+                                _salaryColor,
+                              ),
+                            ),
+                            2.width,
+                            Expanded(
+                              child: _salaryInfoTile(
+                                "Paid Amount",
+                                _formatCurrency(paid),
+                                _paidColor,
+                              ),
+                            ),
+                            2.width,
+                            Expanded(
+                              child: _salaryInfoTile(
+                                "Balance",
+                                _formatCurrency(balance),
+                                _pendingColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        1.2.height,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: paidPct,
+                            minHeight: 0.65.h,
+                            backgroundColor: AppColor.scaffold,
+                            color: _paidColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    "${sharePct.toStringAsFixed(1)}% of dept.",
-                    style: TextStyle(fontSize: 2.2.sp, color: AppColor.grey),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          1.5.height,
-          Row(
-            children: [
-              Expanded(
-                child: _salaryInfoTile(
-                  "Monthly Salary",
-                  _formatCurrency(salary),
-                  _salaryColor,
                 ),
-              ),
-              2.width,
-              Expanded(
-                child: _salaryInfoTile(
-                  "Paid Amount",
-                  _formatCurrency(paid),
-                  _paidColor,
-                ),
-              ),
-              2.width,
-              Expanded(
-                child: _salaryInfoTile(
-                  "Balance",
-                  _formatCurrency(balance),
-                  _pendingColor,
-                ),
-              ),
-            ],
-          ),
-          1.2.height,
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: paidPct,
-              minHeight: 0.65.h,
-              backgroundColor: AppColor.scaffold,
-              color: _paidColor,
+              ],
             ),
           ),
-          0.5.height,
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "${(paidPct * 100).toStringAsFixed(0)}% disbursed",
-                style: TextStyle(fontSize: 2.2.sp, color: AppColor.grey),
-              ),
-              if (isFullyPaid)
-                Row(
-                  children: [
-                    Icon(Icons.check_circle, size: 3.w, color: _paidColor),
-                    1.width,
-                    Text(
-                      "Fully Paid",
-                      style: TextStyle(
-                        fontSize: 2.2.sp,
-                        fontWeight: FontWeight.bold,
-                        color: _paidColor,
-                      ),
-                    ),
-                  ],
-                )
-              else if (balance > 0)
-                Text(
-                  "${_formatCompactCurrency(balance)} remaining",
-                  style: TextStyle(
-                    fontSize: 2.2.sp,
-                    fontWeight: FontWeight.w600,
-                    color: _pendingColor,
-                  ),
-                ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1442,15 +1527,18 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
     );
   }
 
-  Widget _employeeAvatar(SalaryCostEmployee emp) {
+  Widget _employeeAvatar(SalaryCostEmployee emp, {Color? haloColor}) {
+    final color = haloColor ?? _salaryColor;
     return Container(
-      width: 12.w,
-      height: 12.w,
+      width: 13.w,
+      height: 13.w,
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: _salaryColor.withValues(alpha: 0.3),
-          width: 2,
+        gradient: LinearGradient(
+          colors: [color.withValues(alpha: 0.35), color.withValues(alpha: 0.1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
       child: ClipRRect(
