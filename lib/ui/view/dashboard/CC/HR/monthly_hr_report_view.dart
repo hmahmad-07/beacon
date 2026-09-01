@@ -41,7 +41,6 @@ class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
 
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
-  String? _animationKey;
 
   Animation<double> get _safeChartAnim =>
       _chartAnim ?? const AlwaysStoppedAnimation<double>(1);
@@ -57,53 +56,42 @@ class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
       parent: _chartAnimController!,
       curve: Curves.easeOutCubic,
     );
-
-    final hrController = context.read<HRController>();
-    hrController.addListener(_onHrControllerChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetchReportData());
-  }
-
-  void _onHrControllerChanged() {
-    final controller = context.read<HRController>();
-    final kpis = controller.hrSummaryModel?.data?.kpiCards;
-    if (controller.isHrSummaryLoading || kpis == null) return;
-
-    final key =
-        '${controller.hrSummarySelectedDate.millisecondsSinceEpoch}_'
-        '${kpis.totalHeadcount}';
-    if (_animationKey == key) return;
-
-    // Deferred to next frame; only this single listener triggers it,
-    // not every Consumer rebuild.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _triggerChartAnimation(key);
-    });
   }
 
   @override
   void dispose() {
-    context.read<HRController>().removeListener(_onHrControllerChanged);
     _chartAnimController?.dispose();
     super.dispose();
   }
 
-  void _triggerChartAnimation(String key) {
-    if (_animationKey == key) return;
-    _animationKey = key;
+  void _replayChartAnimation() {
     _chartAnimController?.reset();
     _chartAnimController?.forward();
   }
 
-  void _fetchReportData() {
-    _animationKey = null;
+  // Awaits the fetch and replays the animation off its own completion,
+  // instead of a manual HRController.addListener callback. That earlier
+  // approach called context.read<HRController>() from inside a listener
+  // that fires on EVERY screen's fetch (HRController is a shared
+  // singleton) — including after this widget was torn down but before
+  // dispose() finished unregistering it, throwing "Looking up a
+  // deactivated widget's ancestor is unsafe". Awaiting our own fetch
+  // sidesteps that: the callback only ever runs for a request this
+  // widget itself made, and `mounted` is checked before touching state.
+  Future<void> _fetchReportData() async {
     final hrController = context.read<HRController>();
-    hrController.getHRSummaryReport(
+    await hrController.getHRSummaryReport(
       context,
       month: DateFormat('MM').format(hrController.hrSummarySelectedDate),
       year: DateFormat('yyyy').format(hrController.hrSummarySelectedDate),
       shopId: widget.siteID,
       deptId: widget.deptID.toString(),
     );
+    if (!mounted) return;
+    if (hrController.hrSummaryModel?.data?.kpiCards != null) {
+      _replayChartAnimation();
+    }
   }
 
   String _formatCurrency(num value) {
@@ -137,12 +125,6 @@ class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
           final model = controller.hrSummaryModel;
           final isLoading = controller.isHrSummaryLoading;
           final kpis = model?.data?.kpiCards;
-
-          // NOTE: the animation trigger no longer lives here. It's driven
-          // solely by _onHrControllerChanged (a single listener set up once
-          // in initState), so this builder stays a pure read of state with
-          // no scheduling side effects — that was the source of the
-          // mid-layout rebuild race causing the RenderBox crashes.
 
           return RefreshIndicator(
             color: _accent,
@@ -593,7 +575,7 @@ class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
                             style: TextStyle(
                               fontSize: 1.9.sp,
                               color: AppColor.grey,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
                             ),
                           );
                         },

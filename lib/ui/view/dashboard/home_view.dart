@@ -23,12 +23,22 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  late String _selectedShopId;
+  String _selectedShopId = "";
+  bool _didSelectDefaultShop = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _selectedShopId = "all";
+  // Snack Shack renders last in the rail; everyone else keeps the
+  // order the API returns them in.
+  List<Shop> _orderedShops(List<Shop> shops) {
+    final rest = <Shop>[];
+    final snackShack = <Shop>[];
+    for (final shop in shops) {
+      if (_getMatchingProject(shop)?.id == AppProject.snackShack.id) {
+        snackShack.add(shop);
+      } else {
+        rest.add(shop);
+      }
+    }
+    return [...rest, ...snackShack];
   }
 
   AppProject? _getMatchingProject(Shop shop) {
@@ -84,20 +94,27 @@ class _HomeViewState extends State<HomeView> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final isAll = _selectedShopId == "all";
-              final shops = controller.shops;
+              final shops = _orderedShops(controller.shops);
 
-              Shop? selectedShop;
-              if (!isAll) {
-                selectedShop = shops.firstWhere(
-                  (s) => s.shopId == _selectedShopId,
-                  orElse: () => Shop(shopId: _selectedShopId, shopName: "Shop"),
-                );
+              if (!_didSelectDefaultShop && shops.isNotEmpty) {
+                _didSelectDefaultShop = true;
+                final firstId = shops.first.shopId ?? "";
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() => _selectedShopId = firstId);
+                });
               }
 
-              final displayName = isAll
-                  ? "All Departments"
-                  : selectedShop?.shopName ?? "Shop";
+              final effectiveShopId =
+                  _selectedShopId.isEmpty && shops.isNotEmpty
+                  ? shops.first.shopId ?? ""
+                  : _selectedShopId;
+
+              final selectedShop = shops.firstWhere(
+                (s) => s.shopId == effectiveShopId,
+                orElse: () => Shop(shopId: effectiveShopId, shopName: "Shop"),
+              );
+
+              final displayName = selectedShop.shopName ?? "Shop";
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -107,17 +124,12 @@ class _HomeViewState extends State<HomeView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (!isAll && selectedShop != null)
-                          _buildProjectTitle(
-                            selectedShop.departments?.length ?? 0,
-                            displayName,
-                            _getShopAccent(selectedShop),
-                          ),
-                        Expanded(
-                          child: isAll
-                              ? _buildAllShopsView(controller)
-                              : _buildSingleShopView(selectedShop),
+                        _buildProjectTitle(
+                          selectedShop.departments?.length ?? 0,
+                          displayName,
+                          _getShopAccent(selectedShop),
                         ),
+                        Expanded(child: _buildSingleShopView(selectedShop)),
                       ],
                     ),
                   ),
@@ -213,7 +225,7 @@ class _HomeViewState extends State<HomeView> {
   // ========================================= Project Rail =========================================
 
   Widget _buildProjectRail(EmployesController controller) {
-    final shops = controller.shops;
+    final shops = _orderedShops(controller.shops);
     return Container(
       width: 28.w,
       decoration: BoxDecoration(
@@ -227,72 +239,11 @@ class _HomeViewState extends State<HomeView> {
           Expanded(
             child: ListView(
               padding: EdgeInsets.symmetric(vertical: 1.h),
-              children: [
-                _allTab(),
-                ...shops.map((shop) => _shopTab(shop: shop)),
-              ],
+              children: shops.map((shop) => _shopTab(shop: shop)).toList(),
             ),
           ),
           _railLogout(),
         ],
-      ),
-    );
-  }
-
-  Widget _allTab() {
-    final bool isSelected = _selectedShopId == "all";
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (isSelected) return;
-        setState(() => _selectedShopId = "all");
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-        margin: EdgeInsets.only(bottom: 0.8.h, right: 1.5.w),
-        padding: EdgeInsets.symmetric(vertical: 1.2.h, horizontal: 1.w),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColor.appDarkColor.withValues(alpha: 0.1)
-              : AppColor.transparent,
-          borderRadius: BorderRadius.horizontal(right: Radius.circular(8.r)),
-        ),
-        child: Column(
-          children: [
-            0.4.height,
-            Container(
-              padding: EdgeInsets.all(1.w),
-              decoration: BoxDecoration(
-                color: AppColor.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected
-                      ? AppColor.appDarkColor
-                      : AppColor.appLightColor,
-                  width: isSelected ? 1.5 : 1,
-                ),
-              ),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                height: 15.w,
-                width: 15.w,
-                padding: EdgeInsets.all(1.w),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected ? AppColor.appDarkColor : AppColor.white,
-                  boxShadow: isSelected ? AppShadow.soft : null,
-                ),
-                child: Icon(
-                  Icons.star_rounded,
-                  color: isSelected ? AppColor.white : AppColor.grey,
-                  size: 8.w,
-                ),
-              ),
-            ),
-            0.4.height,
-          ],
-        ),
       ),
     );
   }
@@ -491,74 +442,6 @@ class _HomeViewState extends State<HomeView> {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildAllShopsView(EmployesController controller) {
-    final shops = controller.shops;
-
-    if (shops.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.storefront_rounded,
-        message: "No shops available",
-      );
-    }
-
-    return ListView.builder(
-      padding: EdgeInsets.fromLTRB(4.w, 0.5.h, 4.w, 4.h),
-      itemCount: shops.length,
-      itemBuilder: (context, shopIndex) {
-        final shop = shops[shopIndex];
-        final depts = shop.departments ?? [];
-        if (depts.isEmpty) return const SizedBox.shrink();
-
-        final accent = _getShopAccent(shop);
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(top: 1.5.h, bottom: 1.h),
-              child: Row(
-                children: [
-                  Container(width: 1.w, height: 2.5.h, color: accent),
-                  2.width,
-                  Text(
-                    shop.shopName ?? "Shop",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 4.2.sp,
-                      color: AppColor.appDarkColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 3.w,
-                crossAxisSpacing: 3.w,
-                childAspectRatio: 0.72,
-              ),
-              itemCount: depts.length,
-              itemBuilder: (context, deptIndex) {
-                final dept = depts[deptIndex];
-                return _deptCard(
-                  dept: dept,
-                  accentColor: accent,
-                  shopId: shop.shopId,
-                  shopName: shop.shopName,
-                  siteImage: _getMatchingProject(shop)?.asset,
-                );
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 
