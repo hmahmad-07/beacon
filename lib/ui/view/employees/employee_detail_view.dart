@@ -331,6 +331,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
 
     int currentDay = 0;
     int totalDays = endDate.difference(startDate).inDays + 1;
+    bool isFinalizing = false;
     StateSetter? updateDialog;
 
     showDialog(
@@ -359,23 +360,28 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                 ),
                 1.5.height,
                 Text(
-                  "Analyzing performance for $dateRangeText...",
+                  isFinalizing
+                      ? "Finalizing report and resolving visit addresses..."
+                      : "Analyzing performance for $dateRangeText...",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColor.grey, fontSize: 3.sp),
                 ),
                 2.height,
                 LinearProgressIndicator(
-                  value: totalDays == 0 ? 0 : currentDay / totalDays,
+                  value: isFinalizing
+                      ? null
+                      : (totalDays == 0 ? 0 : currentDay / totalDays),
                   backgroundColor: AppColor.scaffold,
                   color: AppColor.appColor2,
                   borderRadius: BorderRadius.circular(20),
                   minHeight: 7,
                 ),
                 1.height,
-                Text(
-                  "Processing day $currentDay of $totalDays",
-                  style: TextStyle(fontSize: 2.2.sp, color: AppColor.grey),
-                ),
+                if (!isFinalizing)
+                  Text(
+                    "Processing day $currentDay of $totalDays",
+                    style: TextStyle(fontSize: 2.2.sp, color: AppColor.grey),
+                  ),
               ],
             ),
           );
@@ -398,9 +404,8 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
         },
       );
 
-      if (Navigator.canPop(context)) Navigator.pop(context);
-
       if (reports.isEmpty) {
+        if (Navigator.canPop(context)) Navigator.pop(context);
         Utils.showSnackBar(
           context,
           "No working records found for this period.",
@@ -408,11 +413,19 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
         return;
       }
 
+      if (updateDialog != null) {
+        updateDialog!(() {
+          isFinalizing = true;
+        });
+      }
+
       final bytes = await PdfReportGenerator.generateMonthlyEmployeeReport(
         user: widget.user,
         reports: reports,
         dateRangeText: dateRangeText,
       );
+
+      if (Navigator.canPop(context)) Navigator.pop(context);
 
       final fileName =
           "${widget.user.userName?.replaceAll(' ', '_')}_${dateRangeText.replaceAll(' ', '_')}.pdf";

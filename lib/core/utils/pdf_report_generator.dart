@@ -2,6 +2,10 @@ import 'dart:typed_data';
 import 'package:beacon/core/models/emp_working_detail_model.dart';
 import 'package:beacon/core/models/employes_model.dart';
 import 'package:beacon/core/utils/utils.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:nominatim_flutter/model/request/request.dart';
+import 'package:nominatim_flutter/model/response/response.dart';
+import 'package:nominatim_flutter/nominatim_flutter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
@@ -15,13 +19,18 @@ class PdfReportGenerator {
     required String department,
     ExternalClientReportModel? externalReport,
   }) async {
-    final pdf = pw.Document();
     final String formattedDate = DateFormat('dd-MMMM-yyyy').format(date);
 
     final List<Map<String, dynamic>> totalForce = [];
     for (int i = 0; i < users.length; i++) {
       totalForce.add({'user': users[i], 'report': reports[i]});
     }
+
+    final addressByCoord = await _resolveVisitAddresses(
+      reports.expand((r) => r.visits),
+    );
+
+    final pdf = pw.Document();
 
     pdf.addPage(
       pw.MultiPage(
@@ -39,13 +48,15 @@ class PdfReportGenerator {
           pw.SizedBox(height: 20),
           ...totalForce.map((data) {
             final u = data['user'] as User;
-            final isUserSales = u.department?.toLowerCase().contains('sales') == true ||
+            final isUserSales =
+                u.department?.toLowerCase().contains('sales') == true ||
                 u.department?.toLowerCase().contains('marketing') == true;
             return _buildUserSection(
               u,
               data['report'] as EmployesWorkingDetailModel,
               isSales: isUserSales,
               showRemarks: true,
+              addressByCoord: addressByCoord,
             );
           }),
           if (externalReport != null && externalReport.orders.isNotEmpty) ...[
@@ -64,10 +75,15 @@ class PdfReportGenerator {
     required List<EmployesWorkingDetailModel> reports,
     required String dateRangeText,
   }) async {
-    final pdf = pw.Document();
     final String formattedMonth = dateRangeText;
     final bool isSales =
         user.department?.toLowerCase().contains('sales') ?? false;
+
+    final addressByCoord = await _resolveVisitAddresses(
+      reports.expand((r) => r.visits),
+    );
+
+    final pdf = pw.Document();
 
     pdf.addPage(
       pw.MultiPage(
@@ -83,6 +99,7 @@ class PdfReportGenerator {
               r,
               isSales: isSales,
               showRemarks: true,
+              addressByCoord: addressByCoord,
             ),
           ),
         ],
@@ -92,10 +109,179 @@ class PdfReportGenerator {
     return pdf.save();
   }
 
+  static String _visitCoordKey(Visit v) =>
+      '${v.effectiveLatitude},${v.effectiveLongitude}';
+
+  /// Some geocoders return an Open Location "Plus Code" (e.g. "F438+34F")
+  /// as the street when there's no named street nearby.
+  static bool _isPlusCode(String value) {
+    return RegExp(
+      r'^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}$',
+      caseSensitive: false,
+    ).hasMatch(value.trim());
+  }
+
+  static bool _nominatimConfigured = false;
+
+  static void _ensureNominatimConfigured() {
+    if (_nominatimConfigured) return;
+    NominatimFlutter.instance.configureNominatim(
+      userAgent: 'PaaniFieldAuditApp/1.0',
+    );
+    _nominatimConfigured = true;
+  }
+
+  /// Builds an English, most-specific-first address from a Nominatim
+  /// response. Returns null when Nominatim itself has nothing finer than
+  /// city/province — in that case there's nothing worth upgrading to.
+  static String? _formatNominatimAddress(NominatimResponse response) {
+    final addr = response.address;
+    if (addr == null) return null;
+
+    String? field(String key) {
+      final v = addr[key]?.toString().trim();
+      return (v == null || v.isEmpty || _isPlusCode(v)) ? null : v;
+    }
+
+    final houseNumber = field('house_number');
+    final road = field('road');
+    final streetLine = [houseNumber, road].where((e) => e != null).join(', ');
+
+    final neighbourhood = field('neighbourhood') ?? field('quarter');
+    final area = field('suburb') ?? field('city_district');
+    final city =
+        field('city') ??
+        field('town') ??
+        field('village') ??
+        field('municipality');
+    final state = field('state');
+
+    final hasFineDetail =
+        streetLine.isNotEmpty || neighbourhood != null || area != null;
+    if (!hasFineDetail) return null;
+
+    final parts = [
+      streetLine.isNotEmpty ? streetLine : null,
+      neighbourhood,
+      if (area != neighbourhood) area,
+      if (city != area && city != neighbourhood) city,
+      state,
+    ].where((e) => e != null && e.trim().isNotEmpty).toList();
+
+    return parts.isNotEmpty ? parts.join(', ') : null;
+  }
+
+  /// Resolves a display address per unique visit coordinate.
+  ///
+  /// Pass 1 (fast, parallel): the device's native geocoder resolves every
+  /// location at once.
+  /// Pass 2 (sequential, throttled): only the locations pass 1 couldn't
+  /// pin down beyond city/province are re-checked against OpenStreetMap's
+  /// Nominatim service, which often has finer (village/mohalla/road) data
+  /// for areas Google's on-device geocoder only knows coarsely. Locations
+  /// pass 1 already resolved well are never touched, so most reports stay
+  /// as fast as before — only the generic ones pay the extra lookup cost.
+  static Future<Map<String, String>> _resolveVisitAddresses(
+    Iterable<Visit> visits,
+  ) async {
+    final Map<String, String> resolved = {};
+    final Map<String, Visit> needsEnrichment = {};
+    final Set<String> seenKeys = {};
+    final List<Future<void>> lookups = [];
+
+    for (final v in visits) {
+      final key = _visitCoordKey(v);
+      if (!seenKeys.add(key)) continue;
+
+      final lat = double.tryParse(v.effectiveLatitude);
+      final lng = double.tryParse(v.effectiveLongitude);
+      final fallback = v.address.isNotEmpty ? v.address : 'N/A';
+
+      if (lat == null || lng == null || (lat == 0 && lng == 0)) {
+        resolved[key] = fallback;
+        continue;
+      }
+
+      lookups.add(() async {
+        try {
+          final placemarks = await placemarkFromCoordinates(
+            lat,
+            lng,
+          ).timeout(const Duration(seconds: 6));
+          if (placemarks.isEmpty) {
+            resolved[key] = fallback;
+            needsEnrichment[key] = v;
+            return;
+          }
+          final place = placemarks.first;
+          final street = place.street;
+          final hasFineDetail =
+              (street != null &&
+                  street.trim().isNotEmpty &&
+                  !_isPlusCode(street)) ||
+              (place.subLocality != null && place.subLocality!.trim().isNotEmpty);
+
+          final address = [
+            (street != null && !_isPlusCode(street)) ? street : null,
+            place.subLocality,
+            place.locality,
+            place.administrativeArea,
+          ].where((e) => e != null && e.trim().isNotEmpty).join(', ');
+
+          resolved[key] = address.isNotEmpty ? address : fallback;
+          if (!hasFineDetail) needsEnrichment[key] = v;
+        } catch (_) {
+          resolved[key] = fallback;
+          needsEnrichment[key] = v;
+        }
+      }());
+    }
+
+    await Future.wait(lookups);
+
+    if (needsEnrichment.isEmpty) return resolved;
+
+    _ensureNominatimConfigured();
+
+    final entries = needsEnrichment.entries.toList();
+    for (var i = 0; i < entries.length; i++) {
+      final key = entries[i].key;
+      final v = entries[i].value;
+      final lat = double.tryParse(v.effectiveLatitude);
+      final lng = double.tryParse(v.effectiveLongitude);
+
+      if (lat != null && lng != null) {
+        try {
+          final response = await NominatimFlutter.instance
+              .reverse(
+                reverseRequest: ReverseRequest(
+                  lat: lat,
+                  lon: lng,
+                  addressDetails: true,
+                ),
+                language: 'en',
+              )
+              .timeout(const Duration(seconds: 8));
+          final better = _formatNominatimAddress(response);
+          if (better != null) resolved[key] = better;
+        } catch (_) {
+          // Keep whatever pass 1 already resolved for this key.
+        }
+      }
+
+      if (i != entries.length - 1) {
+        await Future.delayed(const Duration(milliseconds: 1100));
+      }
+    }
+
+    return resolved;
+  }
+
   static pw.Widget _buildDailyActivitySection(
     EmployesWorkingDetailModel report, {
     bool isSales = true,
     bool showRemarks = false,
+    Map<String, String> addressByCoord = const {},
   }) {
     final String formattedDate = DateFormat('dd-MMM-yyyy').format(report.date);
 
@@ -130,6 +316,7 @@ class PdfReportGenerator {
             report.visits,
             isSales: isSales,
             showRemarks: showRemarks,
+            addressByCoord: addressByCoord,
           ),
         ],
         pw.SizedBox(height: 20),
@@ -163,8 +350,8 @@ class PdfReportGenerator {
     required List<ExternalClientReportModel> reports,
     required String dateRangeText,
   }) async {
-    final pdf = pw.Document();
     final String formattedMonth = dateRangeText;
+    final pdf = pw.Document();
 
     pdf.addPage(
       pw.MultiPage(
@@ -355,6 +542,7 @@ class PdfReportGenerator {
     EmployesWorkingDetailModel report, {
     bool isSales = true,
     bool showRemarks = false,
+    Map<String, String> addressByCoord = const {},
   }) {
     int productive = report.visits
         .where((v) => v.orders.any((o) => o.isProductive))
@@ -410,7 +598,10 @@ class PdfReportGenerator {
               pw.SizedBox(width: 20),
               _metaLabelValue("Productive Visits", productive.toString()),
               pw.SizedBox(width: 20),
-              _metaLabelValue("Total Amount", "PKR ${totalRev.toStringAsFixed(0)}"),
+              _metaLabelValue(
+                "Total Amount",
+                "PKR ${totalRev.toStringAsFixed(0)}",
+              ),
             ],
           ],
         ),
@@ -420,6 +611,7 @@ class PdfReportGenerator {
             report.visits,
             isSales: isSales,
             showRemarks: showRemarks,
+            addressByCoord: addressByCoord,
           ),
           pw.SizedBox(height: 10),
           if (isSales) _buildUserTotals(report.visits),
@@ -534,6 +726,7 @@ class PdfReportGenerator {
     List<Visit> visits, {
     bool isSales = true,
     bool showRemarks = false,
+    Map<String, String> addressByCoord = const {},
   }) {
     final sortedVisits = List<Visit>.from(visits)
       ..sort((a, b) {
@@ -549,7 +742,7 @@ class PdfReportGenerator {
     final Map<int, pw.TableColumnWidth> columnWidths = {};
     int colIndex = 0;
     columnWidths[colIndex++] = const pw.IntrinsicColumnWidth(); // Time
-    columnWidths[colIndex++] = const pw.FlexColumnWidth();      // Shop Name
+    columnWidths[colIndex++] = const pw.FlexColumnWidth(); // Shop Name
     columnWidths[colIndex++] = const pw.IntrinsicColumnWidth(); // Channel
     if (isSales) {
       columnWidths[colIndex++] = const pw.IntrinsicColumnWidth(); // Status
@@ -559,26 +752,33 @@ class PdfReportGenerator {
       columnWidths[colIndex++] = const pw.IntrinsicColumnWidth(); // Revenue
     }
     if (showRemarks) {
-      columnWidths[colIndex++] = const pw.FixedColumnWidth(160);  // Remarks
+      columnWidths[colIndex++] = const pw.FixedColumnWidth(160); // Remarks
     }
 
-    return pw.Table(
-      border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-      columnWidths: columnWidths,
+    final border = pw.TableBorder.all(color: PdfColors.grey300, width: 0.5);
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+        pw.Table(
+          border: border,
+          columnWidths: columnWidths,
           children: [
-            _tableHeader("Time"),
-            _tableHeader("Shop Name"),
-            _tableHeader("Channel"),
-            if (isSales) _tableHeader("Status"),
-            _tableHeader("Stay Time"),
-            if (isSales) _tableHeader("Revenue"),
-            if (showRemarks) _tableHeader("Remarks"),
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+              children: [
+                _tableHeader("Time"),
+                _tableHeader("Shop Name"),
+                _tableHeader("Channel"),
+                if (isSales) _tableHeader("Status"),
+                _tableHeader("Stay Time"),
+                if (isSales) _tableHeader("Revenue"),
+                if (showRemarks) _tableHeader("Remarks"),
+              ],
+            ),
           ],
         ),
-        ...sortedVisits.map((v) {
+        ...sortedVisits.expand((v) {
           double revenue = 0;
           for (var ord in v.orders) {
             for (var item in ord.items) {
@@ -591,51 +791,91 @@ class PdfReportGenerator {
               revenue += (pcs + box) * rate;
             }
           }
-          return pw.TableRow(
-            children: [
-              _tableCell(
-                (() {
-                  final displayDate =
-                      v.orders.isNotEmpty && v.orders.first.orderDate.isNotEmpty
-                      ? v.orders.first.orderDate
-                      : v.createdAt;
-                  return displayDate.split(' ').length > 1
-                      ? displayDate.split(' ').sublist(1).join(' ')
-                      : displayDate;
-                })(),
-              ),
-              _tableCell(v.placeName),
-              _tableCell(v.channel),
-              if (isSales)
-                _tableCell(
-                  v.orders.any((o) => o.isProductive)
-                      ? "Productive"
-                      : "Non-Productive",
+          final resolvedAddress =
+              addressByCoord[_visitCoordKey(v)] ??
+              (v.address.isNotEmpty ? v.address : 'N/A');
+
+          return [
+            pw.Table(
+              border: border,
+              columnWidths: columnWidths,
+              children: [
+                pw.TableRow(
+                  children: [
+                    _tableCell(
+                      (() {
+                        final displayDate =
+                            v.orders.isNotEmpty &&
+                                v.orders.first.orderDate.isNotEmpty
+                            ? v.orders.first.orderDate
+                            : v.createdAt;
+                        return displayDate.split(' ').length > 1
+                            ? displayDate.split(' ').sublist(1).join(' ')
+                            : displayDate;
+                      })(),
+                    ),
+                    _tableCell(v.placeName),
+                    _tableCell(v.channel),
+                    if (isSales)
+                      _tableCell(
+                        v.orders.any((o) => o.isProductive)
+                            ? "Productive"
+                            : "Non-Productive",
+                      ),
+                    _tableCell(
+                      _extractDuration(
+                        v.orders.isNotEmpty && v.orders.first.remarks != null
+                            ? v.orders.first.remarks!
+                            : v.remarks ?? '',
+                      ),
+                    ),
+                    if (isSales)
+                      _tableCell(
+                        revenue.toStringAsFixed(0),
+                        align: pw.Alignment.centerRight,
+                      ),
+                    if (showRemarks)
+                      _tableCell(
+                        _extractRemarksText(
+                          v.orders.isNotEmpty && v.orders.first.remarks != null
+                              ? v.orders.first.remarks!
+                              : v.remarks ?? '',
+                        ),
+                      ),
+                  ],
                 ),
-              _tableCell(
-                _extractDuration(
-                  v.orders.isNotEmpty && v.orders.first.remarks != null
-                      ? v.orders.first.remarks!
-                      : v.remarks ?? '',
-                ),
-              ),
-              if (isSales)
-                _tableCell(
-                  revenue.toStringAsFixed(0),
-                  align: pw.Alignment.centerRight,
-                ),
-              if (showRemarks)
-                _tableCell(
-                  _extractRemarksText(
-                    v.orders.isNotEmpty && v.orders.first.remarks != null
-                        ? v.orders.first.remarks!
-                        : v.remarks ?? '',
-                  ),
-                ),
-            ],
-          );
+              ],
+            ),
+            _buildVisitAddressRow(resolvedAddress),
+          ];
         }),
       ],
+    );
+  }
+
+  static pw.Widget _buildVisitAddressRow(String address) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey50,
+        border: pw.Border(
+          left: const pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+          right: const pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+          bottom: const pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+        ),
+      ),
+      child: pw.Align(
+        alignment: pw.Alignment.centerLeft,
+        child: pw.FittedBox(
+          fit: pw.BoxFit.scaleDown,
+          alignment: pw.Alignment.centerLeft,
+          child: pw.Text(
+            address.isEmpty ? "Address Not found" : 'Address:  $address',
+            style: pw.TextStyle(fontSize: 7.5, color: PdfColors.black),
+          ),
+        ),
+      ),
     );
   }
 

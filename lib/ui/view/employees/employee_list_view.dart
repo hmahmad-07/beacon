@@ -149,6 +149,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
 
     int currentProgress = 0;
     int totalCount = departmentUsers.length;
+    bool isFinalizing = false;
     StateSetter? updateDialog;
 
     showDialog(
@@ -180,7 +181,9 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                 1.5.height,
 
                 Text(
-                  "Collecting attendance, visits, orders and activity logs for $currentProgress / $totalCount sales employees.",
+                  isFinalizing
+                      ? "Finalizing report and resolving visit addresses..."
+                      : "Collecting attendance, visits, orders and activity logs for $currentProgress / $totalCount sales employees.",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColor.grey, fontSize: 3.sp),
                 ),
@@ -188,7 +191,9 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                 2.height,
 
                 LinearProgressIndicator(
-                  value: totalCount == 0 ? 0 : currentProgress / totalCount,
+                  value: isFinalizing
+                      ? null
+                      : (totalCount == 0 ? 0 : currentProgress / totalCount),
                   backgroundColor: AppColor.scaffold,
                   color: AppColor.appColor2,
                   borderRadius: BorderRadius.circular(20),
@@ -223,7 +228,11 @@ class _EmployeeListViewState extends State<EmployeeListView> {
 
       await controller.fetchExternalReport(context, date: selectedAuditDate);
 
-      if (Navigator.canPop(context)) Navigator.pop(context);
+      if (updateDialog != null) {
+        updateDialog!(() {
+          isFinalizing = true;
+        });
+      }
 
       final bytes = await PdfReportGenerator.generateDailyMasterReport(
         users: departmentUsers,
@@ -232,6 +241,8 @@ class _EmployeeListViewState extends State<EmployeeListView> {
         department: widget.department,
         externalReport: controller.externalReport,
       );
+
+      if (Navigator.canPop(context)) Navigator.pop(context);
 
       final fileName =
           "Daily_Sales_Audit_${DateFormat('dd_MM_yy').format(selectedAuditDate)}.pdf";

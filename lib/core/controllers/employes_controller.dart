@@ -5,6 +5,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:nominatim_flutter/model/request/request.dart';
+import 'package:nominatim_flutter/model/response/response.dart';
+import 'package:nominatim_flutter/nominatim_flutter.dart';
 import '../constants/constants.dart';
 import 'package:intl/intl.dart';
 import '../models/emp_working_detail_model.dart';
@@ -581,27 +584,117 @@ class EmployesController extends ChangeNotifier {
     notifyListeners();
   }
 
+  static bool _isPlusCode(String value) {
+    return RegExp(
+      r'^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}$',
+      caseSensitive: false,
+    ).hasMatch(value.trim());
+  }
+
+  static bool _nominatimConfigured = false;
+
+  static void _ensureNominatimConfigured() {
+    if (_nominatimConfigured) return;
+    NominatimFlutter.instance.configureNominatim(
+      userAgent: 'PaaniFieldAuditApp/1.0',
+    );
+    _nominatimConfigured = true;
+  }
+
+  /// Builds an English, most-specific-first address from a Nominatim
+  /// response, or null when it has nothing finer than city/province.
+  static String? _formatNominatimAddress(NominatimResponse response) {
+    final addr = response.address;
+    if (addr == null) return null;
+
+    String? field(String key) {
+      final v = addr[key]?.toString().trim();
+      return (v == null || v.isEmpty || _isPlusCode(v)) ? null : v;
+    }
+
+    final houseNumber = field('house_number');
+    final road = field('road');
+    final streetLine = [houseNumber, road].where((e) => e != null).join(', ');
+
+    final neighbourhood = field('neighbourhood') ?? field('quarter');
+    final area = field('suburb') ?? field('city_district');
+    final city =
+        field('city') ??
+        field('town') ??
+        field('village') ??
+        field('municipality');
+    final state = field('state');
+
+    final hasFineDetail =
+        streetLine.isNotEmpty || neighbourhood != null || area != null;
+    if (!hasFineDetail) return null;
+
+    final parts = [
+      streetLine.isNotEmpty ? streetLine : null,
+      neighbourhood,
+      if (area != neighbourhood) area,
+      if (city != area && city != neighbourhood) city,
+      state,
+    ].where((e) => e != null && e.trim().isNotEmpty).toList();
+
+    return parts.isNotEmpty ? parts.join(', ') : null;
+  }
+
+  /// Resolves an address for [latitude]/[longitude]: tries the device's
+  /// fast native geocoder first, and only falls back to a single (slower)
+  /// Nominatim/OpenStreetMap lookup when that result is too generic
+  /// (nothing finer than city/province).
   Future<String> getAddressFromLatLng(double latitude, double longitude) async {
+    String? nativeAddress;
+    bool hasFineDetail = false;
+
     try {
       List<Placemark> placemarks = await placemarkFromCoordinates(
         latitude,
         longitude,
-      );
+      ).timeout(const Duration(seconds: 6));
 
-      if (placemarks.isEmpty) {
-        return 'Address not found';
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        final street = place.street;
+        hasFineDetail =
+            (street != null &&
+                street.trim().isNotEmpty &&
+                !_isPlusCode(street)) ||
+            (place.subLocality != null && place.subLocality!.trim().isNotEmpty);
+
+        nativeAddress = [
+          (street != null && !_isPlusCode(street)) ? street : null,
+          place.subLocality,
+          place.locality,
+          place.administrativeArea,
+        ].where((e) => e != null && e.trim().isNotEmpty).join(', ');
+        if (nativeAddress.isEmpty) nativeAddress = null;
       }
-
-      final place = placemarks.first;
-
-      return [
-        place.street,
-        place.subLocality,
-        place.locality,
-        place.administrativeArea,
-      ].where((e) => e != null && e.trim().isNotEmpty).join(', ');
-    } catch (e) {
-      return 'Unable to get address';
+    } catch (_) {
+      // fall through to Nominatim below
     }
+
+    if (hasFineDetail && nativeAddress != null) return nativeAddress;
+
+    _ensureNominatimConfigured();
+    try {
+      final response = await NominatimFlutter.instance
+          .reverse(
+            reverseRequest: ReverseRequest(
+              lat: latitude,
+              lon: longitude,
+              addressDetails: true,
+            ),
+            language: 'en',
+          )
+          .timeout(const Duration(seconds: 8));
+      final better = _formatNominatimAddress(response);
+      if (better != null) return better;
+    } catch (_) {
+      // keep whatever the native geocoder returned, if anything
+    }
+
+    return nativeAddress ?? 'Address not found';
   }
 }
