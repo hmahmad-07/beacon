@@ -1,7 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:beacon/core/extensions/routes.dart';
-import 'package:beacon/core/models/employes_model.dart';
+import 'package:beacon/core/models/Employees/employes_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
@@ -12,11 +12,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
 import 'package:beacon/core/utils/pdf_report_generator.dart';
 import 'package:beacon/core/utils/utils.dart';
 import 'package:beacon/ui/components/custom_date_picker.dart';
-import 'package:beacon/ui/view/employees/pdf_preview_view.dart';
+import 'package:beacon/ui/view/dashboard/employees/pdf_preview_view.dart';
 import 'employee_detail_view.dart';
 import 'package:intl/intl.dart';
 import 'external_orders_view.dart';

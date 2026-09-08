@@ -1,4 +1,4 @@
-import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/app_constants.dart';

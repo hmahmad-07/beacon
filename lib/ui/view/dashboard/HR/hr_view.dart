@@ -4,23 +4,23 @@ import 'package:beacon/core/resources/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
-import '../../../../../core/extensions/routes.dart';
-import '../../../../../core/extensions/sizer.dart';
-import 'package:beacon/ui/view/dashboard/CC/HR/emp_salary_type_view.dart';
-import 'package:beacon/ui/view/dashboard/CC/HR/salary_cost_report_view.dart';
-import 'package:beacon/ui/view/dashboard/CC/HR/attendance_report_view.dart';
-import 'package:beacon/ui/view/dashboard/CC/HR/headcount_report_view.dart';
-import 'package:beacon/ui/view/dashboard/CC/HR/monthly_hr_report_view.dart';
-import 'package:beacon/ui/view/dashboard/CC/HR/budget_headcount_report_view.dart';
+import 'package:beacon/core/extensions/routes.dart';
+import 'package:beacon/core/extensions/sizer.dart';
+import 'package:beacon/ui/view/dashboard/HR/emp_salary_type_view.dart';
+import 'package:beacon/ui/view/dashboard/HR/salary_cost_report_view.dart';
+import 'package:beacon/ui/view/dashboard/HR/attendance_report_view.dart';
+import 'package:beacon/ui/view/dashboard/HR/headcount_report_view.dart';
+import 'package:beacon/ui/view/dashboard/HR/monthly_hr_report_view.dart';
+import 'package:beacon/ui/view/dashboard/HR/budget_headcount_report_view.dart';
 
-class CCHumanResourceView extends StatefulWidget {
+class HumanResourceView extends StatefulWidget {
   final String siteName;
   final String siteID;
   final String deptName;
   final int deptID;
   final Color clr;
   final String? siteImage;
-  const CCHumanResourceView({
+  const HumanResourceView({
     super.key,
     required this.siteName,
     required this.siteID,
@@ -31,10 +31,10 @@ class CCHumanResourceView extends StatefulWidget {
   });
 
   @override
-  State<CCHumanResourceView> createState() => _CCHumanResourceViewState();
+  State<HumanResourceView> createState() => _HumanResourceViewState();
 }
 
-class _CCHumanResourceViewState extends State<CCHumanResourceView> {
+class _HumanResourceViewState extends State<HumanResourceView> {
   final hrReports = [
     "Employment Type Report",
     "Salary Cost Report",

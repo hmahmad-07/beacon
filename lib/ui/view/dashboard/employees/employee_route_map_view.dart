@@ -1,7 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:beacon/core/controllers/employes_controller.dart';
-import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:flutter/material.dart';
@@ -11,8 +11,8 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
 import 'package:beacon/core/utils/utils.dart';
 import 'package:provider/provider.dart';
-import '../../components/app_constants.dart';
-import '../../../core/constants/constants.dart';
+import '../../../components/app_constants.dart';
+import '../../../../core/constants/constants.dart';
 
 class EmployeeRouteMapView extends StatefulWidget {
   final EmployesWorkingDetailModel detail;

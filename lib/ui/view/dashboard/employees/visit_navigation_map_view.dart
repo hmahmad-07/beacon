@@ -1,7 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:beacon/core/controllers/employes_controller.dart';
-import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:flutter/material.dart';

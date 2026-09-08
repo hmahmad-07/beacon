@@ -1,14 +1,14 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:beacon/core/controllers/employes_controller.dart';
-import 'package:beacon/core/models/external_client_model.dart';
+import 'package:beacon/core/models/Employees/external_client_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/core/utils/pdf_report_generator.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
-import 'package:beacon/ui/view/employees/pdf_preview_view.dart';
+import 'package:beacon/ui/view/dashboard/employees/pdf_preview_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:beacon/core/extensions/sizer.dart';

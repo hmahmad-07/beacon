@@ -1,0 +1,270 @@
+import 'package:beacon/core/controllers/wms_controller.dart';
+import 'package:beacon/core/extensions/sizer.dart';
+import 'package:beacon/core/models/WMS/inventory_item_model.dart';
+import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+/// Item detail: stock by store + the full posted-movement ledger for the
+/// item (GRN / ISSUE / RETURN / TRANSFER_IN / TRANSFER_OUT), matching
+/// inventory_items.php's detail mode.
+class InventoryItemDetailView extends StatefulWidget {
+  const InventoryItemDetailView({
+    super.key,
+    required this.itemId,
+    required this.itemName,
+    required this.accentColor,
+  });
+
+  final String itemId;
+  final String itemName;
+  final Color accentColor;
+
+  @override
+  State<InventoryItemDetailView> createState() =>
+      _InventoryItemDetailViewState();
+}
+
+class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
+  final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<WMSController>().getItemDetail(context, widget.itemId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColor.scaffold,
+      appBar: CustomAppBar(title: widget.itemName),
+      body: Consumer<WMSController>(
+        builder: (context, controller, child) {
+          if (controller.isItemDetailLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final item = controller.itemDetailModel?.data;
+          if (item == null) {
+            return Center(
+              child: Text(
+                "Item not found",
+                style: TextStyle(fontSize: 3.5.sp, color: AppColor.grey),
+              ),
+            );
+          }
+
+          return ListView(
+            padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
+            children: [
+              _infoCard(item),
+              2.height,
+              _sectionCard(
+                title: "Stock by store",
+                child: _storeBreakdown(item.stock?.byStore ?? []),
+              ),
+              2.height,
+              _sectionCard(
+                title: "Movement history",
+                child: _movements(item.movements ?? []),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _infoCard(InventoryItemDetail item) {
+    return Container(
+      padding: EdgeInsets.all(3.5.w),
+      decoration: BoxDecoration(
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(3.5.r),
+        boxShadow: AppShadow.soft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            item.displayName,
+            style: TextStyle(
+              fontSize: 4.2.sp,
+              fontWeight: FontWeight.bold,
+              color: AppColor.appDarkColor,
+            ),
+          ),
+          0.4.height,
+          Text(
+            "${item.type ?? ''} · ${item.itemClass ?? ''}",
+            style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
+          ),
+          1.5.height,
+          Row(
+            children: [
+              _stat("Total stock", _decimalFormat.format(item.stock?.total ?? 0)),
+              _stat(
+                "Cost price",
+                _decimalFormat.format(item.costPrice ?? 0),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stat(String label, String value) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 2.6.sp, color: AppColor.grey)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 3.6.sp,
+              fontWeight: FontWeight.bold,
+              color: widget.accentColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _storeBreakdown(List<InventoryStoreBalance> byStore) {
+    final nonZero = byStore.where((s) => (s.balance ?? 0) != 0).toList();
+    if (nonZero.isEmpty) {
+      return _empty("No stock at any store");
+    }
+    return Column(
+      children: nonZero.map((s) {
+        final negative = (s.balance ?? 0) < 0;
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: 0.7.h),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  s.storeName ?? "",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 3.2.sp, color: AppColor.black),
+                ),
+              ),
+              Text(
+                _decimalFormat.format(s.balance ?? 0),
+                style: TextStyle(
+                  fontSize: 3.2.sp,
+                  fontWeight: FontWeight.bold,
+                  color: negative ? AppColor.red : AppColor.appDarkColor,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _movements(List<InventoryItemMovement> movements) {
+    if (movements.isEmpty) {
+      return _empty("No posted movements");
+    }
+    final reversed = movements.reversed.toList();
+    return Column(
+      children: reversed.map((m) {
+        final isIn = (m.inQty ?? 0) > 0;
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: 0.9.h),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 1.5.w,
+                height: 1.5.w,
+                margin: EdgeInsets.only(top: 0.8.h, right: 2.w),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isIn ? AppColor.green : AppColor.red,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "${m.documentType ?? ''} · ${m.documentNo ?? ''}",
+                      style: TextStyle(
+                        fontSize: 3.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppColor.appDarkColor,
+                      ),
+                    ),
+                    Text(
+                      "${m.storeName ?? ''} · ${m.date ?? ''}",
+                      style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                isIn
+                    ? "+${_decimalFormat.format(m.inQty ?? 0)}"
+                    : "-${_decimalFormat.format(m.outQty ?? 0)}",
+                style: TextStyle(
+                  fontSize: 3.sp,
+                  fontWeight: FontWeight.bold,
+                  color: isIn ? AppColor.green : AppColor.red,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _sectionCard({required String title, required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(3.5.w),
+      decoration: BoxDecoration(
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(3.5.r),
+        boxShadow: AppShadow.soft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 3.8.sp,
+              fontWeight: FontWeight.bold,
+              color: AppColor.appDarkColor,
+            ),
+          ),
+          1.height,
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _empty(String message) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 1.5.h),
+      child: Text(
+        message,
+        style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
+      ),
+    );
+  }
+}

@@ -1,19 +1,22 @@
 import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
-import 'package:beacon/core/models/employes_model.dart';
+import 'package:beacon/core/models/Employees/employes_model.dart';
+import 'package:beacon/core/models/module_model.dart';
 import 'package:beacon/core/models/project_model.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/controllers/auth_controller.dart';
 import '../../../../core/constants/constants.dart';
 import '../../../../core/extensions/sizer.dart';
 import '../../../../core/resources/app_colors.dart';
+import '../../../../core/utils/utils.dart';
+import '../../components/animated_option_card.dart';
 import '../../components/app_constants.dart';
-import 'department_options_view.dart';
+import 'WMS/inventory_hub_view.dart';
+import 'department_picker_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -26,8 +29,6 @@ class _HomeViewState extends State<HomeView> {
   String _selectedShopId = "";
   bool _didSelectDefaultShop = false;
 
-  // Snack Shack renders last in the rail; everyone else keeps the
-  // order the API returns them in.
   List<Shop> _orderedShops(List<Shop> shops) {
     final rest = <Shop>[];
     final snackShack = <Shop>[];
@@ -125,11 +126,10 @@ class _HomeViewState extends State<HomeView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildProjectTitle(
-                          selectedShop.departments?.length ?? 0,
                           displayName,
                           _getShopAccent(selectedShop),
                         ),
-                        Expanded(child: _buildSingleShopView(selectedShop)),
+                        Expanded(child: _buildModuleGrid(selectedShop)),
                       ],
                     ),
                   ),
@@ -366,13 +366,9 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  // ========================================= Department Grid =========================================
+  // ========================================= Module Grid =========================================
 
-  Widget _buildProjectTitle(
-    int deptCount,
-    String displayName,
-    Color accentColor,
-  ) {
+  Widget _buildProjectTitle(String displayName, Color accentColor) {
     return Padding(
       padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 1.h),
       child: Row(
@@ -397,16 +393,10 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildSingleShopView(Shop? shop) {
-    final depts = shop?.departments ?? [];
-    if (depts.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.folder_off_rounded,
-        message: "No departments in ${shop?.shopName ?? 'this shop'}",
-      );
-    }
-
+  Widget _buildModuleGrid(Shop? shop) {
+    final hasDepartments = (shop?.departments ?? []).isNotEmpty;
     final accent = shop != null ? _getShopAccent(shop) : AppColor.appColor1;
+    final siteImage = shop != null ? _getMatchingProject(shop)?.asset : null;
 
     return AnimationLimiter(
       key: ValueKey(_selectedShopId),
@@ -418,9 +408,13 @@ class _HomeViewState extends State<HomeView> {
           crossAxisSpacing: 3.w,
           childAspectRatio: 0.72,
         ),
-        itemCount: depts.length,
+        itemCount: AppModule.all.length,
         itemBuilder: (context, index) {
-          final dept = depts[index];
+          final module = AppModule.all[index];
+
+          final isInventory = module.id == AppModule.inventory.id;
+          final locked = module.comingSoon || (!hasDepartments && !isInventory);
+
           return AnimationConfiguration.staggeredGrid(
             position: index,
             columnCount: 3,
@@ -428,14 +422,40 @@ class _HomeViewState extends State<HomeView> {
             child: ScaleAnimation(
               scale: 0.92,
               child: FadeInAnimation(
-                child: _deptCard(
-                  dept: dept,
+                child: AnimatedOptionCard(
+                  title: module.title,
+                  subtitle: module.subtitle,
+                  icon: module.icon,
                   accentColor: accent,
-                  shopId: shop?.shopId,
-                  shopName: shop?.shopName,
-                  siteImage: shop != null
-                      ? _getMatchingProject(shop)?.asset
-                      : null,
+                  locked: locked,
+                  onTap: () {
+                    if (module.comingSoon) {
+                      _showComingSoon(module.title);
+                      return;
+                    }
+                    if (isInventory) {
+                      AppRoutes.push(
+                        InventoryHubView(
+                          siteName: shop?.shopName ?? "Inventory",
+                          accentColor: accent,
+                          siteImage: siteImage,
+                        ),
+                      );
+                      return;
+                    }
+                    if (!hasDepartments || shop == null) {
+                      _showNoDepartments(shop);
+                      return;
+                    }
+                    AppRoutes.push(
+                      DepartmentPickerView(
+                        module: module,
+                        shop: shop,
+                        accentColor: accent,
+                        siteImage: siteImage,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -445,31 +465,14 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _deptCard({
-    required Department dept,
-    required Color accentColor,
-    String? shopId,
-    String? shopName,
-    String? siteImage,
-  }) {
-    final name = dept.departmentName ?? "Department";
+  void _showComingSoon(String moduleTitle) {
+    Utils.showSnackBar(context, "$moduleTitle module is coming soon.");
+  }
 
-    return _AnimatedDepartmentCard(
-      name: name,
-      icon: _getDeptIcon(name),
-      accentColor: accentColor,
-      onTap: () {
-        AppRoutes.push(
-          DepartmentOptionsView(
-            siteImage: siteImage,
-            deptName: name,
-            deptId: dept.departmentId ?? 0,
-            shopId: shopId ?? "N/A",
-            shopName: shopName ?? "N/A",
-            accentColor: accentColor,
-          ),
-        );
-      },
+  void _showNoDepartments(Shop? shop) {
+    Utils.showSnackBar(
+      context,
+      "No departments configured for ${shop?.shopName ?? 'this shop'}.",
     );
   }
 
@@ -504,177 +507,6 @@ class _HomeViewState extends State<HomeView> {
             child: const Text("Logout"),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState({required IconData icon, required String message}) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 15.w, color: Colors.grey.shade300),
-            2.height,
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 3.5.sp),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getDeptIcon(String dept) {
-    final d = dept.toLowerCase();
-    if (d.contains("kitchen")) return IonIcons.restaurant;
-    if (d.contains("internal audit") || d.contains("audit")) {
-      return BoxIcons.bx_clipboard;
-    }
-    if (RegExp(r"\bit\b").hasMatch(d)) return BoxIcons.bx_laptop;
-    if (d.contains("sales")) return BoxIcons.bx_bar_chart_alt;
-    if (d.contains("admin")) return BoxIcons.bx_shield;
-    if (d.contains("hr") || d.contains("human")) return BoxIcons.bx_user;
-    if (d.contains("account") || d.contains("finance")) {
-      return BoxIcons.bx_wallet;
-    }
-    if (d.contains("marketing")) return IonIcons.megaphone;
-    if (d.contains("operation")) return BoxIcons.bx_cog;
-    if (d.contains("production")) return IonIcons.construct;
-    if (d.contains("purchase")) return BoxIcons.bx_cart;
-    if (d.contains("supply chain")) return BoxIcons.bx_package;
-    if (d.contains("store")) return BoxIcons.bx_store;
-    return BoxIcons.bx_buildings;
-  }
-}
-
-class _AnimatedDepartmentCard extends StatefulWidget {
-  const _AnimatedDepartmentCard({
-    required this.name,
-    required this.icon,
-    required this.accentColor,
-    required this.onTap,
-  });
-
-  final String name;
-  final IconData icon;
-  final Color accentColor;
-  final VoidCallback onTap;
-
-  @override
-  State<_AnimatedDepartmentCard> createState() =>
-      _AnimatedDepartmentCardState();
-}
-
-class _AnimatedDepartmentCardState extends State<_AnimatedDepartmentCard> {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4.5.r),
-        boxShadow: AppShadow.soft,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(4.5.r),
-        child: Material(
-          color: AppColor.transparent,
-          child: InkWell(
-            onTap: widget.onTap,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColor.white,
-                          AppColor.white,
-                          AppColor.white,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: -7.w,
-                  right: -6.w,
-                  child: _glassOrb(size: 22.w),
-                ),
-                Positioned(
-                  bottom: -10.w,
-                  left: -8.w,
-                  child: _glassOrb(size: 25.w),
-                ),
-                Positioned.fill(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 2.w,
-                      vertical: 2.2.h,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(3.5.w),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: widget.accentColor,
-                          ),
-                          child: Icon(
-                            widget.icon,
-                            color: AppColor.white,
-                            size: 7.w,
-                          ),
-                        ),
-                        1.5.height,
-                        Flexible(
-                          child: Text(
-                            widget.name,
-                            textAlign: TextAlign.center,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: AppColor.black,
-                              fontSize: 3.sp,
-                              height: 1.2,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  color: AppColor.appDarkColor.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _glassOrb({required double size}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: widget.accentColor.withValues(alpha: 0.1),
-        border: Border.all(color: AppColor.white.withValues(alpha: 0.12)),
       ),
     );
   }

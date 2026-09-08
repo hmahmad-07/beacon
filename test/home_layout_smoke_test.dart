@@ -2,7 +2,7 @@ import 'dart:developer';
 import 'package:beacon/core/controllers/auth_controller.dart';
 import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
-import 'package:beacon/core/models/employes_model.dart';
+import 'package:beacon/core/models/Employees/employes_model.dart';
 import 'package:beacon/core/models/project_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/view/dashboard/home_view.dart';

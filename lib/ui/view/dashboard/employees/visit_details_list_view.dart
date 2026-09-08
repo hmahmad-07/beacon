@@ -1,17 +1,17 @@
 import 'dart:developer';
-import 'package:beacon/core/models/emp_working_detail_model.dart';
+import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/utils.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/app_constants.dart';
-import 'package:beacon/ui/view/employees/order_details_view.dart';
-import 'package:beacon/ui/view/employees/full_screen_image_viewer.dart';
-import 'package:beacon/ui/view/employees/visit_navigation_map_view.dart';
+import 'package:beacon/ui/view/dashboard/employees/order_details_view.dart';
+import 'package:beacon/ui/view/dashboard/employees/full_screen_image_viewer.dart';
+import 'package:beacon/ui/view/dashboard/employees/visit_navigation_map_view.dart';
 import 'package:flutter/material.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import '../../../core/extensions/routes.dart';
+import '../../../../core/extensions/routes.dart';
 
 class VisitDetailsListView extends StatefulWidget {
   final List<Visit> visits;

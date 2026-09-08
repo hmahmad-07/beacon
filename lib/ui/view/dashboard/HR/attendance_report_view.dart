@@ -8,7 +8,7 @@ import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
-import 'package:beacon/ui/view/dashboard/CC/HR/employee_attendance_detail_view.dart';
+import 'package:beacon/ui/view/dashboard/HR/employee_attendance_detail_view.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';

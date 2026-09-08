@@ -10,9 +10,9 @@ import 'package:nominatim_flutter/model/response/response.dart';
 import 'package:nominatim_flutter/nominatim_flutter.dart';
 import '../constants/constants.dart';
 import 'package:intl/intl.dart';
-import '../models/emp_working_detail_model.dart';
-import '../models/employes_model.dart';
-import '../models/external_client_model.dart';
+import '../models/Employees/emp_working_detail_model.dart';
+import '../models/Employees/employes_model.dart';
+import '../models/Employees/external_client_model.dart';
 import '../utils/utils.dart';
 
 class EmployesController extends ChangeNotifier {
@@ -346,7 +346,7 @@ class EmployesController extends ChangeNotifier {
       final dio = Dio();
       final url =
           '${Constants.baseUrl}tsm_daily_report.php?user_id=$userId&date=$targetDate';
-      log("Fetching Working Details: $url");
+      log("URL: $url");
 
       final response = await dio.get(
         url,

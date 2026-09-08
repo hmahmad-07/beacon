@@ -1,6 +1,6 @@
 import 'dart:typed_data';
-import 'package:beacon/core/models/emp_working_detail_model.dart';
-import 'package:beacon/core/models/employes_model.dart';
+import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
+import 'package:beacon/core/models/Employees/employes_model.dart';
 import 'package:beacon/core/utils/utils.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:nominatim_flutter/model/request/request.dart';
@@ -9,7 +9,7 @@ import 'package:nominatim_flutter/nominatim_flutter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
-import '../models/external_client_model.dart';
+import '../models/Employees/external_client_model.dart';
 
 class PdfReportGenerator {
   static Future<Uint8List> generateDailyMasterReport({
@@ -219,7 +219,8 @@ class PdfReportGenerator {
               (street != null &&
                   street.trim().isNotEmpty &&
                   !_isPlusCode(street)) ||
-              (place.subLocality != null && place.subLocality!.trim().isNotEmpty);
+              (place.subLocality != null &&
+                  place.subLocality!.trim().isNotEmpty);
 
           final address = [
             (street != null && !_isPlusCode(street)) ? street : null,
