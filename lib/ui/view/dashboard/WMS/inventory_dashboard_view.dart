@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:beacon/core/controllers/wms_controller.dart';
+import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_dashboard_model.dart';
 import 'package:beacon/core/models/WMS/inventory_item_model.dart'
@@ -6,6 +9,7 @@ import 'package:beacon/core/models/WMS/inventory_item_model.dart'
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/view/dashboard/WMS/inventory_stock_report_view.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -15,21 +19,32 @@ import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
 /// Mirrors the "Dashboard" page of the reference stock dashboard
-/// (104.143.0.113:8000): KPI tiles, a 6-month received/issued trend,
-/// value-by-category breakdown, balance by store, and negative stock.
+/// (104.143.0.113:8000): a store filter, KPI tiles, a 6-month
+/// received/issued trend, a value-by-category breakdown (both a donut and
+/// the per-category detail bars), balance by store, and negative stock.
 class InventoryDashboardView extends StatefulWidget {
   const InventoryDashboardView({super.key, required this.accentColor});
 
   final Color accentColor;
 
   @override
-  State<InventoryDashboardView> createState() =>
-      _InventoryDashboardViewState();
+  State<InventoryDashboardView> createState() => _InventoryDashboardViewState();
 }
 
 class _InventoryDashboardViewState extends State<InventoryDashboardView>
     with SingleTickerProviderStateMixin {
   String? _storeId;
+
+  static const List<Color> _categoryPalette = [
+    Color(0xFF7367F0),
+    Color(0xFF00A86B),
+    Color(0xFFFF9F43),
+    Color(0xFF007AFF),
+    Color(0xFFE83E8C),
+    Color(0xFF28C76F),
+    Color(0xFFEA5455),
+    Color(0xFF00CFE8),
+  ];
 
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
@@ -134,7 +149,13 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
         _sectionCard(
           title: "Stock value by category",
           subtitle: "Share of total on-hand value",
-          child: _categoryList(data.valueByCategory ?? []),
+          child: _categoryDonut(data.valueByCategory ?? []),
+        ),
+        2.height,
+        _sectionCard(
+          title: "Category breakdown",
+          subtitle: "Value and share, every category",
+          child: _categoryBars(data.valueByCategory ?? []),
         ),
         2.height,
         _sectionCard(
@@ -146,6 +167,32 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
         _sectionCard(
           title: "Negative stock",
           subtitle: "Issued more than received — needs investigation",
+          trailing: TextButton(
+            onPressed: () => AppRoutes.push(
+              InventoryStockReportView(
+                accentColor: widget.accentColor,
+                initialLowStockOnly: true,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "View all",
+                  style: TextStyle(
+                    fontSize: 2.8.sp,
+                    fontWeight: FontWeight.bold,
+                    color: widget.accentColor,
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 3.5.w,
+                  color: widget.accentColor,
+                ),
+              ],
+            ),
+          ),
           child: _negativeStockList(data.negativeStock ?? []),
         ),
       ],
@@ -155,6 +202,11 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
   // ------------------------------------------------------------ KPIs
 
   Widget _kpiGrid(InventoryKpis? kpis) {
+    // "Below min stock" and "Out of stock" both read off negativeStockItems:
+    // the API doc is explicit that this schema has no separate reorder-point
+    // column, so low-stock and out-of-stock share one definition
+    // (balance <= 0) -- same redundancy the reference dashboard itself shows.
+    final zeroOrBelow = _wholeFormat.format(kpis?.negativeStockItems ?? 0);
     final tiles = [
       _KpiData(
         "Total items",
@@ -169,8 +221,14 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
         const Color(0xFF00A86B),
       ),
       _KpiData(
-        "Negative stock items",
-        _wholeFormat.format(kpis?.negativeStockItems ?? 0),
+        "Below min stock",
+        zeroOrBelow,
+        BoxIcons.bxs_bell,
+        const Color(0xFFFF9F43),
+      ),
+      _KpiData(
+        "Out of stock",
+        zeroOrBelow,
         BoxIcons.bxs_error,
         const Color(0xFFE83E8C),
       ),
@@ -339,7 +397,10 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
       color: color,
       barWidth: 2.5,
       dotData: const FlDotData(show: true),
-      belowBarData: BarAreaData(show: true, color: color.withValues(alpha: 0.08)),
+      belowBarData: BarAreaData(
+        show: true,
+        color: color.withValues(alpha: 0.08),
+      ),
       spots: [
         for (int i = 0; i < months.length; i++)
           FlSpot(
@@ -360,21 +421,170 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
           decoration: BoxDecoration(shape: BoxShape.circle, color: color),
         ),
         1.width,
-        Text(label, style: TextStyle(fontSize: 3.sp, color: AppColor.grey)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
+        ),
       ],
     );
   }
 
-  // ------------------------------------------------------------ Category list
+  // ------------------------------------------------------------ Category donut
 
-  Widget _categoryList(List<CategoryValue> categories) {
-    if (categories.isEmpty) return _inlineEmpty("No category data");
+  String _compactValue(double value) {
+    if (value.abs() >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    }
+    if (value.abs() >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
+    return _wholeFormat.format(value);
+  }
 
-    final total = categories.fold<double>(
+  Widget _categoryDonut(List<CategoryValue> categories) {
+    final nonZero = categories.where((c) => (c.value ?? 0) != 0).toList();
+    if (nonZero.isEmpty) return _inlineEmpty("No category data");
+
+    final total = nonZero.fold<double>(
       0,
       (sum, c) => sum + (c.value ?? 0).toDouble(),
     );
-    final top = List<CategoryValue>.from(categories)
+    final top = List<CategoryValue>.from(nonZero)
+      ..sort((a, b) => (b.value ?? 0).compareTo(a.value ?? 0));
+    final shown = top.take(6).toList();
+
+    // Same rotate-in donut treatment as the HR module's pie charts
+    // (attendance/salary breakdowns): angle eases from a full spin down to
+    // 0 as _safeChartAnim runs, with fl_chart's own duration set to zero so
+    // it never fights the AnimatedBuilder driving it.
+    return AnimatedBuilder(
+      animation: _safeChartAnim,
+      builder: (context, child) {
+        final anim = _safeChartAnim.value.clamp(0.0, 1.0);
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              flex: 4,
+              child: Transform.rotate(
+                angle: (1 - anim) * 4 * math.pi,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 1,
+                      child: PieChart(
+                        PieChartData(
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 34,
+                          startDegreeOffset: -90,
+                          sections: [
+                            for (int i = 0; i < shown.length; i++)
+                              PieChartSectionData(
+                                color:
+                                    _categoryPalette[i %
+                                        _categoryPalette.length],
+                                value: ((shown[i].value ?? 0).toDouble() * anim)
+                                    .clamp(0, double.infinity),
+                                title: '',
+                                radius: 20,
+                              ),
+                          ],
+                        ),
+                        duration: Duration.zero,
+                      ),
+                    ),
+                    Opacity(
+                      opacity: anim,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _compactValue(total * anim),
+                            style: TextStyle(
+                              fontSize: 3.4.sp,
+                              fontWeight: FontWeight.bold,
+                              color: AppColor.appDarkColor,
+                            ),
+                          ),
+                          Text(
+                            "Total value",
+                            style: TextStyle(
+                              fontSize: 2.2.sp,
+                              color: AppColor.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            3.width,
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (int i = 0; i < shown.length; i++)
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 1.h),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 2.3.w,
+                            height: 2.3.w,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color:
+                                  _categoryPalette[i % _categoryPalette.length],
+                            ),
+                          ),
+                          1.5.width,
+                          Expanded(
+                            child: Text(
+                              shown[i].category ?? "",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 2.6.sp,
+                                fontWeight: FontWeight.w600,
+                                color: AppColor.appDarkColor,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            total > 0
+                                ? '${(((shown[i].value ?? 0) / total) * 100).toStringAsFixed(0)}%'
+                                : '0%',
+                            style: TextStyle(
+                              fontSize: 2.4.sp,
+                              color: AppColor.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Full per-category list with a progress bar per row (every category,
+  // not just the donut's top 6) -- complements the donut with exact
+  // values for categories the donut slices are too thin to label.
+  Widget _categoryBars(List<CategoryValue> categories) {
+    final nonZero = categories.where((c) => (c.value ?? 0) != 0).toList();
+    if (nonZero.isEmpty) return _inlineEmpty("No category data");
+
+    final total = nonZero.fold<double>(
+      0,
+      (sum, c) => sum + (c.value ?? 0).toDouble(),
+    );
+    final sorted = List<CategoryValue>.from(nonZero)
       ..sort((a, b) => (b.value ?? 0).compareTo(a.value ?? 0));
 
     return AnimatedBuilder(
@@ -382,7 +592,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
       builder: (context, child) {
         final animValue = _safeChartAnim.value.clamp(0.0, 1.0);
         return Column(
-          children: top.take(8).map((c) {
+          children: sorted.map((c) {
             final value = (c.value ?? 0).toDouble();
             final share = total <= 0 ? 0.0 : value / total;
             return Padding(
@@ -435,36 +645,113 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
 
   // ------------------------------------------------------------ Balance by store
 
+  // Diverging horizontal bar chart -- store name on the left, a bar growing
+  // right (accent) for a positive balance or left (red) for a negative one
+  // from a shared zero line, matching the reference dashboard's layout.
   Widget _storeBalanceList(List<InventoryStoreBalance> balances) {
-    if (balances.isEmpty) return _inlineEmpty("No store balances");
-    return Column(
-      children: balances.map<Widget>((s) {
-        final balance = (s.balance ?? 0).toDouble();
-        final negative = balance < 0;
-        return Padding(
-          padding: EdgeInsets.symmetric(vertical: 0.7.h),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  s.storeName ?? "",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 3.2.sp, color: AppColor.black),
-                ),
+    final nonZero = balances.where((s) => (s.balance ?? 0) != 0).toList();
+    if (nonZero.isEmpty) return _inlineEmpty("No store balances");
+
+    final maxAbs = nonZero.fold<double>(
+      0,
+      (max, s) => math.max(max, (s.balance ?? 0).abs().toDouble()),
+    );
+
+    return AnimatedBuilder(
+      animation: _safeChartAnim,
+      builder: (context, child) {
+        final animValue = _safeChartAnim.value.clamp(0.0, 1.0);
+        return Column(
+          children: nonZero.map((s) {
+            final balance = (s.balance ?? 0).toDouble();
+            final negative = balance < 0;
+            final fraction = maxAbs <= 0
+                ? 0.0
+                : (balance.abs() / maxAbs).clamp(0.0, 1.0) * animValue;
+
+            return Padding(
+              padding: EdgeInsets.symmetric(vertical: 0.8.h),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 26.w,
+                    child: Text(
+                      s.storeName ?? "",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 2.6.sp, color: AppColor.black),
+                    ),
+                  ),
+                  1.width,
+                  Expanded(
+                    child: SizedBox(
+                      height: 2.h,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: FractionallySizedBox(
+                                widthFactor: negative ? fraction : 0,
+                                child: Container(
+                                  height: 2.h,
+                                  decoration: BoxDecoration(
+                                    color: AppColor.red,
+                                    borderRadius: const BorderRadius.horizontal(
+                                      left: Radius.circular(3),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 2.h,
+                            color: AppColor.appLightColor,
+                          ),
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: FractionallySizedBox(
+                                widthFactor: negative ? 0 : fraction,
+                                child: Container(
+                                  height: 2.h,
+                                  decoration: BoxDecoration(
+                                    color: widget.accentColor,
+                                    borderRadius: const BorderRadius.horizontal(
+                                      right: Radius.circular(3),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  2.width,
+                  SizedBox(
+                    width: 15.w,
+                    child: Text(
+                      _decimalFormat.format(balance),
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 2.4.sp,
+                        fontWeight: FontWeight.bold,
+                        color: negative ? AppColor.red : AppColor.appDarkColor,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                _decimalFormat.format(balance),
-                style: TextStyle(
-                  fontSize: 3.2.sp,
-                  fontWeight: FontWeight.bold,
-                  color: negative ? AppColor.red : AppColor.appDarkColor,
-                ),
-              ),
-            ],
-          ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 
@@ -509,6 +796,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
     required String title,
     required String subtitle,
     required Widget child,
+    Widget? trailing,
   }) {
     return Container(
       width: double.infinity,
@@ -521,18 +809,30 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 4.sp,
-              fontWeight: FontWeight.bold,
-              color: AppColor.appDarkColor,
-            ),
-          ),
-          0.3.height,
-          Text(
-            subtitle,
-            style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 4.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColor.appDarkColor,
+                      ),
+                    ),
+                    0.3.height,
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
+                    ),
+                  ],
+                ),
+              ),
+              ?trailing,
+            ],
           ),
           1.5.height,
           child,

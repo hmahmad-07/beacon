@@ -8,6 +8,7 @@ import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_field.dart';
+import 'package:beacon/ui/components/custom_segmented_tabs.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_item_detail_view.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
 import 'package:flutter/material.dart';
@@ -160,38 +161,27 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     );
   }
 
+  static const Map<String, String> _statusOptions = {
+    "": "All stock levels",
+    "in_stock": "In stock",
+    "out_of_stock": "Out of stock",
+  };
+
   Widget _statusChips() {
-    final options = {
-      "": "All stock levels",
-      "in_stock": "In stock",
-      "out_of_stock": "Out of stock",
-    };
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: options.entries.map((entry) {
-          final selected = _status == entry.key;
-          return Padding(
-            padding: EdgeInsets.only(right: 2.w),
-            child: ChoiceChip(
-              label: Text(entry.value, style: TextStyle(fontSize: 3.sp)),
-              selected: selected,
-              selectedColor: widget.accentColor.withValues(alpha: 0.15),
-              labelStyle: TextStyle(
-                color: selected ? widget.accentColor : AppColor.grey,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-              ),
-              onSelected: (_) {
-                setState(() {
-                  _status = entry.key;
-                  _page = 1;
-                });
-                _fetch();
-              },
-            ),
-          );
-        }).toList(),
-      ),
+    return CustomSegmentedTabs(
+      options: _statusOptions.values.toList(),
+      selected: _statusOptions[_status] ?? _statusOptions[""]!,
+      activeColor: widget.accentColor,
+      onChanged: (label) {
+        final key = _statusOptions.entries
+            .firstWhere((e) => e.value == label)
+            .key;
+        setState(() {
+          _status = key;
+          _page = 1;
+        });
+        _fetch();
+      },
     );
   }
 
@@ -278,8 +268,36 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: 2.h),
         child: loading
-            ? const CircularProgressIndicator()
-            : OutlinedButton(onPressed: _loadMore, child: const Text("Load more")),
+            ? SizedBox(
+                width: 5.w,
+                height: 5.w,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: widget.accentColor,
+                ),
+              )
+            : Material(
+                color: widget.accentColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(3.r),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(3.r),
+                  onTap: _loadMore,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 6.w,
+                      vertical: 1.4.h,
+                    ),
+                    child: Text(
+                      "Load more",
+                      style: TextStyle(
+                        fontSize: 3.2.sp,
+                        fontWeight: FontWeight.bold,
+                        color: widget.accentColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
       ),
     );
   }

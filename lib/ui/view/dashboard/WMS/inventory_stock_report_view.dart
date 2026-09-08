@@ -4,8 +4,10 @@ import 'package:beacon/core/models/WMS/inventory_stock_report_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/custom_toggle_switch.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
 import 'package:flutter/material.dart';
+import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
@@ -18,9 +20,14 @@ import 'package:shimmer/shimmer.dart';
 /// take internal ITEM_TYPE_ID/CLS_ID values and there's no endpoint yet
 /// that maps those ids to the labels the reference dashboard shows.
 class InventoryStockReportView extends StatefulWidget {
-  const InventoryStockReportView({super.key, required this.accentColor});
+  const InventoryStockReportView({
+    super.key,
+    required this.accentColor,
+    this.initialLowStockOnly = false,
+  });
 
   final Color accentColor;
+  final bool initialLowStockOnly;
 
   @override
   State<InventoryStockReportView> createState() =>
@@ -39,6 +46,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
   @override
   void initState() {
     super.initState();
+    _lowStockOnly = widget.initialLowStockOnly;
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
   }
 
@@ -102,24 +110,51 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
   }
 
   Widget _lowStockToggle() {
-    return Row(
-      children: [
-        Switch(
-          value: _lowStockOnly,
-          activeThumbColor: widget.accentColor,
-          onChanged: (v) {
-            setState(() {
-              _lowStockOnly = v;
-              _page = 1;
-            });
-            _fetch();
-          },
-        ),
-        Text(
-          "Zero or below stock only",
-          style: TextStyle(fontSize: 3.2.sp, color: AppColor.appDarkColor),
-        ),
-      ],
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.5.h),
+      decoration: BoxDecoration(
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(3.r),
+        boxShadow: AppShadow.soft,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(1.6.w),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: widget.accentColor.withValues(alpha: 0.12),
+            ),
+            child: Icon(
+              BoxIcons.bxs_low_vision,
+              color: widget.accentColor,
+              size: 4.5.w,
+            ),
+          ),
+          3.width,
+          Expanded(
+            child: Text(
+              "Zero or below stock only",
+              style: TextStyle(
+                fontSize: 3.2.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColor.appDarkColor,
+              ),
+            ),
+          ),
+          CustomToggleSwitch(
+            value: _lowStockOnly,
+            activeColor: widget.accentColor,
+            onChanged: (v) {
+              setState(() {
+                _lowStockOnly = v;
+                _page = 1;
+              });
+              _fetch();
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -283,6 +318,26 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
     }).toList();
   }
 
+  Widget _pagerButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    final color = enabled ? widget.accentColor : AppColor.appLightColor;
+    return Material(
+      color: enabled ? widget.accentColor.withValues(alpha: 0.1) : AppColor.scaffold,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: EdgeInsets.all(2.2.w),
+          child: Icon(icon, color: color, size: 5.w),
+        ),
+      ),
+    );
+  }
+
   Widget _pager(InventoryStockMeta meta, bool loading) {
     final current = meta.currentPage ?? 1;
     final last = meta.lastPage ?? 1;
@@ -291,27 +346,32 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          IconButton(
-            onPressed: current > 1 && !loading
-                ? () {
-                    setState(() => _page = current - 1);
-                    _fetch();
-                  }
-                : null,
-            icon: const Icon(Icons.chevron_left_rounded),
+          _pagerButton(
+            icon: Icons.chevron_left_rounded,
+            enabled: current > 1 && !loading,
+            onTap: () {
+              setState(() => _page = current - 1);
+              _fetch();
+            },
           ),
-          Text(
-            "Page $current of $last",
-            style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 3.w),
+            child: Text(
+              "Page $current of $last",
+              style: TextStyle(
+                fontSize: 3.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColor.appDarkColor,
+              ),
+            ),
           ),
-          IconButton(
-            onPressed: current < last && !loading
-                ? () {
-                    setState(() => _page = current + 1);
-                    _fetch();
-                  }
-                : null,
-            icon: const Icon(Icons.chevron_right_rounded),
+          _pagerButton(
+            icon: Icons.chevron_right_rounded,
+            enabled: current < last && !loading,
+            onTap: () {
+              setState(() => _page = current + 1);
+              _fetch();
+            },
           ),
         ],
       ),
