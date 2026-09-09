@@ -27,17 +27,13 @@ class InventoryStoresView extends StatefulWidget {
 
 class _InventoryStoresViewState extends State<InventoryStoresView> {
   final _searchController = TextEditingController();
-  String _query = "";
   final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final controller = context.read<WMSController>();
-      if (controller.storesModel == null) {
-        controller.getStores(context);
-      }
+      context.read<WMSController>().ensureStoresLoaded(context);
     });
   }
 
@@ -54,22 +50,8 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
       appBar: CustomAppBar(title: "Stores"),
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
-          final active = (controller.storesModel?.data ?? [])
-              .where((s) => s.isActive)
-              .toList();
-          final filtered = _query.isEmpty
-              ? active
-              : active
-                    .where(
-                      (s) =>
-                          (s.name ?? "").toLowerCase().contains(
-                            _query.toLowerCase(),
-                          ) ||
-                          (s.code ?? "").toLowerCase().contains(
-                            _query.toLowerCase(),
-                          ),
-                    )
-                    .toList();
+          final active = controller.activeStores;
+          final filtered = controller.filteredActiveStores;
 
           return Column(
             children: [
@@ -134,7 +116,7 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
       controller: _searchController,
       hintText: "Search store name or code…",
       isLabel: false,
-      onChanged: (v) => setState(() => _query = v.trim()),
+      onChanged: (v) => context.read<WMSController>().setStoresQuery(v),
       prefix: Icon(Icons.search, color: AppColor.grey, size: 5.w),
     );
   }

@@ -15,6 +15,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+/// Mirrors the "Items" page of the reference stock dashboard: store filter,
+/// search (tap the Search button, not live-as-you-type), stock-level
+/// filter, and a paginated item list. Every filter/page value lives on
+/// WMSController (itemsStoreId/itemsSearch/itemsStatus/itemsPage) --
+/// this view only reads them and calls controller action methods, no
+/// local setState.
 class InventoryItemsView extends StatefulWidget {
   const InventoryItemsView({super.key, required this.accentColor});
 
@@ -25,12 +31,9 @@ class InventoryItemsView extends StatefulWidget {
 }
 
 class _InventoryItemsViewState extends State<InventoryItemsView> {
+  // A TextEditingController is a widget-level concern (it drives one
+  // TextField instance), not app state -- it stays local.
   final _searchController = TextEditingController();
-
-  String? _storeId;
-  String _status = "";
-  String _search = "";
-  int _page = 1;
 
   final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
   final _wholeFormat = NumberFormat('#,##0', 'en_US');
@@ -38,31 +41,15 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<WMSController>().getItems(context),
+    );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _fetch() {
-    context.read<WMSController>().getItems(
-      context,
-      storeId: _storeId,
-      search: _search,
-      status: _status,
-      page: _page,
-    );
-  }
-
-  void _runSearch() {
-    setState(() {
-      _search = _searchController.text.trim();
-      _page = 1;
-    });
-    _fetch();
   }
 
   @override
@@ -80,18 +67,12 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
             padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
             children: [
               InventoryStoreFilter(
-                selectedStoreId: _storeId,
-                onChanged: (id) {
-                  setState(() {
-                    _storeId = id;
-                    _page = 1;
-                  });
-                  _fetch();
-                },
+                selectedStoreId: controller.itemsStoreId,
+                onChanged: (id) => controller.setItemsStore(context, id),
               ),
-              _searchBar(),
+              _searchBar(controller),
               2.height,
-              _statusChips(),
+              _statusChips(controller),
               1.5.height,
               Text(
                 loading
@@ -113,8 +94,10 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
                   ),
                 )
               else
-                Column(children: items.map(_itemCard).toList()),
-              if (model?.meta != null) _pager(model!.meta!, loading),
+                Column(
+                  children: items.map((i) => _itemCard(controller, i)).toList(),
+                ),
+              if (model?.meta != null) _pager(controller, model!.meta!, loading),
             ],
           );
         },
@@ -122,7 +105,10 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     );
   }
 
-  Widget _searchBar() {
+  Widget _searchBar(WMSController controller) {
+    void runSearch() =>
+        controller.runItemsSearch(context, _searchController.text);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -133,7 +119,7 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
             controller: _searchController,
             hintText: "Search…",
             isLabel: false,
-            onSubmitted: (_) => _runSearch(),
+            onSubmitted: (_) => runSearch(),
             prefix: Icon(Icons.search, color: AppColor.grey, size: 5.w),
           ),
         ),
@@ -141,7 +127,7 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
         Expanded(
           child: RoundButton(
             buttonColor: widget.accentColor,
-            onPress: _runSearch,
+            onPress: runSearch,
             title: "Search",
             textColor: AppColor.white,
             height: 6.5.h,
@@ -158,25 +144,21 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     "out_of_stock": "Out of stock",
   };
 
-  Widget _statusChips() {
+  Widget _statusChips(WMSController controller) {
     return CustomSegmentedTabs(
       options: _statusOptions.values.toList(),
-      selected: _statusOptions[_status] ?? _statusOptions[""]!,
+      selected: _statusOptions[controller.itemsStatus] ?? _statusOptions[""]!,
       activeColor: widget.accentColor,
       onChanged: (label) {
         final key = _statusOptions.entries
             .firstWhere((e) => e.value == label)
             .key;
-        setState(() {
-          _status = key;
-          _page = 1;
-        });
-        _fetch();
+        controller.setItemsStatus(context, key);
       },
     );
   }
 
-  Widget _itemCard(InventoryItemSummary item) {
+  Widget _itemCard(WMSController controller, InventoryItemSummary item) {
     final outOfStock = item.isOutOfStock;
     return Container(
       margin: EdgeInsets.only(bottom: 1.4.h),
@@ -189,21 +171,14 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
       child: InkWell(
         onTap: () {
           if (item.id == null) return;
-          String? storeName;
-          if (_storeId != null) {
-            final stores = context.read<WMSController>().storesModel?.data;
-            final match = stores?.where((s) => s.id == _storeId);
-            storeName = (match != null && match.isNotEmpty)
-                ? match.first.name
-                : null;
-          }
+          final storeId = controller.itemsStoreId;
           AppRoutes.push(
             InventoryItemDetailView(
               itemId: item.id!,
               itemName: item.displayName,
               accentColor: widget.accentColor,
-              storeId: _storeId,
-              storeName: storeName,
+              storeId: storeId,
+              storeName: controller.storeNameById(storeId),
             ),
           );
         },
@@ -318,7 +293,7 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     );
   }
 
-  Widget _pager(InventoryItemsMeta meta, bool loading) {
+  Widget _pager(WMSController controller, InventoryItemsMeta meta, bool loading) {
     final current = meta.currentPage ?? 1;
     final last = meta.lastPage ?? 1;
     return Padding(
@@ -329,10 +304,7 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
           _pagerButton(
             icon: Icons.chevron_left_rounded,
             enabled: current > 1 && !loading,
-            onTap: () {
-              setState(() => _page = current - 1);
-              _fetch();
-            },
+            onTap: () => controller.goToItemsPage(context, current - 1),
           ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 3.w),
@@ -348,10 +320,7 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
           _pagerButton(
             icon: Icons.chevron_right_rounded,
             enabled: current < last && !loading,
-            onTap: () {
-              setState(() => _page = current + 1);
-              _fetch();
-            },
+            onTap: () => controller.goToItemsPage(context, current + 1),
           ),
         ],
       ),

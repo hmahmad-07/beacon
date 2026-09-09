@@ -12,6 +12,12 @@ import '../models/WMS/inventory_expiry_model.dart';
 import '../models/WMS/inventory_dashboard_model.dart';
 import '../utils/utils.dart';
 
+// Every filter/page/expand-state field below used to live as local
+// setState()-managed fields on each screen's State class. They're all
+// here instead, namespaced per screen (dashboardStoreId, itemsStoreId,
+// stockReportStoreId, ...) so the views stay dumb: they read
+// controller fields and call controller action methods, never mutate
+// their own state directly.
 class WMSController extends ChangeNotifier {
   static final Dio _client = Dio(
     BaseOptions(
@@ -41,6 +47,27 @@ class WMSController extends ChangeNotifier {
 
   bool isStoresLoading = false;
   InventoryStoresModel? storesModel;
+  String storesQuery = "";
+
+  List<InventoryStore> get activeStores =>
+      (storesModel?.data ?? []).where((s) => s.isActive).toList();
+
+  List<InventoryStore> get filteredActiveStores {
+    if (storesQuery.isEmpty) return activeStores;
+    final q = storesQuery.toLowerCase();
+    return activeStores
+        .where(
+          (s) =>
+              (s.name ?? "").toLowerCase().contains(q) ||
+              (s.code ?? "").toLowerCase().contains(q),
+        )
+        .toList();
+  }
+
+  void setStoresQuery(String query) {
+    storesQuery = query.trim();
+    notifyListeners();
+  }
 
   Future<void> getStores(BuildContext context) async {
     try {
@@ -78,6 +105,70 @@ class WMSController extends ChangeNotifier {
     }
   }
 
+  void ensureStoresLoaded(BuildContext context) {
+    if (storesModel == null && !isStoresLoading) getStores(context);
+  }
+
+  /// Name of an active store by id, for labels ("Filtered to <store>")
+  /// that only have the id on hand.
+  String? storeNameById(String? id) {
+    if (id == null) return null;
+    final match = activeStores.where((s) => s.id == id);
+    return match.isEmpty ? null : match.first.name;
+  }
+
+  // ================================================== Dashboard ==================================================
+
+  bool isDashboardLoading = false;
+  InventoryDashboardModel? dashboardModel;
+  String? dashboardStoreId;
+
+  Future<void> setDashboardStore(BuildContext context, String? storeId) {
+    dashboardStoreId = storeId;
+    return getDashboard(context);
+  }
+
+  Future<void> getDashboard(BuildContext context) async {
+    try {
+      isDashboardLoading = true;
+      dashboardModel = null;
+      notifyListeners();
+
+      final response = await _client.get(
+        '${Constants.baseUrl}inventory_dashboard.php',
+        queryParameters: {
+          if (dashboardStoreId != null && dashboardStoreId!.isNotEmpty)
+            'store_id': dashboardStoreId,
+        },
+        options: Options(headers: _headers()),
+      );
+
+      if (response.statusCode == 200) {
+        dashboardModel = InventoryDashboardModel.fromJson(response.data);
+        if (dashboardModel?.error != 0 && context.mounted) {
+          Utils.showSnackBar(
+            context,
+            dashboardModel?.errorMsg ?? 'Failed to load dashboard',
+          );
+        }
+      }
+    } on DioException catch (e) {
+      log('Dio error fetching inventory dashboard: ${e.message}');
+      if (context.mounted) {
+        Utils.showSnackBar(
+          context,
+          _errorMessageFrom(e.response?.data) ??
+              'Network error. Please try again.',
+        );
+      }
+    } catch (e) {
+      log('Unexpected error fetching inventory dashboard: $e');
+    } finally {
+      isDashboardLoading = false;
+      notifyListeners();
+    }
+  }
+
   // ================================================== Items (paginated) ==================================================
 
   // Same page-by-page pattern as getStockReport: inventory_items.php is
@@ -86,15 +177,35 @@ class WMSController extends ChangeNotifier {
   // time instead of pulling the whole catalogue up front.
   bool isItemsLoading = false;
   InventoryItemsListModel? itemsModel;
+  String? itemsStoreId;
+  String itemsStatus = ""; // "" | in_stock | out_of_stock
+  String itemsSearch = "";
+  int itemsPage = 1;
 
-  Future<void> getItems(
-    BuildContext context, {
-    String? storeId,
-    String? search,
-    String? status,
-    int page = 1,
-    int perPage = 25,
-  }) async {
+  Future<void> setItemsStore(BuildContext context, String? storeId) {
+    itemsStoreId = storeId;
+    itemsPage = 1;
+    return getItems(context);
+  }
+
+  Future<void> setItemsStatus(BuildContext context, String status) {
+    itemsStatus = status;
+    itemsPage = 1;
+    return getItems(context);
+  }
+
+  Future<void> runItemsSearch(BuildContext context, String query) {
+    itemsSearch = query.trim();
+    itemsPage = 1;
+    return getItems(context);
+  }
+
+  Future<void> goToItemsPage(BuildContext context, int page) {
+    itemsPage = page;
+    return getItems(context);
+  }
+
+  Future<void> getItems(BuildContext context) async {
     try {
       isItemsLoading = true;
       itemsModel = null;
@@ -103,11 +214,12 @@ class WMSController extends ChangeNotifier {
       final response = await _client.get(
         '${Constants.baseUrl}inventory_items.php',
         queryParameters: {
-          if (storeId != null && storeId.isNotEmpty) 'store_id': storeId,
-          if (search != null && search.isNotEmpty) 'search': search,
-          if (status != null && status.isNotEmpty) 'status': status,
-          'per_page': perPage,
-          'page': page,
+          if (itemsStoreId != null && itemsStoreId!.isNotEmpty)
+            'store_id': itemsStoreId,
+          if (itemsSearch.isNotEmpty) 'search': itemsSearch,
+          if (itemsStatus.isNotEmpty) 'status': itemsStatus,
+          'per_page': 25,
+          'page': itemsPage,
         },
         options: Options(headers: _headers()),
       );
@@ -142,26 +254,61 @@ class WMSController extends ChangeNotifier {
 
   bool isItemDetailLoading = false;
   InventoryItemDetailModel? itemDetailModel;
+  bool itemDetailScopedToStore = false;
+  DateTimeRange? itemDetailDateRange;
+
+  /// Resets the detail-screen filters for a freshly-opened item (so a
+  /// previous item's date range/store scope never leaks in) and fetches.
+  Future<void> openItemDetail(
+    BuildContext context,
+    String itemId, {
+    String? storeId,
+  }) {
+    itemDetailScopedToStore = storeId != null;
+    itemDetailDateRange = null;
+    return getItemDetail(context, itemId, storeId: storeId);
+  }
+
+  Future<void> toggleItemDetailStoreScope(
+    BuildContext context,
+    String itemId, {
+    required String? storeId,
+  }) {
+    itemDetailScopedToStore = !itemDetailScopedToStore;
+    return getItemDetail(context, itemId, storeId: storeId);
+  }
+
+  Future<void> setItemDetailDateRange(
+    BuildContext context,
+    String itemId, {
+    required String? storeId,
+    required DateTimeRange? range,
+  }) {
+    itemDetailDateRange = range;
+    return getItemDetail(context, itemId, storeId: storeId);
+  }
 
   Future<void> getItemDetail(
     BuildContext context,
     String itemId, {
     String? storeId,
-    String? fromDate,
-    String? toDate,
   }) async {
     try {
       isItemDetailLoading = true;
       itemDetailModel = null;
       notifyListeners();
 
+      final effectiveStoreId = itemDetailScopedToStore ? storeId : null;
+      final range = itemDetailDateRange;
+
       final response = await _client.get(
         '${Constants.baseUrl}inventory_items.php',
         queryParameters: {
           'item_id': itemId,
-          if (storeId != null && storeId.isNotEmpty) 'store_id': storeId,
-          if (fromDate != null && fromDate.isNotEmpty) 'from_date': fromDate,
-          if (toDate != null && toDate.isNotEmpty) 'to_date': toDate,
+          if (effectiveStoreId != null && effectiveStoreId.isNotEmpty)
+            'store_id': effectiveStoreId,
+          if (range != null) 'from_date': _apiDate(range.start),
+          if (range != null) 'to_date': _apiDate(range.end),
         },
         options: Options(headers: _headers()),
       );
@@ -192,6 +339,9 @@ class WMSController extends ChangeNotifier {
     }
   }
 
+  String _apiDate(DateTime d) =>
+      "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
   // ================================================== Stock report (paginated) ==================================================
 
   // Unlike getItems, this stays page-by-page: the report now has its own
@@ -200,17 +350,46 @@ class WMSController extends ChangeNotifier {
   // once a filter/search narrows the result set.
   bool isStockReportLoading = false;
   InventoryStockReportModel? stockReportModel;
+  String? stockReportStoreId;
+  String stockReportSearch = "";
+  bool stockReportLowStockOnly = false;
+  int stockReportPage = 1;
+  final Set<String> stockReportExpandedIds = {};
 
-  Future<void> getStockReport(
-    BuildContext context, {
-    String? storeId,
-    String? itemType,
-    String? classId,
-    String? search,
-    bool lowStockOnly = false,
-    int page = 1,
-    int perPage = 25,
-  }) async {
+  Future<void> setStockReportStore(BuildContext context, String? storeId) {
+    stockReportStoreId = storeId;
+    stockReportPage = 1;
+    return getStockReport(context);
+  }
+
+  Future<void> runStockReportSearch(BuildContext context, String query) {
+    stockReportSearch = query.trim();
+    stockReportPage = 1;
+    return getStockReport(context);
+  }
+
+  Future<void> setStockReportLowStockOnly(BuildContext context, bool value) {
+    stockReportLowStockOnly = value;
+    stockReportPage = 1;
+    return getStockReport(context);
+  }
+
+  Future<void> goToStockReportPage(BuildContext context, int page) {
+    stockReportPage = page;
+    return getStockReport(context);
+  }
+
+  void toggleStockReportExpanded(String? itemId) {
+    if (itemId == null) return;
+    if (stockReportExpandedIds.contains(itemId)) {
+      stockReportExpandedIds.remove(itemId);
+    } else {
+      stockReportExpandedIds.add(itemId);
+    }
+    notifyListeners();
+  }
+
+  Future<void> getStockReport(BuildContext context) async {
     try {
       isStockReportLoading = true;
       stockReportModel = null;
@@ -219,13 +398,12 @@ class WMSController extends ChangeNotifier {
       final response = await _client.get(
         '${Constants.baseUrl}inventory_stock.php',
         queryParameters: {
-          if (storeId != null && storeId.isNotEmpty) 'store_id': storeId,
-          if (itemType != null && itemType.isNotEmpty) 'item_type': itemType,
-          if (classId != null && classId.isNotEmpty) 'class_id': classId,
-          if (search != null && search.isNotEmpty) 'search': search,
-          if (lowStockOnly) 'low_stock_only': 1,
-          'per_page': perPage,
-          'page': page,
+          if (stockReportStoreId != null && stockReportStoreId!.isNotEmpty)
+            'store_id': stockReportStoreId,
+          if (stockReportSearch.isNotEmpty) 'search': stockReportSearch,
+          if (stockReportLowStockOnly) 'low_stock_only': 1,
+          'per_page': 25,
+          'page': stockReportPage,
         },
         options: Options(headers: _headers()),
       );
@@ -260,8 +438,14 @@ class WMSController extends ChangeNotifier {
 
   bool isExpiryLoading = false;
   InventoryExpiryModel? expiryModel;
+  String? expiryStoreId;
 
-  Future<void> getExpiryReport(BuildContext context, {String? storeId}) async {
+  Future<void> setExpiryStore(BuildContext context, String? storeId) {
+    expiryStoreId = storeId;
+    return getExpiryReport(context);
+  }
+
+  Future<void> getExpiryReport(BuildContext context) async {
     try {
       isExpiryLoading = true;
       expiryModel = null;
@@ -270,7 +454,8 @@ class WMSController extends ChangeNotifier {
       final response = await _client.get(
         '${Constants.baseUrl}inventory_expiry.php',
         queryParameters: {
-          if (storeId != null && storeId.isNotEmpty) 'store_id': storeId,
+          if (expiryStoreId != null && expiryStoreId!.isNotEmpty)
+            'store_id': expiryStoreId,
         },
         options: Options(headers: _headers()),
       );
@@ -297,51 +482,6 @@ class WMSController extends ChangeNotifier {
       log('Unexpected error fetching expiry report: $e');
     } finally {
       isExpiryLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // ================================================== Dashboard ==================================================
-
-  bool isDashboardLoading = false;
-  InventoryDashboardModel? dashboardModel;
-
-  Future<void> getDashboard(BuildContext context, {String? storeId}) async {
-    try {
-      isDashboardLoading = true;
-      dashboardModel = null;
-      notifyListeners();
-
-      final response = await _client.get(
-        '${Constants.baseUrl}inventory_dashboard.php',
-        queryParameters: {
-          if (storeId != null && storeId.isNotEmpty) 'store_id': storeId,
-        },
-        options: Options(headers: _headers()),
-      );
-
-      if (response.statusCode == 200) {
-        dashboardModel = InventoryDashboardModel.fromJson(response.data);
-        if (dashboardModel?.error != 0 && context.mounted) {
-          Utils.showSnackBar(
-            context,
-            dashboardModel?.errorMsg ?? 'Failed to load dashboard',
-          );
-        }
-      }
-    } on DioException catch (e) {
-      log('Dio error fetching inventory dashboard: ${e.message}');
-      if (context.mounted) {
-        Utils.showSnackBar(
-          context,
-          _errorMessageFrom(e.response?.data) ??
-              'Network error. Please try again.',
-        );
-      }
-    } catch (e) {
-      log('Unexpected error fetching inventory dashboard: $e');
-    } finally {
-      isDashboardLoading = false;
       notifyListeners();
     }
   }

@@ -30,10 +30,7 @@ class _InventoryStoreFilterState extends State<InventoryStoreFilter> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final controller = context.read<WMSController>();
-      if (controller.storesModel == null && !controller.isStoresLoading) {
-        controller.getStores(context);
-      }
+      context.read<WMSController>().ensureStoresLoaded(context);
     });
   }
 
@@ -41,9 +38,7 @@ class _InventoryStoreFilterState extends State<InventoryStoreFilter> {
   Widget build(BuildContext context) {
     return Consumer<WMSController>(
       builder: (context, controller, child) {
-        final stores = (controller.storesModel?.data ?? [])
-            .where((s) => s.isActive)
-            .toList();
+        final stores = controller.activeStores;
         final names = [kAllStores, ...stores.map((s) => s.name ?? "")];
 
         String selectedName = kAllStores;

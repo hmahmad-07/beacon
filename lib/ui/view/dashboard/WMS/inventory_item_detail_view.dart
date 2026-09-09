@@ -5,6 +5,7 @@ import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -33,16 +34,15 @@ class InventoryItemDetailView extends StatefulWidget {
 
 class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
   final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
-  final _dateFormat = DateFormat('d MMM, yyyy');
-  late bool _scopedToStore = widget.storeId != null;
+  final _ledgerDateFormat = DateFormat('d MMM');
 
   // API dates come back as "yyyy-MM-dd HH:mm:ss" (always midnight, no real
-  // time-of-day) -- reformat to "31 Aug, 2026" instead of showing the raw
+  // time-of-day) -- reformat to "31 Aug" instead of showing the raw
   // string with a meaningless 00:00:00.
-  String _formatDate(String? raw) {
+  String _formatLedgerDate(String? raw) {
     if (raw == null || raw.isEmpty) return '';
     try {
-      return _dateFormat.format(DateTime.parse(raw));
+      return _ledgerDateFormat.format(DateTime.parse(raw));
     } catch (_) {
       return raw.split(' ').first;
     }
@@ -51,14 +51,12 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
-  }
-
-  void _fetch() {
-    context.read<WMSController>().getItemDetail(
-      context,
-      widget.itemId,
-      storeId: _scopedToStore ? widget.storeId : null,
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<WMSController>().openItemDetail(
+        context,
+        widget.itemId,
+        storeId: widget.storeId,
+      ),
     );
   }
 
@@ -96,18 +94,19 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
                 title: "Movement history",
                 subtitle: widget.storeId == null
                     ? null
-                    : (_scopedToStore
+                    : (controller.itemDetailScopedToStore
                           ? "Showing ${widget.storeName ?? 'the selected store'} only"
                           : "Showing all stores"),
                 trailing: widget.storeId == null
                     ? null
                     : TextButton(
-                        onPressed: () {
-                          setState(() => _scopedToStore = !_scopedToStore);
-                          _fetch();
-                        },
+                        onPressed: () => controller.toggleItemDetailStoreScope(
+                          context,
+                          widget.itemId,
+                          storeId: widget.storeId,
+                        ),
                         child: Text(
-                          _scopedToStore
+                          controller.itemDetailScopedToStore
                               ? "Show all stores"
                               : "Show selected only",
                           style: TextStyle(
@@ -117,7 +116,32 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
                           ),
                         ),
                       ),
-                child: _movements(item.movements ?? []),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CustomDateRangePicker(
+                      hint: "Select date range",
+                      selectedRange: controller.itemDetailDateRange,
+                      onRangeSelected: (range) =>
+                          controller.setItemDetailDateRange(
+                            context,
+                            widget.itemId,
+                            storeId: widget.storeId,
+                            range: range,
+                          ),
+                      onClear: controller.itemDetailDateRange == null
+                          ? null
+                          : () => controller.setItemDetailDateRange(
+                              context,
+                              widget.itemId,
+                              storeId: widget.storeId,
+                              range: null,
+                            ),
+                    ),
+                    1.5.height,
+                    _movements(item.movements ?? []),
+                  ],
+                ),
               ),
             ],
           );
@@ -227,56 +251,126 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
       return _empty("No posted movements");
     }
     final reversed = movements.reversed.toList();
-    return Column(
-      children: reversed.map((m) {
-        final isIn = (m.inQty ?? 0) > 0;
-        return Padding(
-          padding: EdgeInsets.symmetric(vertical: 0.9.h),
-          child: Row(
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2.5.r),
+      child: Table(
+        border: TableBorder.all(color: AppColor.appLightColor, width: 1),
+        columnWidths: const {
+          0: FlexColumnWidth(1.3),
+          1: FlexColumnWidth(2),
+          2: FlexColumnWidth(1.1),
+          3: FlexColumnWidth(1.1),
+          4: FlexColumnWidth(1.3),
+        },
+        children: [
+          TableRow(
+            decoration: BoxDecoration(color: AppColor.appDarkColor),
+            children: [
+              _ledgerHeaderCell("Date"),
+              _ledgerHeaderCell("Document"),
+              _ledgerHeaderCell("Debit", align: TextAlign.right),
+              _ledgerHeaderCell("Credit", align: TextAlign.right),
+              _ledgerHeaderCell("Balance", align: TextAlign.right),
+            ],
+          ),
+          for (int i = 0; i < reversed.length; i++) _ledgerRow(reversed[i], i),
+        ],
+      ),
+    );
+  }
+
+  TableRow _ledgerRow(InventoryItemMovement m, int index) {
+    final debit = m.inQty ?? 0;
+    final credit = m.outQty ?? 0;
+    final balance = m.runningBalance ?? 0;
+
+    return TableRow(
+      decoration: BoxDecoration(
+        color: index.isEven ? AppColor.white : AppColor.scaffold,
+      ),
+      children: [
+        _ledgerCell(_formatLedgerDate(m.date)),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 1.5.w,
-                height: 1.5.w,
-                margin: EdgeInsets.only(top: 0.8.h, right: 2.w),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isIn ? AppColor.green : AppColor.red,
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "${m.documentType ?? ''} · ${m.documentNo ?? ''}",
-                      style: TextStyle(
-                        fontSize: 3.5.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppColor.appDarkColor,
-                      ),
-                    ),
-                    Text(
-                      "${m.storeName ?? ''} · ${_formatDate(m.date)}",
-                      style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
-                    ),
-                  ],
+              Text(
+                m.documentType ?? '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 2.7.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColor.appDarkColor,
                 ),
               ),
               Text(
-                isIn
-                    ? "+${_decimalFormat.format(m.inQty ?? 0)}"
-                    : "-${_decimalFormat.format(m.outQty ?? 0)}",
-                style: TextStyle(
-                  fontSize: 3.5.sp,
-                  fontWeight: FontWeight.bold,
-                  color: isIn ? AppColor.green : AppColor.red,
-                ),
+                "${m.documentNo ?? ''} · ${m.storeName ?? ''}",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 2.3.sp, color: AppColor.grey),
               ),
             ],
           ),
-        );
-      }).toList(),
+        ),
+        _ledgerCell(
+          debit > 0 ? _decimalFormat.format(debit) : '—',
+          align: TextAlign.right,
+          bold: debit > 0,
+          color: debit > 0 ? AppColor.green : AppColor.grey,
+        ),
+        _ledgerCell(
+          credit > 0 ? _decimalFormat.format(credit) : '—',
+          align: TextAlign.right,
+          bold: credit > 0,
+          color: credit > 0 ? AppColor.red : AppColor.grey,
+        ),
+        _ledgerCell(
+          _decimalFormat.format(balance),
+          align: TextAlign.right,
+          bold: true,
+          color: balance < 0 ? AppColor.red : AppColor.appDarkColor,
+        ),
+      ],
+    );
+  }
+
+  Widget _ledgerHeaderCell(String text, {TextAlign align = TextAlign.left}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
+      child: Text(
+        text,
+        textAlign: align,
+        style: TextStyle(
+          fontSize: 2.7.sp,
+          fontWeight: FontWeight.bold,
+          color: AppColor.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _ledgerCell(
+    String text, {
+    TextAlign align = TextAlign.left,
+    Color? color,
+    bool bold = false,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
+      child: Text(
+        text,
+        textAlign: align,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 2.7.sp,
+          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+          color: color ?? AppColor.black,
+        ),
+      ),
     );
   }
 

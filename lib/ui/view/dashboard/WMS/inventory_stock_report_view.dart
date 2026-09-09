@@ -14,6 +14,10 @@ import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+/// Every filter/page/expand value here lives on WMSController
+/// (stockReportStoreId/stockReportSearch/stockReportLowStockOnly/
+/// stockReportPage/stockReportExpandedIds) -- this view only reads them
+/// and calls controller action methods, no local setState.
 class InventoryStockReportView extends StatefulWidget {
   const InventoryStockReportView({
     super.key,
@@ -22,6 +26,10 @@ class InventoryStockReportView extends StatefulWidget {
   });
 
   final Color accentColor;
+
+  /// Forces the low-stock toggle on for this visit -- used by the
+  /// Dashboard's "View all" negative-stock link, regardless of whatever
+  /// the toggle was last left at.
   final bool initialLowStockOnly;
 
   @override
@@ -30,13 +38,9 @@ class InventoryStockReportView extends StatefulWidget {
 }
 
 class _InventoryStockReportViewState extends State<InventoryStockReportView> {
+  // A TextEditingController is a widget-level concern (it drives one
+  // TextField instance), not app state -- it stays local.
   final _searchController = TextEditingController();
-
-  String? _storeId;
-  String _search = "";
-  bool _lowStockOnly = false;
-  int _page = 1;
-  final Set<String> _expanded = {};
 
   final _wholeFormat = NumberFormat('#,##0', 'en_US');
   final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
@@ -44,32 +48,20 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
   @override
   void initState() {
     super.initState();
-    _lowStockOnly = widget.initialLowStockOnly;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = context.read<WMSController>();
+      if (widget.initialLowStockOnly) {
+        controller.setStockReportLowStockOnly(context, true);
+      } else {
+        controller.getStockReport(context);
+      }
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _fetch() {
-    context.read<WMSController>().getStockReport(
-      context,
-      storeId: _storeId,
-      search: _search,
-      lowStockOnly: _lowStockOnly,
-      page: _page,
-    );
-  }
-
-  void _runSearch() {
-    setState(() {
-      _search = _searchController.text.trim();
-      _page = 1;
-    });
-    _fetch();
   }
 
   @override
@@ -87,18 +79,12 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
             padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
             children: [
               InventoryStoreFilter(
-                selectedStoreId: _storeId,
-                onChanged: (id) {
-                  setState(() {
-                    _storeId = id;
-                    _page = 1;
-                  });
-                  _fetch();
-                },
+                selectedStoreId: controller.stockReportStoreId,
+                onChanged: (id) => controller.setStockReportStore(context, id),
               ),
-              _searchBar(),
+              _searchBar(controller),
               2.height,
-              _lowStockToggle(),
+              _lowStockToggle(controller),
               2.height,
               if (model?.summary != null) _summaryCards(model!.summary!),
               2.height,
@@ -115,8 +101,9 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
                   ),
                 )
               else
-                _itemList(displayItems),
-              if (model?.meta != null) _pager(model!.meta!, loading),
+                _itemList(controller, displayItems),
+              if (model?.meta != null)
+                _pager(controller, model!.meta!, loading),
             ],
           );
         },
@@ -124,7 +111,10 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
     );
   }
 
-  Widget _searchBar() {
+  Widget _searchBar(WMSController controller) {
+    void runSearch() =>
+        controller.runStockReportSearch(context, _searchController.text);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -135,7 +125,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
             controller: _searchController,
             hintText: "Search…",
             isLabel: false,
-            onSubmitted: (_) => _runSearch(),
+            onSubmitted: (_) => runSearch(),
             prefix: Icon(Icons.search, color: AppColor.grey, size: 5.w),
           ),
         ),
@@ -144,7 +134,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
           child: RoundButton(
             width: double.infinity,
             buttonColor: widget.accentColor,
-            onPress: _runSearch,
+            onPress: runSearch,
             title: "Search",
             textColor: AppColor.white,
             height: 6.5.h,
@@ -155,7 +145,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
     );
   }
 
-  Widget _lowStockToggle() {
+  Widget _lowStockToggle(WMSController controller) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.5.h),
       decoration: BoxDecoration(
@@ -189,15 +179,9 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
             ),
           ),
           CustomToggleSwitch(
-            value: _lowStockOnly,
+            value: controller.stockReportLowStockOnly,
             activeColor: widget.accentColor,
-            onChanged: (v) {
-              setState(() {
-                _lowStockOnly = v;
-                _page = 1;
-              });
-              _fetch();
-            },
+            onChanged: (v) => controller.setStockReportLowStockOnly(context, v),
           ),
         ],
       ),
@@ -252,12 +236,14 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
   // expanded by-store breakdown is a table. A colored accent bar, an
   // icon-badged expand toggle, and small directional icons on the In/Out
   // stats replace the plain text-only row from before.
-  Widget _itemList(List<StockReportItem> items) {
-    return Column(children: items.map((item) => _itemCard(item)).toList());
+  Widget _itemList(WMSController controller, List<StockReportItem> items) {
+    return Column(
+      children: items.map((item) => _itemCard(controller, item)).toList(),
+    );
   }
 
-  Widget _itemCard(StockReportItem item) {
-    final expanded = _expanded.contains(item.id);
+  Widget _itemCard(WMSController controller, StockReportItem item) {
+    final expanded = controller.stockReportExpandedIds.contains(item.id);
     final negative = (item.balance ?? 0) < 0;
     final hasByStore = (item.byStore ?? []).isNotEmpty;
 
@@ -274,15 +260,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
           InkWell(
             onTap: !hasByStore
                 ? null
-                : () {
-                    setState(() {
-                      if (expanded) {
-                        _expanded.remove(item.id);
-                      } else if (item.id != null) {
-                        _expanded.add(item.id!);
-                      }
-                    });
-                  },
+                : () => controller.toggleStockReportExpanded(item.id),
             child: IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -568,7 +546,11 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
     );
   }
 
-  Widget _pager(InventoryStockMeta meta, bool loading) {
+  Widget _pager(
+    WMSController controller,
+    InventoryStockMeta meta,
+    bool loading,
+  ) {
     final current = meta.currentPage ?? 1;
     final last = meta.lastPage ?? 1;
     return Padding(
@@ -579,10 +561,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
           _pagerButton(
             icon: Icons.chevron_left_rounded,
             enabled: current > 1 && !loading,
-            onTap: () {
-              setState(() => _page = current - 1);
-              _fetch();
-            },
+            onTap: () => controller.goToStockReportPage(context, current - 1),
           ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 3.w),
@@ -598,10 +577,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
           _pagerButton(
             icon: Icons.chevron_right_rounded,
             enabled: current < last && !loading,
-            onTap: () {
-              setState(() => _page = current + 1);
-              _fetch();
-            },
+            onTap: () => controller.goToStockReportPage(context, current + 1),
           ),
         ],
       ),

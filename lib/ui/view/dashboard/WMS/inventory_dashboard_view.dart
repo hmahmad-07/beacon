@@ -33,8 +33,6 @@ class InventoryDashboardView extends StatefulWidget {
 
 class _InventoryDashboardViewState extends State<InventoryDashboardView>
     with SingleTickerProviderStateMixin {
-  String? _storeId;
-
   static const List<Color> _categoryPalette = [
     Color(0xFF7367F0),
     Color(0xFF00A86B),
@@ -82,7 +80,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
 
   void _fetch() {
     _animationKey = null;
-    context.read<WMSController>().getDashboard(context, storeId: _storeId);
+    context.read<WMSController>().getDashboard(context);
   }
 
   final _wholeFormat = NumberFormat('#,##0', 'en_US');
@@ -100,7 +98,8 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
 
           if (!loading && data != null) {
             final animKey =
-                '${_storeId ?? 'all'}_${data.movementLast6Months?.length ?? 0}_'
+                '${controller.dashboardStoreId ?? 'all'}_'
+                '${data.movementLast6Months?.length ?? 0}_'
                 '${data.kpis?.totalItems ?? 0}';
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) _triggerChartAnimation(animKey);
@@ -113,11 +112,8 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
               padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
               children: [
                 InventoryStoreFilter(
-                  selectedStoreId: _storeId,
-                  onChanged: (id) {
-                    setState(() => _storeId = id);
-                    _fetch();
-                  },
+                  selectedStoreId: controller.dashboardStoreId,
+                  onChanged: (id) => controller.setDashboardStore(context, id),
                 ),
                 2.height,
                 if (loading && data == null)

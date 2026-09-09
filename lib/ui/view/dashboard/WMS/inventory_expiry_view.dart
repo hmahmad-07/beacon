@@ -24,17 +24,14 @@ class InventoryExpiryView extends StatefulWidget {
 }
 
 class _InventoryExpiryViewState extends State<InventoryExpiryView> {
-  String? _storeId;
   final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
-  }
-
-  void _fetch() {
-    context.read<WMSController>().getExpiryReport(context, storeId: _storeId);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<WMSController>().getExpiryReport(context),
+    );
   }
 
   @override
@@ -58,11 +55,9 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
             padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
             children: [
               InventoryStoreFilter(
-                selectedStoreId: _storeId,
-                onChanged: (id) {
-                  setState(() => _storeId = id);
-                  _fetch();
-                },
+                selectedStoreId: controller.expiryStoreId,
+                onChanged: (id) =>
+                    controller.setExpiryStore(context, id),
               ),
               2.height,
               _summaryRow(expired, expiringSoon, batches.length),
