@@ -3,6 +3,7 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_expiry_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
 import 'package:flutter/material.dart';
@@ -67,7 +68,7 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
               _summaryRow(expired, expiringSoon, batches.length),
               2.height,
               if (loading)
-                const Center(child: CircularProgressIndicator())
+                Center(child: Custom3DLoader(color: widget.accentColor))
               else if (batches.isEmpty)
                 _emptyState()
               else

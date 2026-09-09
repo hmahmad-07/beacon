@@ -1,12 +1,12 @@
-import 'dart:async';
-
 import 'package:beacon/core/controllers/wms_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_item_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/custom_button.dart';
 import 'package:beacon/ui/components/custom_field.dart';
 import 'package:beacon/ui/components/custom_segmented_tabs.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_item_detail_view.dart';
@@ -14,10 +14,7 @@ import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
-/// Mirrors the "Items" page of the reference stock dashboard: store filter,
-/// stock-level filter chips, search, and a paginated item list.
 class InventoryItemsView extends StatefulWidget {
   const InventoryItemsView({super.key, required this.accentColor});
 
@@ -29,10 +26,9 @@ class InventoryItemsView extends StatefulWidget {
 
 class _InventoryItemsViewState extends State<InventoryItemsView> {
   final _searchController = TextEditingController();
-  Timer? _debounce;
 
   String? _storeId;
-  String _status = ""; // "" | in_stock | out_of_stock
+  String _status = "";
   String _search = "";
   int _page = 1;
 
@@ -47,36 +43,26 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _fetch({bool append = false}) {
+  void _fetch() {
     context.read<WMSController>().getItems(
       context,
       storeId: _storeId,
       search: _search,
       status: _status,
       page: _page,
-      append: append,
     );
   }
 
-  void _onSearchChanged(String value) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () {
-      setState(() {
-        _search = value.trim();
-        _page = 1;
-      });
-      _fetch();
+  void _runSearch() {
+    setState(() {
+      _search = _searchController.text.trim();
+      _page = 1;
     });
-  }
-
-  void _loadMore() {
-    setState(() => _page += 1);
-    _fetch(append: true);
+    _fetch();
   }
 
   @override
@@ -86,64 +72,49 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
       appBar: CustomAppBar(title: "Items"),
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
-          final total = controller.itemsModel?.meta?.total ?? 0;
+          final model = controller.itemsModel;
+          final items = model?.data ?? [];
           final loading = controller.isItemsLoading;
-          final items = controller.items;
 
-          return Column(
+          return ListView(
+            padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
             children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 1.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InventoryStoreFilter(
-                      selectedStoreId: _storeId,
-                      onChanged: (id) {
-                        setState(() {
-                          _storeId = id;
-                          _page = 1;
-                        });
-                        _fetch();
-                      },
-                    ),
-                    1.height,
-                    _searchField(),
-                    1.height,
-                    _statusChips(),
-                    0.8.height,
-                    Text(
-                      "${_wholeFormat.format(total)} items",
-                      style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
-                    ),
-                  ],
-                ),
+              InventoryStoreFilter(
+                selectedStoreId: _storeId,
+                onChanged: (id) {
+                  setState(() {
+                    _storeId = id;
+                    _page = 1;
+                  });
+                  _fetch();
+                },
               ),
-              Expanded(
-                child: loading && items.isEmpty
-                    ? _loadingSkeleton()
-                    : items.isEmpty
-                    ? Center(
-                        child: Text(
-                          "No items found",
-                          style: TextStyle(
-                            fontSize: 3.5.sp,
-                            color: AppColor.grey,
-                          ),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: EdgeInsets.fromLTRB(4.w, 0, 4.w, 2.h),
-                        itemCount: items.length + 1,
-                        separatorBuilder: (context, index) => 1.2.height,
-                        itemBuilder: (context, index) {
-                          if (index == items.length) {
-                            return _loadMoreControl(controller, loading);
-                          }
-                          return _itemTile(items[index]);
-                        },
-                      ),
+              _searchBar(),
+              2.height,
+              _statusChips(),
+              1.5.height,
+              Text(
+                loading
+                    ? "Loading items…"
+                    : "${_wholeFormat.format(model?.meta?.total ?? 0)} items",
+                style: TextStyle(fontSize: 3.1.sp, color: AppColor.grey),
               ),
+              2.height,
+              if (loading && model == null)
+                _loadingSkeleton()
+              else if (items.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6.h),
+                    child: Text(
+                      "No items found",
+                      style: TextStyle(fontSize: 3.8.sp, color: AppColor.grey),
+                    ),
+                  ),
+                )
+              else
+                Column(children: items.map(_itemCard).toList()),
+              if (model?.meta != null) _pager(model!.meta!, loading),
             ],
           );
         },
@@ -151,18 +122,38 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     );
   }
 
-  Widget _searchField() {
-    return CustomField(
-      controller: _searchController,
-      hintText: "Search name or barcode…",
-      isLabel: false,
-      onChanged: _onSearchChanged,
-      prefix: Icon(Icons.search, color: AppColor.grey, size: 5.w),
+  Widget _searchBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          flex: 4,
+          child: CustomField(
+            controller: _searchController,
+            hintText: "Search…",
+            isLabel: false,
+            onSubmitted: (_) => _runSearch(),
+            prefix: Icon(Icons.search, color: AppColor.grey, size: 5.w),
+          ),
+        ),
+        2.width,
+        Expanded(
+          child: RoundButton(
+            buttonColor: widget.accentColor,
+            onPress: _runSearch,
+            title: "Search",
+            textColor: AppColor.white,
+            height: 6.5.h,
+            fontSize: 3.5.sp,
+          ),
+        ),
+      ],
     );
   }
 
   static const Map<String, String> _statusOptions = {
-    "": "All stock levels",
+    "": "All stock",
     "in_stock": "In stock",
     "out_of_stock": "Out of stock",
   };
@@ -185,137 +176,195 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     );
   }
 
-  Widget _itemTile(InventoryItemSummary item) {
+  Widget _itemCard(InventoryItemSummary item) {
     final outOfStock = item.isOutOfStock;
-    return InkWell(
-      borderRadius: BorderRadius.circular(3.5.r),
-      onTap: () {
-        if (item.id == null) return;
-        AppRoutes.push(
-          InventoryItemDetailView(
-            itemId: item.id!,
-            itemName: item.displayName,
-            accentColor: widget.accentColor,
-          ),
-        );
-      },
-      child: Container(
-        padding: EdgeInsets.all(3.5.w),
-        decoration: BoxDecoration(
-          color: AppColor.white,
-          borderRadius: BorderRadius.circular(3.5.r),
-          boxShadow: AppShadow.soft,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.displayName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 3.6.sp,
-                      fontWeight: FontWeight.bold,
-                      color: AppColor.appDarkColor,
-                    ),
-                  ),
-                  0.5.height,
-                  Text(
-                    "${item.itemClass ?? ''} · ${item.uom ?? ''}",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 2.6.sp, color: AppColor.grey),
-                  ),
-                ],
+    return Container(
+      margin: EdgeInsets.only(bottom: 1.4.h),
+      decoration: BoxDecoration(
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(3.5.r),
+        boxShadow: AppShadow.soft,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          if (item.id == null) return;
+          String? storeName;
+          if (_storeId != null) {
+            final stores = context.read<WMSController>().storesModel?.data;
+            final match = stores?.where((s) => s.id == _storeId);
+            storeName = (match != null && match.isNotEmpty)
+                ? match.first.name
+                : null;
+          }
+          AppRoutes.push(
+            InventoryItemDetailView(
+              itemId: item.id!,
+              itemName: item.displayName,
+              accentColor: widget.accentColor,
+              storeId: _storeId,
+              storeName: storeName,
+            ),
+          );
+        },
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 1.1.w,
+                color: outOfStock ? AppColor.red : widget.accentColor,
               ),
-            ),
-            3.width,
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  _decimalFormat.format(item.stock ?? 0),
-                  style: TextStyle(
-                    fontSize: 3.6.sp,
-                    fontWeight: FontWeight.bold,
-                    color: outOfStock ? AppColor.red : AppColor.green,
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.all(3.5.w),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.displayName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 3.8.sp,
+                                fontWeight: FontWeight.bold,
+                                color: AppColor.appDarkColor,
+                              ),
+                            ),
+                            0.4.height,
+                            Text(
+                              "${item.itemClass ?? ''}"
+                              "${item.uom != null && item.uom!.isNotEmpty ? ' · ${item.uom}' : ''}",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 3.2.sp,
+                                color: AppColor.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      3.width,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _decimalFormat.format(item.stock ?? 0),
+                            style: TextStyle(
+                              fontSize: 3.8.sp,
+                              fontWeight: FontWeight.bold,
+                              color: outOfStock ? AppColor.red : AppColor.green,
+                            ),
+                          ),
+                          0.3.height,
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 2.w,
+                              vertical: 0.3.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  (outOfStock ? AppColor.red : AppColor.green)
+                                      .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(2.5.r),
+                            ),
+                            child: Text(
+                              outOfStock ? "Out of stock" : "In stock",
+                              style: TextStyle(
+                                fontSize: 2.8.sp,
+                                fontWeight: FontWeight.w600,
+                                color: outOfStock
+                                    ? AppColor.red
+                                    : AppColor.green,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                0.3.height,
-                Text(
-                  outOfStock ? "Out of stock" : "In stock",
-                  style: TextStyle(
-                    fontSize: 2.4.sp,
-                    color: outOfStock ? AppColor.red : AppColor.green,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _loadMoreControl(WMSController controller, bool loading) {
-    if (!controller.hasMoreItems) {
-      return SizedBox(height: 2.h);
-    }
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 2.h),
-        child: loading
-            ? SizedBox(
-                width: 5.w,
-                height: 5.w,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: widget.accentColor,
-                ),
-              )
-            : Material(
-                color: widget.accentColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(3.r),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(3.r),
-                  onTap: _loadMore,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 6.w,
-                      vertical: 1.4.h,
-                    ),
-                    child: Text(
-                      "Load more",
-                      style: TextStyle(
-                        fontSize: 3.2.sp,
-                        fontWeight: FontWeight.bold,
-                        color: widget.accentColor,
-                      ),
-                    ),
-                  ),
-                ),
+  Widget _pagerButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    final color = enabled ? widget.accentColor : AppColor.appLightColor;
+    return Material(
+      color: enabled
+          ? widget.accentColor.withValues(alpha: 0.1)
+          : AppColor.scaffold,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: EdgeInsets.all(2.2.w),
+          child: Icon(icon, color: color, size: 5.w),
+        ),
+      ),
+    );
+  }
+
+  Widget _pager(InventoryItemsMeta meta, bool loading) {
+    final current = meta.currentPage ?? 1;
+    final last = meta.lastPage ?? 1;
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 1.5.h),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _pagerButton(
+            icon: Icons.chevron_left_rounded,
+            enabled: current > 1 && !loading,
+            onTap: () {
+              setState(() => _page = current - 1);
+              _fetch();
+            },
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 3.w),
+            child: Text(
+              "Page $current of $last",
+              style: TextStyle(
+                fontSize: 3.5.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColor.appDarkColor,
               ),
+            ),
+          ),
+          _pagerButton(
+            icon: Icons.chevron_right_rounded,
+            enabled: current < last && !loading,
+            onTap: () {
+              setState(() => _page = current + 1);
+              _fetch();
+            },
+          ),
+        ],
       ),
     );
   }
 
   Widget _loadingSkeleton() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
-      child: ListView.builder(
-        padding: EdgeInsets.fromLTRB(4.w, 0, 4.w, 2.h),
-        itemCount: 8,
-        itemBuilder: (context, index) => Container(
-          margin: EdgeInsets.only(bottom: 1.2.h),
-          height: 9.h,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(3.5.r),
-          ),
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 6.h),
+      child: Center(
+        child: Custom3DLoader(
+          color: widget.accentColor,
+          label: "Loading items…",
         ),
       ),
     );

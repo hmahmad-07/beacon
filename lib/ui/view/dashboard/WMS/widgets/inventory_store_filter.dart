@@ -1,13 +1,16 @@
 import 'package:beacon/core/controllers/wms_controller.dart';
-import 'package:beacon/ui/components/custom_dropdown_.dart';
+import 'package:beacon/ui/components/custom_search_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 const String kAllStores = "All stores";
 
 /// Store picker shared by the Dashboard/Items/Stock screens. Inventory is
-/// scoped by store_id (not by department/shop), and mirrors the store
-/// dropdown on the reference web dashboard (104.143.0.113:8000).
+/// scoped by store_id (not by department/shop). Only active stores are
+/// offered -- inactive/decommissioned ones (BEACON PRIDE KITCHEN, CC
+/// KITCHEN, PACKING MATERIAL STORE as of the current data) aren't
+/// meaningful choices to filter by. A search dialog replaces a plain
+/// dropdown since the list runs to 15+ stores.
 class InventoryStoreFilter extends StatefulWidget {
   const InventoryStoreFilter({
     super.key,
@@ -38,18 +41,20 @@ class _InventoryStoreFilterState extends State<InventoryStoreFilter> {
   Widget build(BuildContext context) {
     return Consumer<WMSController>(
       builder: (context, controller, child) {
-        final stores = controller.storesModel?.data ?? [];
+        final stores = (controller.storesModel?.data ?? [])
+            .where((s) => s.isActive)
+            .toList();
         final names = [kAllStores, ...stores.map((s) => s.name ?? "")];
-        final selectedName = widget.selectedStoreId == null
-            ? kAllStores
-            : stores
-                  .firstWhere(
-                    (s) => s.id == widget.selectedStoreId,
-                    orElse: () => stores.first,
-                  )
-                  .name;
 
-        return CustomDropdown(
+        String selectedName = kAllStores;
+        if (widget.selectedStoreId != null) {
+          final matches = stores.where((s) => s.id == widget.selectedStoreId);
+          selectedName = matches.isEmpty
+              ? kAllStores
+              : (matches.first.name ?? kAllStores);
+        }
+
+        return CustomSearchDropdown(
           hintText: kAllStores,
           fieldTitle: "Store",
           selectedItem: selectedName,

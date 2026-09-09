@@ -8,6 +8,7 @@ import 'package:beacon/core/models/WMS/inventory_item_model.dart'
     show InventoryStoreBalance;
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_stock_report_view.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
@@ -16,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
 /// Mirrors the "Dashboard" page of the reference stock dashboard
 /// (104.143.0.113:8000): a store filter, KPI tiles, a 6-month
@@ -194,6 +194,12 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
             ),
           ),
           child: _negativeStockList(data.negativeStock ?? []),
+        ),
+        2.height,
+        _sectionCard(
+          title: "Recent activity",
+          subtitle: "Latest posted stock movements",
+          child: _recentMovementsList(data.recentMovements ?? []),
         ),
       ],
     );
@@ -790,6 +796,86 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
     );
   }
 
+  // ------------------------------------------------------------ Recent activity
+
+  String _formatMovementDate(String? raw) {
+    if (raw == null || raw.isEmpty) return "";
+    try {
+      return DateFormat('dd MMM').format(DateTime.parse(raw));
+    } catch (_) {
+      return raw.split(" ").first;
+    }
+  }
+
+  Widget _recentMovementsList(List<RecentMovement> movements) {
+    if (movements.isEmpty) {
+      return _inlineEmpty("No recent activity");
+    }
+    return Column(
+      children: movements.map((m) {
+        final isIn = m.isIn;
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: 0.9.h),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 1.5.w,
+                height: 1.5.w,
+                margin: EdgeInsets.only(top: 0.8.h, right: 2.w),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isIn ? AppColor.green : AppColor.red,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (m.itemName ?? "").trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 3.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppColor.appDarkColor,
+                      ),
+                    ),
+                    Text(
+                      "${m.documentType ?? ''} · ${m.storeName ?? ''}",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 2.4.sp, color: AppColor.grey),
+                    ),
+                  ],
+                ),
+              ),
+              2.width,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "${isIn ? '+' : '-'}${_decimalFormat.format(m.qty ?? 0)}",
+                    style: TextStyle(
+                      fontSize: 3.sp,
+                      fontWeight: FontWeight.bold,
+                      color: isIn ? AppColor.green : AppColor.red,
+                    ),
+                  ),
+                  Text(
+                    _formatMovementDate(m.date),
+                    style: TextStyle(fontSize: 2.3.sp, color: AppColor.grey),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   // ------------------------------------------------------------ Shared UI
 
   Widget _sectionCard({
@@ -864,20 +950,13 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
   }
 
   Widget _loadingSkeleton() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
-      child: Column(
-        children: List.generate(4, (index) {
-          return Container(
-            margin: EdgeInsets.only(bottom: 2.h),
-            height: 12.h,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(3.5.r),
-            ),
-          );
-        }),
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.h),
+      child: Center(
+        child: Custom3DLoader(
+          color: widget.accentColor,
+          label: "Loading dashboard…",
+        ),
       ),
     );
   }

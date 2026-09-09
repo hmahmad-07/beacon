@@ -37,7 +37,13 @@ class InventoryStore {
     this.balance,
   });
 
-  bool get isActive => (status ?? "").toUpperCase() == "A";
+  // The backend has used both "A" and, as of a later build, the spelled-out
+  // "active"/"inactive" -- match either so this doesn't quietly break again
+  // if it changes a third time.
+  bool get isActive {
+    final s = (status ?? "").toLowerCase();
+    return s == "a" || s == "active";
+  }
 
   factory InventoryStore.fromJson(Map<String, dynamic> json) =>
       InventoryStore(

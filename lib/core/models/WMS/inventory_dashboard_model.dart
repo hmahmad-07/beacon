@@ -19,22 +19,27 @@ class InventoryDashboardModel {
 }
 
 class InventoryDashboardData {
+  String? storeId; // echoes the store_id filter that produced this response
   InventoryKpis? kpis;
   List<CategoryValue>? valueByCategory;
   List<MonthlyMovement>? movementLast6Months;
   List<InventoryStoreBalance>? balanceByStore;
   List<NegativeStockItem>? negativeStock;
+  List<RecentMovement>? recentMovements;
 
   InventoryDashboardData({
+    this.storeId,
     this.kpis,
     this.valueByCategory,
     this.movementLast6Months,
     this.balanceByStore,
     this.negativeStock,
+    this.recentMovements,
   });
 
   factory InventoryDashboardData.fromJson(Map<String, dynamic> json) =>
       InventoryDashboardData(
+        storeId: json["store_id"]?.toString(),
         kpis: json["kpis"] == null ? null : InventoryKpis.fromJson(json["kpis"]),
         valueByCategory: json["value_by_category"] == null
             ? null
@@ -59,6 +64,11 @@ class InventoryDashboardData {
             ? null
             : List<NegativeStockItem>.from(
                 json["negative_stock"].map((x) => NegativeStockItem.fromJson(x)),
+              ),
+        recentMovements: json["recent_movements"] == null
+            ? null
+            : List<RecentMovement>.from(
+                json["recent_movements"].map((x) => RecentMovement.fromJson(x)),
               ),
       );
 }
@@ -115,4 +125,43 @@ class NegativeStockItem {
         name: json["name"],
         onHand: json["on_hand"],
       );
+}
+
+class RecentMovement {
+  String? type; // stock_in | stock_out
+  String? itemId;
+  String? itemName;
+  num? qty;
+  String?
+  documentType; // SIN | GOODS_RECEIPT | STORE_TRANSFER_IN | STORE_TRANSFER_OUT | ...
+  String? documentNo;
+  String? storeId;
+  String? storeName;
+  String? date;
+
+  RecentMovement({
+    this.type,
+    this.itemId,
+    this.itemName,
+    this.qty,
+    this.documentType,
+    this.documentNo,
+    this.storeId,
+    this.storeName,
+    this.date,
+  });
+
+  bool get isIn => type == "stock_in";
+
+  factory RecentMovement.fromJson(Map<String, dynamic> json) => RecentMovement(
+    type: json["type"],
+    itemId: json["item_id"]?.toString(),
+    itemName: json["item_name"],
+    qty: json["qty"],
+    documentType: json["document_type"],
+    documentNo: json["document_no"],
+    storeId: json["store_id"]?.toString(),
+    storeName: json["store_name"],
+    date: json["date"],
+  );
 }

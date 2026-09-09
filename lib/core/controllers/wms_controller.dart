@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:convert';
 import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -12,10 +13,29 @@ import '../models/WMS/inventory_dashboard_model.dart';
 import '../utils/utils.dart';
 
 class WMSController extends ChangeNotifier {
+  static final Dio _client = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 30),
+      sendTimeout: const Duration(seconds: 15),
+    ),
+  );
+
   Map<String, dynamic> _headers() => {
     'Accept': 'application/json',
     'Authorization': 'Bearer ${Constants.token}',
   };
+
+  String? _errorMessageFrom(dynamic responseData) {
+    try {
+      final json = responseData is String
+          ? jsonDecode(responseData) as Map<String, dynamic>
+          : responseData as Map<String, dynamic>;
+      return json['error_msg']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
 
   // ================================================== Stores ==================================================
 
@@ -27,8 +47,7 @@ class WMSController extends ChangeNotifier {
       isStoresLoading = true;
       notifyListeners();
 
-      final dio = Dio();
-      final response = await dio.get(
+      final response = await _client.get(
         '${Constants.baseUrl}inventory_stores.php',
         options: Options(headers: _headers()),
       );
@@ -47,7 +66,8 @@ class WMSController extends ChangeNotifier {
       if (context.mounted) {
         Utils.showSnackBar(
           context,
-          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+          _errorMessageFrom(e.response?.data) ??
+              'Network error. Please try again.',
         );
       }
     } catch (e) {
@@ -58,11 +78,14 @@ class WMSController extends ChangeNotifier {
     }
   }
 
-  // ================================================== Items (list) ==================================================
+  // ================================================== Items (paginated) ==================================================
 
+  // Same page-by-page pattern as getStockReport: inventory_items.php is
+  // paginated server-side (per_page capped at 100, default 25) with its
+  // own store_id/search/status filters, so this fetches one page at a
+  // time instead of pulling the whole catalogue up front.
   bool isItemsLoading = false;
   InventoryItemsListModel? itemsModel;
-  final List<InventoryItemSummary> items = [];
 
   Future<void> getItems(
     BuildContext context, {
@@ -71,15 +94,13 @@ class WMSController extends ChangeNotifier {
     String? status,
     int page = 1,
     int perPage = 25,
-    bool append = false,
   }) async {
     try {
       isItemsLoading = true;
-      if (!append) items.clear();
+      itemsModel = null;
       notifyListeners();
 
-      final dio = Dio();
-      final response = await dio.get(
+      final response = await _client.get(
         '${Constants.baseUrl}inventory_items.php',
         queryParameters: {
           if (storeId != null && storeId.isNotEmpty) 'store_id': storeId,
@@ -93,15 +114,7 @@ class WMSController extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         itemsModel = InventoryItemsListModel.fromJson(response.data);
-        if (itemsModel?.error == 0) {
-          if (append) {
-            items.addAll(itemsModel?.data ?? []);
-          } else {
-            items
-              ..clear()
-              ..addAll(itemsModel?.data ?? []);
-          }
-        } else if (context.mounted) {
+        if (itemsModel?.error != 0 && context.mounted) {
           Utils.showSnackBar(
             context,
             itemsModel?.errorMsg ?? 'Failed to load items',
@@ -113,7 +126,8 @@ class WMSController extends ChangeNotifier {
       if (context.mounted) {
         Utils.showSnackBar(
           context,
-          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+          _errorMessageFrom(e.response?.data) ??
+              'Network error. Please try again.',
         );
       }
     } catch (e) {
@@ -122,12 +136,6 @@ class WMSController extends ChangeNotifier {
       isItemsLoading = false;
       notifyListeners();
     }
-  }
-
-  bool get hasMoreItems {
-    final meta = itemsModel?.meta;
-    if (meta?.currentPage == null || meta?.lastPage == null) return false;
-    return meta!.currentPage! < meta.lastPage!;
   }
 
   // ================================================== Item detail ==================================================
@@ -147,8 +155,7 @@ class WMSController extends ChangeNotifier {
       itemDetailModel = null;
       notifyListeners();
 
-      final dio = Dio();
-      final response = await dio.get(
+      final response = await _client.get(
         '${Constants.baseUrl}inventory_items.php',
         queryParameters: {
           'item_id': itemId,
@@ -173,7 +180,8 @@ class WMSController extends ChangeNotifier {
       if (context.mounted) {
         Utils.showSnackBar(
           context,
-          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+          _errorMessageFrom(e.response?.data) ??
+              'Network error. Please try again.',
         );
       }
     } catch (e) {
@@ -184,8 +192,12 @@ class WMSController extends ChangeNotifier {
     }
   }
 
-  // ================================================== Stock report ==================================================
+  // ================================================== Stock report (paginated) ==================================================
 
+  // Unlike getItems, this stays page-by-page: the report now has its own
+  // search box (search is a documented inventory_stock.php filter as of
+  // the latest backend build), and normal pagination is the expected UX
+  // once a filter/search narrows the result set.
   bool isStockReportLoading = false;
   InventoryStockReportModel? stockReportModel;
 
@@ -194,6 +206,7 @@ class WMSController extends ChangeNotifier {
     String? storeId,
     String? itemType,
     String? classId,
+    String? search,
     bool lowStockOnly = false,
     int page = 1,
     int perPage = 25,
@@ -203,13 +216,13 @@ class WMSController extends ChangeNotifier {
       stockReportModel = null;
       notifyListeners();
 
-      final dio = Dio();
-      final response = await dio.get(
+      final response = await _client.get(
         '${Constants.baseUrl}inventory_stock.php',
         queryParameters: {
           if (storeId != null && storeId.isNotEmpty) 'store_id': storeId,
           if (itemType != null && itemType.isNotEmpty) 'item_type': itemType,
           if (classId != null && classId.isNotEmpty) 'class_id': classId,
+          if (search != null && search.isNotEmpty) 'search': search,
           if (lowStockOnly) 'low_stock_only': 1,
           'per_page': perPage,
           'page': page,
@@ -231,7 +244,8 @@ class WMSController extends ChangeNotifier {
       if (context.mounted) {
         Utils.showSnackBar(
           context,
-          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+          _errorMessageFrom(e.response?.data) ??
+              'Network error. Please try again.',
         );
       }
     } catch (e) {
@@ -253,8 +267,7 @@ class WMSController extends ChangeNotifier {
       expiryModel = null;
       notifyListeners();
 
-      final dio = Dio();
-      final response = await dio.get(
+      final response = await _client.get(
         '${Constants.baseUrl}inventory_expiry.php',
         queryParameters: {
           if (storeId != null && storeId.isNotEmpty) 'store_id': storeId,
@@ -276,7 +289,8 @@ class WMSController extends ChangeNotifier {
       if (context.mounted) {
         Utils.showSnackBar(
           context,
-          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+          _errorMessageFrom(e.response?.data) ??
+              'Network error. Please try again.',
         );
       }
     } catch (e) {
@@ -298,8 +312,7 @@ class WMSController extends ChangeNotifier {
       dashboardModel = null;
       notifyListeners();
 
-      final dio = Dio();
-      final response = await dio.get(
+      final response = await _client.get(
         '${Constants.baseUrl}inventory_dashboard.php',
         queryParameters: {
           if (storeId != null && storeId.isNotEmpty) 'store_id': storeId,
@@ -321,7 +334,8 @@ class WMSController extends ChangeNotifier {
       if (context.mounted) {
         Utils.showSnackBar(
           context,
-          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+          _errorMessageFrom(e.response?.data) ??
+              'Network error. Please try again.',
         );
       }
     } catch (e) {

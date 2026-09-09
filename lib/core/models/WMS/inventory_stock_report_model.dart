@@ -1,5 +1,3 @@
-import 'inventory_item_model.dart' show InventoryStoreBalance;
-
 // GET /inventory_stock.php
 class InventoryStockReportModel {
   int? error;
@@ -78,17 +76,19 @@ class InventoryStockSummary {
 class StockReportItem {
   String? id;
   String? name;
+  String? uom;
   String? type;
   String? itemClass;
   num? costPrice;
   num? totalIn;
   num? totalOut;
   num? balance;
-  List<InventoryStoreBalance>? byStore;
+  List<StockStoreBreakdown>? byStore;
 
   StockReportItem({
     this.id,
     this.name,
+    this.uom,
     this.type,
     this.itemClass,
     this.costPrice,
@@ -104,6 +104,7 @@ class StockReportItem {
       StockReportItem(
         id: json["id"]?.toString(),
         name: json["name"],
+        uom: json["uom"],
         type: json["type"],
         itemClass: json["class"],
         costPrice: json["cost_price"],
@@ -112,8 +113,36 @@ class StockReportItem {
         balance: json["balance"],
         byStore: json["by_store"] == null
             ? null
-            : List<InventoryStoreBalance>.from(
-                json["by_store"].map((x) => InventoryStoreBalance.fromJson(x)),
+            : List<StockStoreBreakdown>.from(
+                json["by_store"].map((x) => StockStoreBreakdown.fromJson(x)),
               ),
+      );
+}
+
+// Distinct from InventoryStoreBalance (used by the dashboard/item-detail
+// endpoints, which only carry a balance) -- inventory_stock.php's by_store
+// rows also carry total_in/total_out per store.
+class StockStoreBreakdown {
+  String? storeId;
+  String? storeName;
+  num? totalIn;
+  num? totalOut;
+  num? balance;
+
+  StockStoreBreakdown({
+    this.storeId,
+    this.storeName,
+    this.totalIn,
+    this.totalOut,
+    this.balance,
+  });
+
+  factory StockStoreBreakdown.fromJson(Map<String, dynamic> json) =>
+      StockStoreBreakdown(
+        storeId: json["store_id"]?.toString(),
+        storeName: json["store_name"],
+        totalIn: json["total_in"],
+        totalOut: json["total_out"],
+        balance: json["balance"],
       );
 }

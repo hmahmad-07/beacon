@@ -10,6 +10,7 @@ import 'package:beacon/ui/view/dashboard/WMS/inventory_stock_report_view.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_stores_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 
 class InventoryHubView extends StatelessWidget {
@@ -24,32 +25,18 @@ class InventoryHubView extends StatelessWidget {
   final Color accentColor;
   final String? siteImage;
 
-  static const _sections = [
-    "Dashboard",
-    "Items",
-    "Stock Report",
-    "Expiry Report",
-    "Stores",
+  static const _gridSections = [
+    _Section("Items", "Browse the catalogue", BoxIcons.bxs_box),
+    _Section(
+      "Stock Report",
+      "Levels, search & filters",
+      BoxIcons.bxs_bar_chart_alt_2,
+    ),
+    _Section("Expiry Report", "Batch-level tracking", BoxIcons.bxs_calendar_x),
+    _Section("Stores", "Active store directory", BoxIcons.bx_store),
   ];
 
-  IconData _iconFor(String section) {
-    switch (section) {
-      case "Dashboard":
-        return BoxIcons.bxs_dashboard;
-      case "Items":
-        return BoxIcons.bxs_box;
-      case "Stock Report":
-        return BoxIcons.bxs_bar_chart_alt_2;
-      case "Expiry Report":
-        return BoxIcons.bxs_calendar_x;
-      case "Stores":
-        return BoxIcons.bx_store;
-      default:
-        return BoxIcons.bx_folder;
-    }
-  }
-
-  void _onTap(String section) {
+  void _onTap(BuildContext context, String section) {
     switch (section) {
       case "Dashboard":
         AppRoutes.push(InventoryDashboardView(accentColor: accentColor));
@@ -74,74 +61,178 @@ class InventoryHubView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColor.scaffold,
       appBar: CustomAppBar(title: "Inventory"),
-      body: Column(
-        children: [
-          Expanded(
-            child: AnimationLimiter(
-              child: ListView.separated(
-                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 3.h),
-                itemCount: _sections.length,
-                separatorBuilder: (context, index) => 1.5.height,
+      body: AnimationLimiter(
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(5.w, 2.5.h, 5.w, 4.h),
+          children: AnimationConfiguration.toStaggeredList(
+            duration: const Duration(milliseconds: 450),
+            childAnimationBuilder: (child) => SlideAnimation(
+              verticalOffset: 40,
+              curve: Curves.easeOutCubic,
+              child: FadeInAnimation(child: child),
+            ),
+            children: [
+              _dashboardHeroTile(context),
+              2.5.height,
+              Text(
+                "MODULES",
+                style: TextStyle(
+                  fontSize: 2.8.sp,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  color: AppColor.grey,
+                ),
+              ),
+              1.2.height,
+              MasonryGridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 3.w,
+                crossAxisSpacing: 3.w,
+                itemCount: _gridSections.length,
                 itemBuilder: (context, index) {
-                  final section = _sections[index];
-                  return AnimationConfiguration.staggeredList(
-                    position: index,
-                    duration: const Duration(milliseconds: 500),
-                    child: SlideAnimation(
-                      horizontalOffset: 80,
-                      curve: Curves.easeOutCubic,
-                      child: FadeInAnimation(
-                        child: _sectionTile(
-                          section: section,
-                          onTap: () => _onTap(section),
-                        ),
-                      ),
-                    ),
-                  );
+                  final section = _gridSections[index];
+                  return _gridTile(context, section);
                 },
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _sectionTile({required String section, required VoidCallback onTap}) {
+  Widget _dashboardHeroTile(BuildContext context) {
+    return Material(
+      color: AppColor.transparent,
+      borderRadius: BorderRadius.circular(4.r),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(4.r),
+        onTap: () => _onTap(context, "Dashboard"),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.2.w),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [accentColor, AppColor.appDarkColor],
+            ),
+            borderRadius: BorderRadius.circular(4.r),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(2.6.w),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColor.white.withValues(alpha: 0.18),
+                ),
+                child: Icon(
+                  BoxIcons.bxs_dashboard,
+                  color: AppColor.white,
+                  size: 6.5.w,
+                ),
+              ),
+              3.5.width,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Dashboard",
+                      style: TextStyle(
+                        fontSize: 4.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColor.white,
+                      ),
+                    ),
+                    0.3.height,
+                    Text(
+                      "KPIs, movement & stock value overview",
+                      style: TextStyle(
+                        fontSize: 2.6.sp,
+                        color: AppColor.white.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 4.w,
+                color: AppColor.white.withValues(alpha: 0.85),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _gridTile(BuildContext context, _Section section) {
     return Container(
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(3.5.r),
         boxShadow: AppShadow.soft,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3.5.r),
-        child: Material(
-          color: AppColor.transparent,
-          child: ListTile(
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 6.w,
-              vertical: 0.6.h,
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: AppColor.transparent,
+        child: InkWell(
+          onTap: () => _onTap(context, section.title),
+          child: Padding(
+            padding: EdgeInsets.all(3.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(2.2.w),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accentColor.withValues(alpha: 0.12),
+                  ),
+                  child: Icon(section.icon, color: accentColor, size: 5.5.w),
+                ),
+                1.5.height,
+                Text(
+                  section.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 3.5.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColor.appDarkColor,
+                  ),
+                ),
+                0.4.height,
+                Text(
+                  section.subtitle,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 2.4.sp, color: AppColor.grey),
+                ),
+              ],
             ),
-            leading: Icon(_iconFor(section), color: accentColor, size: 8.r),
-            title: Text(
-              section,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 4.5.sp,
-                color: AppColor.black,
-                shadows: AppShadow.textShadow,
-              ),
-            ),
-            trailing: Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 4.r,
-              color: AppColor.grey,
-            ),
-            onTap: onTap,
           ),
         ),
       ),
     );
   }
+}
+
+class _Section {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  const _Section(this.title, this.subtitle, this.icon);
 }

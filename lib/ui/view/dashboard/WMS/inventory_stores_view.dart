@@ -3,15 +3,19 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_store_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_field.dart';
 import 'package:flutter/material.dart';
+import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
-/// Mirrors the "Stores" page of the reference stock dashboard: a flat,
-/// site-independent list of every store known to the inventory system.
+/// Mirrors the "Stores" page of the reference stock dashboard, narrowed to
+/// active stores only -- inactive/decommissioned entries (kitchens taken
+/// offline, the old packing material store) aren't operationally relevant
+/// here, just noise in a directory meant to look and feel like a real WMS
+/// store list.
 class InventoryStoresView extends StatefulWidget {
   const InventoryStoresView({super.key, required this.accentColor});
 
@@ -50,14 +54,20 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
       appBar: CustomAppBar(title: "Stores"),
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
-          final all = controller.storesModel?.data ?? [];
+          final active = (controller.storesModel?.data ?? [])
+              .where((s) => s.isActive)
+              .toList();
           final filtered = _query.isEmpty
-              ? all
-              : all
+              ? active
+              : active
                     .where(
-                      (s) => (s.name ?? "").toLowerCase().contains(
-                        _query.toLowerCase(),
-                      ),
+                      (s) =>
+                          (s.name ?? "").toLowerCase().contains(
+                            _query.toLowerCase(),
+                          ) ||
+                          (s.code ?? "").toLowerCase().contains(
+                            _query.toLowerCase(),
+                          ),
                     )
                     .toList();
 
@@ -70,19 +80,29 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
                   children: [
                     _searchField(),
                     1.height,
-                    Text(
-                      "${all.length} stores",
-                      style: TextStyle(
-                        fontSize: 3.sp,
-                        fontWeight: FontWeight.w600,
-                        color: widget.accentColor,
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          BoxIcons.bxs_check_shield,
+                          size: 3.5.w,
+                          color: AppColor.green,
+                        ),
+                        1.2.width,
+                        Text(
+                          "${active.length} active stores",
+                          style: TextStyle(
+                            fontSize: 3.1.sp,
+                            fontWeight: FontWeight.w600,
+                            color: widget.accentColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               Expanded(
-                child: controller.isStoresLoading && all.isEmpty
+                child: controller.isStoresLoading && active.isEmpty
                     ? _loadingSkeleton()
                     : filtered.isEmpty
                     ? Center(
@@ -97,9 +117,9 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
                     : ListView.separated(
                         padding: EdgeInsets.fromLTRB(4.w, 0, 4.w, 3.h),
                         itemCount: filtered.length,
-                        separatorBuilder: (context, index) => 1.2.height,
+                        separatorBuilder: (context, index) => 1.4.height,
                         itemBuilder: (context, index) =>
-                            _storeTile(filtered[index]),
+                            _storeCard(filtered[index]),
                       ),
               ),
             ],
@@ -119,91 +139,131 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
     );
   }
 
-  Widget _storeTile(InventoryStore store) {
+  Widget _storeCard(InventoryStore store) {
     final negative = (store.balance ?? 0) < 0;
     return Container(
-      padding: EdgeInsets.all(3.5.w),
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(3.5.r),
         boxShadow: AppShadow.soft,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  store.name ?? "",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 3.8.sp,
-                    fontWeight: FontWeight.bold,
-                    color: AppColor.appDarkColor,
-                  ),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 1.1.w,
+              color: negative ? AppColor.red : widget.accentColor,
+            ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(3.5.w),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(2.4.w),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: widget.accentColor.withValues(alpha: 0.12),
+                      ),
+                      child: Icon(
+                        BoxIcons.bxs_building,
+                        color: widget.accentColor,
+                        size: 6.w,
+                      ),
+                    ),
+                    3.width,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            store.name ?? "",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 3.8.sp,
+                              fontWeight: FontWeight.bold,
+                              color: AppColor.appDarkColor,
+                            ),
+                          ),
+                          0.3.height,
+                          Text(
+                            store.code ?? "",
+                            style: TextStyle(
+                              fontSize: 2.7.sp,
+                              color: AppColor.grey,
+                            ),
+                          ),
+                          1.4.height,
+                          Row(
+                            children: [
+                              _metric(
+                                "In",
+                                store.totalIn,
+                                icon: BoxIcons.bxs_up_arrow,
+                                iconColor: AppColor.green,
+                              ),
+                              _metric(
+                                "Out",
+                                store.totalOut,
+                                icon: BoxIcons.bxs_down_arrow,
+                                iconColor: AppColor.red,
+                              ),
+                              _metric(
+                                "Balance",
+                                store.balance,
+                                highlight: negative,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              _statusChip(store),
-            ],
-          ),
-          0.4.height,
-          Text(
-            store.code ?? "",
-            style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
-          ),
-          1.2.height,
-          Row(
-            children: [
-              _metric("In", store.totalIn),
-              4.width,
-              _metric("Out", store.totalOut),
-              4.width,
-              _metric("Balance", store.balance, highlight: negative),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusChip(InventoryStore store) {
-    final active = store.isActive;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 2.2.w, vertical: 0.4.h),
-      decoration: BoxDecoration(
-        color: (active ? AppColor.green : AppColor.grey).withValues(
-          alpha: 0.12,
-        ),
-        borderRadius: BorderRadius.circular(3.r),
-      ),
-      child: Text(
-        active ? "Active" : (store.status ?? "—"),
-        style: TextStyle(
-          fontSize: 2.4.sp,
-          fontWeight: FontWeight.bold,
-          color: active ? AppColor.green : AppColor.grey,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _metric(String label, num? value, {bool highlight = false}) {
+  Widget _metric(
+    String label,
+    num? value, {
+    bool highlight = false,
+    IconData? icon,
+    Color? iconColor,
+  }) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 2.4.sp, color: AppColor.grey),
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 2.4.w, color: iconColor ?? AppColor.grey),
+                0.8.width,
+              ],
+              Text(
+                label,
+                style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey),
+              ),
+            ],
           ),
+          0.2.height,
           Text(
             _decimalFormat.format(value ?? 0),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 3.sp,
+              fontSize: 3.2.sp,
               fontWeight: FontWeight.bold,
-              color: highlight ? AppColor.red : AppColor.black,
+              color: highlight ? AppColor.red : AppColor.appDarkColor,
             ),
           ),
         ],
@@ -212,20 +272,10 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
   }
 
   Widget _loadingSkeleton() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
-      child: ListView.builder(
-        padding: EdgeInsets.fromLTRB(4.w, 0, 4.w, 3.h),
-        itemCount: 8,
-        itemBuilder: (context, index) => Container(
-          margin: EdgeInsets.only(bottom: 1.2.h),
-          height: 11.h,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(3.5.r),
-          ),
-        ),
+    return Center(
+      child: Custom3DLoader(
+        color: widget.accentColor,
+        label: "Loading stores…",
       ),
     );
   }

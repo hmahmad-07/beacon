@@ -3,25 +3,28 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_item_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-/// Item detail: stock by store + the full posted-movement ledger for the
-/// item (GRN / ISSUE / RETURN / TRANSFER_IN / TRANSFER_OUT), matching
-/// inventory_items.php's detail mode.
 class InventoryItemDetailView extends StatefulWidget {
   const InventoryItemDetailView({
     super.key,
     required this.itemId,
     required this.itemName,
     required this.accentColor,
+    this.storeId,
+    this.storeName,
   });
 
   final String itemId;
   final String itemName;
   final Color accentColor;
+
+  final String? storeId;
+  final String? storeName;
 
   @override
   State<InventoryItemDetailView> createState() =>
@@ -30,13 +33,33 @@ class InventoryItemDetailView extends StatefulWidget {
 
 class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
   final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
+  final _dateFormat = DateFormat('d MMM, yyyy');
+  late bool _scopedToStore = widget.storeId != null;
+
+  // API dates come back as "yyyy-MM-dd HH:mm:ss" (always midnight, no real
+  // time-of-day) -- reformat to "31 Aug, 2026" instead of showing the raw
+  // string with a meaningless 00:00:00.
+  String _formatDate(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    try {
+      return _dateFormat.format(DateTime.parse(raw));
+    } catch (_) {
+      return raw.split(' ').first;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<WMSController>().getItemDetail(context, widget.itemId);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
+  }
+
+  void _fetch() {
+    context.read<WMSController>().getItemDetail(
+      context,
+      widget.itemId,
+      storeId: _scopedToStore ? widget.storeId : null,
+    );
   }
 
   @override
@@ -47,7 +70,7 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
           if (controller.isItemDetailLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: Custom3DLoader(color: widget.accentColor));
           }
           final item = controller.itemDetailModel?.data;
           if (item == null) {
@@ -71,6 +94,29 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
               2.height,
               _sectionCard(
                 title: "Movement history",
+                subtitle: widget.storeId == null
+                    ? null
+                    : (_scopedToStore
+                          ? "Showing ${widget.storeName ?? 'the selected store'} only"
+                          : "Showing all stores"),
+                trailing: widget.storeId == null
+                    ? null
+                    : TextButton(
+                        onPressed: () {
+                          setState(() => _scopedToStore = !_scopedToStore);
+                          _fetch();
+                        },
+                        child: Text(
+                          _scopedToStore
+                              ? "Show all stores"
+                              : "Show selected only",
+                          style: TextStyle(
+                            fontSize: 3.sp,
+                            fontWeight: FontWeight.bold,
+                            color: widget.accentColor,
+                          ),
+                        ),
+                      ),
                 child: _movements(item.movements ?? []),
               ),
             ],
@@ -94,7 +140,7 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
           Text(
             item.displayName,
             style: TextStyle(
-              fontSize: 4.2.sp,
+              fontSize: 4.5.sp,
               fontWeight: FontWeight.bold,
               color: AppColor.appDarkColor,
             ),
@@ -102,16 +148,16 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
           0.4.height,
           Text(
             "${item.type ?? ''} · ${item.itemClass ?? ''}",
-            style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
+            style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
           ),
           1.5.height,
           Row(
             children: [
-              _stat("Total stock", _decimalFormat.format(item.stock?.total ?? 0)),
               _stat(
-                "Cost price",
-                _decimalFormat.format(item.costPrice ?? 0),
+                "Total stock",
+                _decimalFormat.format(item.stock?.total ?? 0),
               ),
+              _stat("Cost price", _decimalFormat.format(item.costPrice ?? 0)),
             ],
           ),
         ],
@@ -124,11 +170,14 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 2.6.sp, color: AppColor.grey)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
+          ),
           Text(
             value,
             style: TextStyle(
-              fontSize: 3.6.sp,
+              fontSize: 4.sp,
               fontWeight: FontWeight.bold,
               color: widget.accentColor,
             ),
@@ -155,13 +204,13 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
                   s.storeName ?? "",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 3.2.sp, color: AppColor.black),
+                  style: TextStyle(fontSize: 3.5.sp, color: AppColor.black),
                 ),
               ),
               Text(
                 _decimalFormat.format(s.balance ?? 0),
                 style: TextStyle(
-                  fontSize: 3.2.sp,
+                  fontSize: 3.5.sp,
                   fontWeight: FontWeight.bold,
                   color: negative ? AppColor.red : AppColor.appDarkColor,
                 ),
@@ -202,14 +251,14 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
                     Text(
                       "${m.documentType ?? ''} · ${m.documentNo ?? ''}",
                       style: TextStyle(
-                        fontSize: 3.sp,
+                        fontSize: 3.5.sp,
                         fontWeight: FontWeight.w600,
                         color: AppColor.appDarkColor,
                       ),
                     ),
                     Text(
-                      "${m.storeName ?? ''} · ${m.date ?? ''}",
-                      style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey),
+                      "${m.storeName ?? ''} · ${_formatDate(m.date)}",
+                      style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
                     ),
                   ],
                 ),
@@ -219,7 +268,7 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
                     ? "+${_decimalFormat.format(m.inQty ?? 0)}"
                     : "-${_decimalFormat.format(m.outQty ?? 0)}",
                 style: TextStyle(
-                  fontSize: 3.sp,
+                  fontSize: 3.5.sp,
                   fontWeight: FontWeight.bold,
                   color: isIn ? AppColor.green : AppColor.red,
                 ),
@@ -231,7 +280,12 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
     );
   }
 
-  Widget _sectionCard({required String title, required Widget child}) {
+  Widget _sectionCard({
+    required String title,
+    required Widget child,
+    String? subtitle,
+    Widget? trailing,
+  }) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(3.5.w),
@@ -243,13 +297,32 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 3.8.sp,
-              fontWeight: FontWeight.bold,
-              color: AppColor.appDarkColor,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 4.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColor.appDarkColor,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      0.3.height,
+                      Text(
+                        subtitle,
+                        style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              ?trailing,
+            ],
           ),
           1.height,
           child,
