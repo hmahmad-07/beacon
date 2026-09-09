@@ -353,11 +353,10 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
                           if (idx < 0 || idx >= months.length) {
                             return const SizedBox.shrink();
                           }
-                          final month = months[idx].month ?? "";
                           return Padding(
                             padding: EdgeInsets.only(top: 0.8.h),
                             child: Text(
-                              month.length >= 7 ? month.substring(5) : month,
+                              _formatMonth(months[idx].month),
                               style: TextStyle(
                                 fontSize: 2.6.sp,
                                 color: AppColor.grey,
@@ -433,6 +432,31 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
         ),
       ],
     );
+  }
+
+  // API gives months as "yyyy-MM" -- show the month name ("Apr") instead
+  // of the raw two-digit number ("04").
+  String _formatMonth(String? raw) {
+    if (raw == null || raw.isEmpty) return "";
+    try {
+      return DateFormat('MMM').format(DateFormat('yyyy-MM').parse(raw));
+    } catch (_) {
+      return raw.length >= 7 ? raw.substring(5) : raw;
+    }
+  }
+
+  // A plain toStringAsFixed(0) rounds any category under ~0.5% of the
+  // total straight down to "0%" -- IT EQUIPMENTS and SEMI FINISHED GOODS
+  // are real, non-zero categories that just happen to be tiny slices next
+  // to RAW MATERIAL, so they need finer precision instead of disappearing
+  // to zero.
+  String _formatPercent(num value, num total) {
+    if (total <= 0) return "0%";
+    final pct = (value / total) * 100;
+    if (pct <= 0) return "0%";
+    if (pct < 0.01) return "<0.01%";
+    if (pct < 1) return '${pct.toStringAsFixed(2)}%';
+    return '${pct.toStringAsFixed(0)}%';
   }
 
   // ------------------------------------------------------------ Category donut
@@ -559,9 +583,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
                             ),
                           ),
                           Text(
-                            total > 0
-                                ? '${(((shown[i].value ?? 0) / total) * 100).toStringAsFixed(0)}%'
-                                : '0%',
+                            _formatPercent(shown[i].value ?? 0, total),
                             style: TextStyle(
                               fontSize: 2.4.sp,
                               color: AppColor.grey,
