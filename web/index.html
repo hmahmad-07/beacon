@@ -18,19 +18,28 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="CENTREX - Enterprise WMS & HR management.">
+  <meta name="theme-color" content="#1E88E5">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="beacon">
+  <meta name="apple-mobile-web-app-title" content="CENTREX">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>beacon</title>
+  <title>CENTREX</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Google Maps JavaScript API key for web (employee route/visit map views).
+    This MUST be a separate key from the Android/iOS one, restricted to
+    "HTTP referrers" for your hosting domain in Google Cloud Console —
+    the Android-restricted key in android/secrets.properties will not work here.
+  -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_WEB_MAPS_API_KEY" defer></script>
 </head>
 <body>
   <!--

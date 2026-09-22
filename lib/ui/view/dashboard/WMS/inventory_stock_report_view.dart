@@ -232,10 +232,6 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
     );
   }
 
-  // Back to separate cards (not one continuous table) -- only the
-  // expanded by-store breakdown is a table. A colored accent bar, an
-  // icon-badged expand toggle, and small directional icons on the In/Out
-  // stats replace the plain text-only row from before.
   Widget _itemList(WMSController controller, List<StockReportItem> items) {
     return Column(
       children: items.map((item) => _itemCard(controller, item)).toList(),

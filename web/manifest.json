@@ -1,11 +1,11 @@
 {
-    "name": "beacon",
-    "short_name": "beacon",
+    "name": "CENTREX",
+    "short_name": "CENTREX",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#11131A",
+    "theme_color": "#1E88E5",
+    "description": "CENTREX - Enterprise WMS & HR management.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

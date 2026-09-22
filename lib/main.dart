@@ -4,25 +4,32 @@ import 'core/extensions/routes.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:beacon/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'core/network/internet_connectivity.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/controllers/auth_controller.dart';
 import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/controllers/hr_controller.dart';
 import 'package:beacon/core/controllers/wms_controller.dart';
+import 'package:beacon/ui/components/responsive_web_shell.dart';
 import 'package:beacon/core/controllers/connectivity_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  if (kIsWeb) {
+    usePathUrlStrategy();
+  } else {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
 
   SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle(
@@ -65,19 +72,25 @@ class MyApp extends StatelessWidget {
             ),
             home: const SplashView(),
             builder: (context, child) {
-              SizeConfig.init(context);
-              return GestureDetector(
-                onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-                behavior: HitTestBehavior.translucent,
-                child: Consumer<ConnectivityController>(
-                  builder: (context, connectivity, _) {
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        child ?? const SizedBox.shrink(),
-                        if (!connectivity.isOnline)
-                          const Positioned.fill(child: NoInternetView()),
-                      ],
+              return ResponsiveWebShell(
+                child: Builder(
+                  builder: (context) {
+                    SizeConfig.init(context);
+                    return GestureDetector(
+                      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                      behavior: HitTestBehavior.translucent,
+                      child: Consumer<ConnectivityController>(
+                        builder: (context, connectivity, _) {
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              child ?? const SizedBox.shrink(),
+                              if (!connectivity.isOnline)
+                                const Positioned.fill(child: NoInternetView()),
+                            ],
+                          );
+                        },
+                      ),
                     );
                   },
                 ),
