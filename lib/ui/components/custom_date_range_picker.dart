@@ -26,17 +26,31 @@ class CustomDateRangePicker extends StatelessWidget {
     this.resetOnCancel = false,
   });
 
+  /// Opens the calendar on its own (for filter sheets that don't embed
+  /// the field). `cancelled` is true only for the CANCEL button, not for a
+  /// tap outside the dialog.
+  static Future<({DateTimeRange? range, bool cancelled})> show(
+    BuildContext context, {
+    DateTimeRange? initialRange,
+  }) async {
+    final result = await showDialog<Object>(
+      context: context,
+      builder: (context) => _CustomCalendarDialog(initialRange: initialRange),
+    );
+    return (
+      range: result is DateTimeRange ? result : null,
+      cancelled: identical(result, _cancelled),
+    );
+  }
+
   Future<void> _pickRange(BuildContext context) async {
     FocusScope.of(context).requestFocus(FocusNode());
 
-    final result = await showDialog<Object>(
-      context: context,
-      builder: (context) => _CustomCalendarDialog(initialRange: selectedRange),
-    );
+    final result = await show(context, initialRange: selectedRange);
 
-    if (result is DateTimeRange) {
-      onRangeSelected(result);
-    } else if (identical(result, _cancelled) && resetOnCancel) {
+    if (result.range != null) {
+      onRangeSelected(result.range!);
+    } else if (result.cancelled && resetOnCancel) {
       onClear?.call();
     }
   }

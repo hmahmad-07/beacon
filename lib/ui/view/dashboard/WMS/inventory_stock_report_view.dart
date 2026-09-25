@@ -6,12 +6,9 @@ import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
-import 'package:beacon/ui/components/custom_button.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
-import 'package:beacon/ui/components/custom_field.dart';
-import 'package:beacon/ui/components/custom_toggle_switch.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
-import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -51,8 +48,10 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
   @override
   void initState() {
     super.initState();
+    _searchController.text = context.read<WMSController>().stockReportSearch;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = context.read<WMSController>();
+      controller.ensureStoresLoaded(context);
       if (widget.initialLowStockOnly) {
         controller.setStockReportLowStockOnly(context, true);
       } else {
@@ -81,23 +80,23 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
           return ListView(
             padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
             children: [
-              InventoryStoreFilter(
-                selectedStoreId: controller.stockReportStoreId,
-                onChanged: (id) => controller.setStockReportStore(context, id),
+              InventorySearchBar(
+                controller: _searchController,
+                hintText: "Search items…",
+                accentColor: widget.accentColor,
+                onSubmitted: (q) => controller.runStockReportSearch(context, q),
+                onFilterTap: () => _openFilters(controller),
+                activeFilterCount: controller.stockReportActiveFilterCount,
               ),
-              _searchBar(controller),
-              2.height,
-              _lowStockToggle(controller),
-              2.height,
-              CustomDateRangePicker(
-                hint: "Filter by modified date",
-                resetOnCancel: true,
-                selectedRange: controller.stockReportDateRange,
-                onRangeSelected: (r) =>
-                    controller.setStockReportDateRange(context, r),
-                onClear: controller.stockReportDateRange == null
-                    ? null
-                    : () => controller.setStockReportDateRange(context, null),
+              InventoryActiveFilterChips(
+                accentColor: widget.accentColor,
+                filters: _activeFilters(controller),
+                onClearAll: () => controller.applyStockReportFilters(
+                  context,
+                  storeId: null,
+                  lowStockOnly: false,
+                  range: null,
+                ),
               ),
               2.height,
               if (model?.summary != null) _summaryCards(model!.summary!),
@@ -125,80 +124,99 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
     );
   }
 
-  Widget _searchBar(WMSController controller) {
-    void runSearch() =>
-        controller.runStockReportSearch(context, _searchController.text);
+  List<InventoryActiveFilter> _activeFilters(WMSController c) => [
+    if (c.stockReportStoreId != null)
+      InventoryActiveFilter(
+        icon: Icons.storefront_rounded,
+        label: c.storeNameById(c.stockReportStoreId) ?? "Store",
+        onRemove: () => c.setStockReportStore(context, null),
+      ),
+    if (c.stockReportLowStockOnly)
+      InventoryActiveFilter(
+        icon: Icons.trending_down_rounded,
+        label: "Zero / below stock",
+        onRemove: () => c.setStockReportLowStockOnly(context, false),
+      ),
+    if (c.stockReportDateRange != null)
+      InventoryActiveFilter(
+        icon: Icons.event_rounded,
+        label: formatRangeLabel(c.stockReportDateRange!),
+        onRemove: () => c.setStockReportDateRange(context, null),
+      ),
+  ];
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          flex: 4,
-          child: CustomField(
-            controller: _searchController,
-            hintText: "Search…",
-            isLabel: false,
-            onSubmitted: (_) => runSearch(),
-            prefix: Icon(Icons.search, color: AppColor.grey, size: 5.w),
+  // Choices are drafted in the sheet and applied with a single fetch.
+  void _openFilters(WMSController controller) {
+    String? storeId = controller.stockReportStoreId;
+    bool lowStockOnly = controller.stockReportLowStockOnly;
+    DateTimeRange? range = controller.stockReportDateRange;
+
+    showInventoryFilterSheet(
+      context: context,
+      accentColor: widget.accentColor,
+      onReset: () {
+        storeId = null;
+        lowStockOnly = false;
+        range = null;
+      },
+      onApply: () => controller.applyStockReportFilters(
+        context,
+        storeId: storeId,
+        lowStockOnly: lowStockOnly,
+        range: range,
+      ),
+      sections: (sheetContext, setSheet) => [
+        InventoryFilterSection(
+          title: "Store",
+          child: InventoryFilterTile(
+            icon: Icons.storefront_rounded,
+            placeholder: kAllStoresLabel,
+            value: controller.storeNameById(storeId),
+            accentColor: widget.accentColor,
+            onTap: () async {
+              final picked = await showInventoryStorePicker(
+                sheetContext,
+                selectedStoreId: storeId,
+                accentColor: widget.accentColor,
+              );
+              if (picked != null) setSheet(() => storeId = picked.storeId);
+            },
+            onClear: () => setSheet(() => storeId = null),
           ),
         ),
-        2.width,
-        Expanded(
-          child: RoundButton(
-            width: double.infinity,
-            buttonColor: widget.accentColor,
-            onPress: runSearch,
-            title: "Search",
-            textColor: AppColor.white,
-            height: 6.5.h,
-            fontSize: 3.2.sp,
+        InventoryFilterSection(
+          title: "Stock level",
+          child: InventorySwitchTile(
+            icon: Icons.trending_down_rounded,
+            title: "Zero or below stock only",
+            subtitle: "Items that need restocking",
+            value: lowStockOnly,
+            accentColor: widget.accentColor,
+            onChanged: (v) => setSheet(() => lowStockOnly = v),
+          ),
+        ),
+        InventoryFilterSection(
+          title: "Modified date",
+          child: InventoryFilterTile(
+            icon: Icons.event_rounded,
+            placeholder: "Any date",
+            value: range == null ? null : formatRangeLabel(range!),
+            accentColor: widget.accentColor,
+            onTap: () async {
+              final r = await CustomDateRangePicker.show(
+                sheetContext,
+                initialRange: range,
+              );
+              if (r.range != null) {
+                setSheet(() => range = r.range);
+              } else if (r.cancelled) {
+                setSheet(() => range = null);
+              }
+            },
+            onClear: () => setSheet(() => range = null),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _lowStockToggle(WMSController controller) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.5.h),
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        borderRadius: BorderRadius.circular(3.r),
-        boxShadow: AppShadow.soft,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(1.6.w),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: widget.accentColor.withValues(alpha: 0.12),
-            ),
-            child: Icon(
-              BoxIcons.bxs_low_vision,
-              color: widget.accentColor,
-              size: 4.5.w,
-            ),
-          ),
-          3.width,
-          Expanded(
-            child: Text(
-              "Zero or below stock only",
-              style: TextStyle(
-                fontSize: 3.6.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColor.appDarkColor,
-              ),
-            ),
-          ),
-          CustomToggleSwitch(
-            value: controller.stockReportLowStockOnly,
-            activeColor: widget.accentColor,
-            onChanged: (v) => controller.setStockReportLowStockOnly(context, v),
-          ),
-        ],
-      ),
     );
   }
 

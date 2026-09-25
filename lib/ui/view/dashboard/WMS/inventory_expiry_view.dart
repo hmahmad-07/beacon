@@ -7,9 +7,8 @@ import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
-import 'package:beacon/ui/components/custom_segmented_tabs.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
-import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -32,14 +31,121 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
   final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
   static const _warning = Color(0xFFFF9F43);
 
-  static const _sortLatest = "Latest first";
-  static const _sortSoonest = "Expiring soonest";
+  final _searchController = TextEditingController();
+
+  static const Map<bool, (String, IconData)> _sortOptions = {
+    true: ("Latest date first", Icons.south_rounded),
+    false: ("Expiring soonest", Icons.hourglass_bottom_rounded),
+  };
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => context.read<WMSController>().getExpiryReport(context),
+    _searchController.text = context.read<WMSController>().expiryQuery;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = context.read<WMSController>();
+      controller.ensureStoresLoaded(context);
+      controller.getExpiryReport(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<InventoryActiveFilter> _activeFilters(WMSController c) => [
+    if (c.expiryStoreId != null)
+      InventoryActiveFilter(
+        icon: Icons.storefront_rounded,
+        label: c.storeNameById(c.expiryStoreId) ?? "Store",
+        onRemove: () => c.setExpiryStore(context, null),
+      ),
+    if (c.expiryDateRange != null)
+      InventoryActiveFilter(
+        icon: Icons.event_rounded,
+        label: formatRangeLabel(c.expiryDateRange!),
+        onRemove: () => c.setExpiryDateRange(context, null),
+      ),
+    if (!c.expirySortLatest)
+      InventoryActiveFilter(
+        icon: Icons.hourglass_bottom_rounded,
+        label: "Expiring soonest",
+        onRemove: () => c.setExpirySortLatest(true),
+      ),
+  ];
+
+  // Choices are drafted in the sheet and applied with a single fetch.
+  void _openFilters(WMSController controller) {
+    String? storeId = controller.expiryStoreId;
+    DateTimeRange? range = controller.expiryDateRange;
+    bool sortLatest = controller.expirySortLatest;
+
+    showInventoryFilterSheet(
+      context: context,
+      accentColor: widget.accentColor,
+      onReset: () {
+        storeId = null;
+        range = null;
+        sortLatest = true;
+      },
+      onApply: () => controller.applyExpiryFilters(
+        context,
+        storeId: storeId,
+        range: range,
+        sortLatest: sortLatest,
+      ),
+      sections: (sheetContext, setSheet) => [
+        InventoryFilterSection(
+          title: "Sort by",
+          child: InventoryChoiceChips<bool>(
+            options: _sortOptions,
+            selected: sortLatest,
+            accentColor: widget.accentColor,
+            onChanged: (v) => setSheet(() => sortLatest = v),
+          ),
+        ),
+        InventoryFilterSection(
+          title: "Store",
+          child: InventoryFilterTile(
+            icon: Icons.storefront_rounded,
+            placeholder: kAllStoresLabel,
+            value: controller.storeNameById(storeId),
+            accentColor: widget.accentColor,
+            onTap: () async {
+              final picked = await showInventoryStorePicker(
+                sheetContext,
+                selectedStoreId: storeId,
+                accentColor: widget.accentColor,
+              );
+              if (picked != null) setSheet(() => storeId = picked.storeId);
+            },
+            onClear: () => setSheet(() => storeId = null),
+          ),
+        ),
+        InventoryFilterSection(
+          title: "Modified date",
+          child: InventoryFilterTile(
+            icon: Icons.event_rounded,
+            placeholder: "Any date",
+            value: range == null ? null : formatRangeLabel(range!),
+            accentColor: widget.accentColor,
+            onTap: () async {
+              final r = await CustomDateRangePicker.show(
+                sheetContext,
+                initialRange: range,
+              );
+              if (r.range != null) {
+                setSheet(() => range = r.range);
+              } else if (r.cancelled) {
+                setSheet(() => range = null);
+              }
+            },
+            onClear: () => setSheet(() => range = null),
+          ),
+        ),
+      ],
     );
   }
 
@@ -61,17 +167,18 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
       appBar: CustomAppBar(title: "Expiry Report"),
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
-          final batches = controller.expiryModel?.data ?? [];
+          final allBatches = controller.expiryModel?.data ?? [];
+          final batches = controller.filteredExpiryBatches;
           final loading = controller.isExpiryLoading;
           final latest = controller.expirySortLatest;
 
           final summary = controller.expiryModel?.summary;
           final expired =
-              summary?.expired ?? batches.where((b) => b.isExpired).length;
+              summary?.expired ?? allBatches.where((b) => b.isExpired).length;
           final expiringSoon =
               summary?.expiringSoon ??
-              batches.where((b) => !b.isExpired).length;
-          final tracked = summary?.tracked ?? batches.length;
+              allBatches.where((b) => !b.isExpired).length;
+          final tracked = summary?.tracked ?? allBatches.length;
 
           final sorted = _sorted(batches, latest);
           final groups = InventoryDates.groupByDay(
@@ -82,36 +189,41 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
           return ListView(
             padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
             children: [
-              InventoryStoreFilter(
-                selectedStoreId: controller.expiryStoreId,
-                onChanged: (id) => controller.setExpiryStore(context, id),
+              InventorySearchBar(
+                controller: _searchController,
+                hintText: "Search item, GRN or store…",
+                accentColor: widget.accentColor,
+                onChanged: controller.setExpiryQuery,
+                onFilterTap: () => _openFilters(controller),
+                activeFilterCount: controller.expiryActiveFilterCount,
+              ),
+              InventoryActiveFilterChips(
+                accentColor: widget.accentColor,
+                filters: _activeFilters(controller),
+                onClearAll: () => controller.applyExpiryFilters(
+                  context,
+                  storeId: null,
+                  range: null,
+                  sortLatest: true,
+                ),
               ),
               2.height,
               _summaryRow(expired, expiringSoon, tracked),
-              2.height,
-              CustomDateRangePicker(
-                hint: "Filter by modified date",
-                resetOnCancel: true,
-                selectedRange: controller.expiryDateRange,
-                onRangeSelected: (r) =>
-                    controller.setExpiryDateRange(context, r),
-                onClear: controller.expiryDateRange == null
-                    ? null
-                    : () => controller.setExpiryDateRange(context, null),
-              ),
-              1.5.height,
-              CustomSegmentedTabs(
-                options: const [_sortLatest, _sortSoonest],
-                selected: latest ? _sortLatest : _sortSoonest,
-                activeColor: widget.accentColor,
-                onChanged: (v) =>
-                    controller.setExpirySortLatest(v == _sortLatest),
-              ),
               1.5.height,
               if (loading)
                 Center(child: Custom3DLoader(color: widget.accentColor))
-              else if (batches.isEmpty)
+              else if (allBatches.isEmpty)
                 _emptyState()
+              else if (batches.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6.h),
+                  child: Center(
+                    child: Text(
+                      "No batches match \"${controller.expiryQuery}\"",
+                      style: TextStyle(fontSize: 3.5.sp, color: AppColor.grey),
+                    ),
+                  ),
+                )
               else
                 for (final g in groups) ...[
                   InventoryDateHeader(

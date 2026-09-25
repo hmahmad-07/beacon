@@ -5,7 +5,7 @@ import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:beacon/ui/components/custom_field.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -112,12 +112,11 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
   }
 
   Widget _searchField() {
-    return CustomField(
+    return InventorySearchBar(
       controller: _searchController,
       hintText: "Search store name or code…",
-      isLabel: false,
+      accentColor: widget.accentColor,
       onChanged: (v) => context.read<WMSController>().setStoresQuery(v),
-      prefix: Icon(Icons.search, color: AppColor.grey, size: 5.w),
     );
   }
 

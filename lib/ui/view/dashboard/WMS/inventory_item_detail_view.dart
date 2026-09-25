@@ -7,6 +7,7 @@ import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -80,52 +81,10 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
               2.height,
               _sectionCard(
                 title: "Stock ledger",
-                subtitle: widget.storeId == null
-                    ? null
-                    : (controller.itemDetailScopedToStore
-                          ? "Showing ${widget.storeName ?? 'the selected store'} only"
-                          : "Showing all stores"),
-                trailing: widget.storeId == null
-                    ? null
-                    : TextButton(
-                        onPressed: () => controller.toggleItemDetailStoreScope(
-                          context,
-                          widget.itemId,
-                          storeId: widget.storeId,
-                        ),
-                        child: Text(
-                          controller.itemDetailScopedToStore
-                              ? "Show all stores"
-                              : "Show selected only",
-                          style: TextStyle(
-                            fontSize: 3.sp,
-                            fontWeight: FontWeight.bold,
-                            color: widget.accentColor,
-                          ),
-                        ),
-                      ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CustomDateRangePicker(
-                      hint: "Select date range",
-                      selectedRange: controller.itemDetailDateRange,
-                      onRangeSelected: (range) =>
-                          controller.setItemDetailDateRange(
-                            context,
-                            widget.itemId,
-                            storeId: widget.storeId,
-                            range: range,
-                          ),
-                      onClear: controller.itemDetailDateRange == null
-                          ? null
-                          : () => controller.setItemDetailDateRange(
-                              context,
-                              widget.itemId,
-                              storeId: widget.storeId,
-                              range: null,
-                            ),
-                    ),
+                    _ledgerFilters(controller),
                     1.5.height,
                     _movements(item.movements ?? []),
                   ],
@@ -134,6 +93,116 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  // Compact chip row instead of a full-width date field + text button.
+  Widget _ledgerFilters(WMSController controller) {
+    final range = controller.itemDetailDateRange;
+    void setRange(DateTimeRange? r) => controller.setItemDetailDateRange(
+      context,
+      widget.itemId,
+      storeId: widget.storeId,
+      range: r,
+    );
+
+    return Wrap(
+      spacing: 2.w,
+      runSpacing: 1.h,
+      children: [
+        _ledgerChip(
+          icon: Icons.event_rounded,
+          label: range == null ? "All dates" : formatRangeLabel(range),
+          active: range != null,
+          onTap: () async {
+            final r = await CustomDateRangePicker.show(
+              context,
+              initialRange: range,
+            );
+            if (r.range != null) {
+              setRange(r.range);
+            } else if (r.cancelled && range != null) {
+              setRange(null);
+            }
+          },
+          onClear: range == null ? null : () => setRange(null),
+        ),
+        if (widget.storeId != null)
+          _ledgerChip(
+            icon: Icons.storefront_rounded,
+            label: controller.itemDetailScopedToStore
+                ? (widget.storeName ?? "Selected store")
+                : "All stores",
+            active: controller.itemDetailScopedToStore,
+            trailingIcon: Icons.swap_horiz_rounded,
+            onTap: () => controller.toggleItemDetailStoreScope(
+              context,
+              widget.itemId,
+              storeId: widget.storeId,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _ledgerChip({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+    VoidCallback? onClear,
+    IconData trailingIcon = Icons.keyboard_arrow_down_rounded,
+  }) {
+    final color = active ? widget.accentColor : AppColor.darkGrey;
+    return Material(
+      color: active
+          ? widget.accentColor.withValues(alpha: 0.1)
+          : AppColor.scaffold,
+      borderRadius: BorderRadius.circular(100),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.9.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(
+              color: active
+                  ? widget.accentColor.withValues(alpha: 0.4)
+                  : AppColor.appLightColor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 4.w, color: color),
+              1.5.width,
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 40.w),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 3.sp,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ),
+              1.width,
+              if (onClear != null)
+                InkWell(
+                  onTap: onClear,
+                  customBorder: const CircleBorder(),
+                  child: Icon(Icons.close_rounded, size: 4.2.w, color: color),
+                )
+              else
+                Icon(trailingIcon, size: 4.4.w, color: color),
+            ],
+          ),
+        ),
       ),
     );
   }

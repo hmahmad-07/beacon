@@ -173,6 +173,25 @@ class WMSController extends ChangeNotifier {
   int itemsPage = 1;
   DateTimeRange? itemsDateRange; // modified_from / modified_to
 
+  int get itemsActiveFilterCount =>
+      (itemsStoreId != null ? 1 : 0) +
+      (itemsStatus.isNotEmpty ? 1 : 0) +
+      (itemsDateRange != null ? 1 : 0);
+
+  /// Applies everything picked in the filter sheet with a single fetch.
+  Future<void> applyItemsFilters(
+    BuildContext context, {
+    required String? storeId,
+    required String status,
+    required DateTimeRange? range,
+  }) {
+    itemsStoreId = storeId;
+    itemsStatus = status;
+    itemsDateRange = range;
+    itemsPage = 1;
+    return getItems(context);
+  }
+
   Future<void> setItemsDateRange(BuildContext context, DateTimeRange? range) {
     itemsDateRange = range;
     itemsPage = 1;
@@ -360,6 +379,24 @@ class WMSController extends ChangeNotifier {
   DateTimeRange? stockReportDateRange; // modified_from / modified_to
   final Set<String> stockReportExpandedIds = {};
 
+  int get stockReportActiveFilterCount =>
+      (stockReportStoreId != null ? 1 : 0) +
+      (stockReportLowStockOnly ? 1 : 0) +
+      (stockReportDateRange != null ? 1 : 0);
+
+  Future<void> applyStockReportFilters(
+    BuildContext context, {
+    required String? storeId,
+    required bool lowStockOnly,
+    required DateTimeRange? range,
+  }) {
+    stockReportStoreId = storeId;
+    stockReportLowStockOnly = lowStockOnly;
+    stockReportDateRange = range;
+    stockReportPage = 1;
+    return getStockReport(context);
+  }
+
   Future<void> setStockReportDateRange(
     BuildContext context,
     DateTimeRange? range,
@@ -456,6 +493,51 @@ class WMSController extends ChangeNotifier {
   // true: latest received/expiry date on top; false: soonest expiry on top.
   bool expirySortLatest = true;
   DateTimeRange? expiryDateRange; // modified_from / modified_to
+
+  int get expiryActiveFilterCount =>
+      (expiryStoreId != null ? 1 : 0) +
+      (expiryDateRange != null ? 1 : 0) +
+      (expirySortLatest ? 0 : 1);
+
+  // inventory_expiry.php has no search param and returns every batch at
+  // once, so search filters the loaded list locally.
+  String expiryQuery = "";
+
+  void setExpiryQuery(String query) {
+    expiryQuery = query.trim();
+    notifyListeners();
+  }
+
+  List<InventoryExpiryBatch> get filteredExpiryBatches {
+    final all = expiryModel?.data ?? [];
+    if (expiryQuery.isEmpty) return all;
+    final q = expiryQuery.toLowerCase();
+    return all
+        .where(
+          (b) =>
+              (b.itemName ?? "").toLowerCase().contains(q) ||
+              (b.grnNo ?? "").toLowerCase().contains(q) ||
+              (b.storeName ?? "").toLowerCase().contains(q),
+        )
+        .toList();
+  }
+
+  Future<void> applyExpiryFilters(
+    BuildContext context, {
+    required String? storeId,
+    required DateTimeRange? range,
+    required bool sortLatest,
+  }) {
+    expirySortLatest = sortLatest;
+    // Sort is client-side only; skip the refetch if nothing else changed.
+    if (storeId == expiryStoreId && range == expiryDateRange) {
+      notifyListeners();
+      return Future.value();
+    }
+    expiryStoreId = storeId;
+    expiryDateRange = range;
+    return getExpiryReport(context);
+  }
 
   void setExpirySortLatest(bool value) {
     expirySortLatest = value;

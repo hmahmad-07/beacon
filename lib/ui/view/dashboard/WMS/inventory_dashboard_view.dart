@@ -11,8 +11,8 @@ import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_stock_report_view.dart';
-import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -80,7 +80,10 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
 
   void _fetch() {
     _animationKey = null;
-    context.read<WMSController>().getDashboard(context);
+    final controller = context.read<WMSController>();
+    // The store chip shows a name, so the store list must be loaded.
+    controller.ensureStoresLoaded(context);
+    controller.getDashboard(context);
   }
 
   final _wholeFormat = NumberFormat('#,##0', 'en_US');
@@ -111,9 +114,14 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
             child: ListView(
               padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
               children: [
-                InventoryStoreFilter(
-                  selectedStoreId: controller.dashboardStoreId,
-                  onChanged: (id) => controller.setDashboardStore(context, id),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: InventoryStoreChip(
+                    selectedStoreId: controller.dashboardStoreId,
+                    accentColor: widget.accentColor,
+                    onChanged: (id) =>
+                        controller.setDashboardStore(context, id),
+                  ),
                 ),
                 2.height,
                 if (loading && data == null)

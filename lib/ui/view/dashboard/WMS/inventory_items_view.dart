@@ -7,13 +7,10 @@ import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:beacon/ui/components/custom_button.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
-import 'package:beacon/ui/components/custom_field.dart';
-import 'package:beacon/ui/components/custom_segmented_tabs.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_item_detail_view.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
-import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -44,9 +41,13 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => context.read<WMSController>().getItems(context),
-    );
+    final controller = context.read<WMSController>();
+    // Search persists on the controller across visits; mirror it.
+    _searchController.text = controller.itemsSearch;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.ensureStoresLoaded(context);
+      controller.getItems(context);
+    });
   }
 
   @override
@@ -69,32 +70,32 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
           return ListView(
             padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
             children: [
-              InventoryStoreFilter(
-                selectedStoreId: controller.itemsStoreId,
-                onChanged: (id) => controller.setItemsStore(context, id),
+              InventorySearchBar(
+                controller: _searchController,
+                hintText: "Search items…",
+                accentColor: widget.accentColor,
+                onSubmitted: (q) => controller.runItemsSearch(context, q),
+                onFilterTap: () => _openFilters(controller),
+                activeFilterCount: controller.itemsActiveFilterCount,
               ),
-              _searchBar(controller),
-              2.height,
-              _statusChips(controller),
-              1.5.height,
-              CustomDateRangePicker(
-                hint: "Filter by modified date",
-                resetOnCancel: true,
-                selectedRange: controller.itemsDateRange,
-                onRangeSelected: (r) =>
-                    controller.setItemsDateRange(context, r),
-                onClear: controller.itemsDateRange == null
-                    ? null
-                    : () => controller.setItemsDateRange(context, null),
+              InventoryActiveFilterChips(
+                accentColor: widget.accentColor,
+                filters: _activeFilters(controller),
+                onClearAll: () => controller.applyItemsFilters(
+                  context,
+                  storeId: null,
+                  status: "",
+                  range: null,
+                ),
               ),
-              1.5.height,
+              1.8.height,
               Text(
                 loading
                     ? "Loading items…"
                     : "${_wholeFormat.format(model?.meta?.total ?? 0)} items",
                 style: TextStyle(fontSize: 3.1.sp, color: AppColor.grey),
               ),
-              2.height,
+              1.height,
               if (loading && model == null)
                 _loadingSkeleton()
               else if (items.isEmpty)
@@ -118,56 +119,103 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     );
   }
 
-  Widget _searchBar(WMSController controller) {
-    void runSearch() =>
-        controller.runItemsSearch(context, _searchController.text);
+  static const Map<String, (String, IconData)> _statusOptions = {
+    "": ("All stock", Icons.inventory_2_outlined),
+    "in_stock": ("In stock", Icons.check_circle_outline_rounded),
+    "out_of_stock": ("Out of stock", Icons.remove_shopping_cart_outlined),
+  };
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          flex: 4,
-          child: CustomField(
-            controller: _searchController,
-            hintText: "Search…",
-            isLabel: false,
-            onSubmitted: (_) => runSearch(),
-            prefix: Icon(Icons.search, color: AppColor.grey, size: 5.w),
+  List<InventoryActiveFilter> _activeFilters(WMSController c) => [
+    if (c.itemsStoreId != null)
+      InventoryActiveFilter(
+        icon: Icons.storefront_rounded,
+        label: c.storeNameById(c.itemsStoreId) ?? "Store",
+        onRemove: () => c.setItemsStore(context, null),
+      ),
+    if (c.itemsStatus.isNotEmpty)
+      InventoryActiveFilter(
+        icon: _statusOptions[c.itemsStatus]?.$2 ?? Icons.inventory_2_outlined,
+        label: _statusOptions[c.itemsStatus]?.$1 ?? c.itemsStatus,
+        onRemove: () => c.setItemsStatus(context, ""),
+      ),
+    if (c.itemsDateRange != null)
+      InventoryActiveFilter(
+        icon: Icons.event_rounded,
+        label: formatRangeLabel(c.itemsDateRange!),
+        onRemove: () => c.setItemsDateRange(context, null),
+      ),
+  ];
+
+  // Choices are drafted in the sheet and applied with a single fetch.
+  void _openFilters(WMSController controller) {
+    String? storeId = controller.itemsStoreId;
+    String status = controller.itemsStatus;
+    DateTimeRange? range = controller.itemsDateRange;
+
+    showInventoryFilterSheet(
+      context: context,
+      accentColor: widget.accentColor,
+      onReset: () {
+        storeId = null;
+        status = "";
+        range = null;
+      },
+      onApply: () => controller.applyItemsFilters(
+        context,
+        storeId: storeId,
+        status: status,
+        range: range,
+      ),
+      sections: (sheetContext, setSheet) => [
+        InventoryFilterSection(
+          title: "Store",
+          child: InventoryFilterTile(
+            icon: Icons.storefront_rounded,
+            placeholder: kAllStoresLabel,
+            value: controller.storeNameById(storeId),
+            accentColor: widget.accentColor,
+            onTap: () async {
+              final picked = await showInventoryStorePicker(
+                sheetContext,
+                selectedStoreId: storeId,
+                accentColor: widget.accentColor,
+              );
+              if (picked != null) setSheet(() => storeId = picked.storeId);
+            },
+            onClear: () => setSheet(() => storeId = null),
           ),
         ),
-        2.width,
-        Expanded(
-          child: RoundButton(
-            buttonColor: widget.accentColor,
-            onPress: runSearch,
-            title: "Search",
-            textColor: AppColor.white,
-            height: 6.5.h,
-            fontSize: 3.5.sp,
+        InventoryFilterSection(
+          title: "Stock status",
+          child: InventoryChoiceChips<String>(
+            options: _statusOptions,
+            selected: status,
+            accentColor: widget.accentColor,
+            onChanged: (v) => setSheet(() => status = v),
+          ),
+        ),
+        InventoryFilterSection(
+          title: "Modified date",
+          child: InventoryFilterTile(
+            icon: Icons.event_rounded,
+            placeholder: "Any date",
+            value: range == null ? null : formatRangeLabel(range!),
+            accentColor: widget.accentColor,
+            onTap: () async {
+              final r = await CustomDateRangePicker.show(
+                sheetContext,
+                initialRange: range,
+              );
+              if (r.range != null) {
+                setSheet(() => range = r.range);
+              } else if (r.cancelled) {
+                setSheet(() => range = null);
+              }
+            },
+            onClear: () => setSheet(() => range = null),
           ),
         ),
       ],
-    );
-  }
-
-  static const Map<String, String> _statusOptions = {
-    "": "All stock",
-    "in_stock": "In stock",
-    "out_of_stock": "Out of stock",
-  };
-
-  Widget _statusChips(WMSController controller) {
-    return CustomSegmentedTabs(
-      options: _statusOptions.values.toList(),
-      selected: _statusOptions[controller.itemsStatus] ?? _statusOptions[""]!,
-      activeColor: widget.accentColor,
-      onChanged: (label) {
-        final key = _statusOptions.entries
-            .firstWhere((e) => e.value == label)
-            .key;
-        controller.setItemsStatus(context, key);
-      },
     );
   }
 

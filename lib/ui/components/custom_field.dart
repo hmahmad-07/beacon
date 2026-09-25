@@ -21,6 +21,7 @@ class CustomField extends StatelessWidget {
   final bool isLabel;
   final List<TextInputFormatter>? inputFormatters;
   final FocusNode? focusNode;
+  final TextInputAction? textInputAction;
 
   const CustomField({
     super.key,
@@ -39,6 +40,7 @@ class CustomField extends StatelessWidget {
     this.isLabel = true,
     this.inputFormatters,
     this.focusNode,
+    this.textInputAction,
   });
 
   @override
@@ -72,6 +74,7 @@ class CustomField extends StatelessWidget {
           controller: controller,
           maxLines: maxLine,
           focusNode: focusNode,
+          textInputAction: textInputAction,
           cursorColor: AppColor.black,
           style: TextStyle(
             color: AppColor.black,
