@@ -9,6 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../ui/view/dashboard/home_view.dart';
 import '../../ui/view/splash_view.dart';
 import '../constants/constants.dart';
+import '../network/api_client.dart';
 import '../extensions/routes.dart';
 import '../utils/utils.dart';
 
@@ -42,7 +43,7 @@ class AuthController extends ChangeNotifier {
         'password': passwordController.text.trim(),
       };
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final response = await dio.post(
         '${Constants.baseUrl}login_admin.php',
         data: formData,

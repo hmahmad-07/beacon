@@ -3,13 +3,16 @@ import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_item_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_button.dart';
+import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/components/custom_field.dart';
 import 'package:beacon/ui/components/custom_segmented_tabs.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_item_detail_view.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -74,6 +77,17 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
               2.height,
               _statusChips(controller),
               1.5.height,
+              CustomDateRangePicker(
+                hint: "Filter by modified date",
+                resetOnCancel: true,
+                selectedRange: controller.itemsDateRange,
+                onRangeSelected: (r) =>
+                    controller.setItemsDateRange(context, r),
+                onClear: controller.itemsDateRange == null
+                    ? null
+                    : () => controller.setItemsDateRange(context, null),
+              ),
+              1.5.height,
               Text(
                 loading
                     ? "Loading items…"
@@ -94,10 +108,9 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
                   ),
                 )
               else
-                Column(
-                  children: items.map((i) => _itemCard(controller, i)).toList(),
-                ),
-              if (model?.meta != null) _pager(controller, model!.meta!, loading),
+                ..._datedItems(controller, items),
+              if (model?.meta != null)
+                _pager(controller, model!.meta!, loading),
             ],
           );
         },
@@ -158,8 +171,33 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     );
   }
 
+  // Latest activity first, bucketed under a day header.
+  List<Widget> _datedItems(
+    WMSController controller,
+    List<InventoryItemSummary> items,
+  ) {
+    final sorted = InventoryDates.sortLatestFirst(
+      items,
+      (i) => i.modifiedDateTime,
+    );
+    final groups = InventoryDates.groupByDay(sorted, (i) => i.modifiedDateTime);
+    return [
+      for (final g in groups) ...[
+        InventoryDateHeader(
+          day: g.key,
+          count: g.value.length,
+          countLabel: g.value.length == 1 ? "item" : "items",
+          accentColor: widget.accentColor,
+        ),
+        ...g.value.map((i) => _itemCard(controller, i)),
+      ],
+    ];
+  }
+
   Widget _itemCard(WMSController controller, InventoryItemSummary item) {
     final outOfStock = item.isOutOfStock;
+    final lastDate = item.modifiedDateTime;
+    final lastTime = InventoryDates.timeOf(lastDate);
     return Container(
       margin: EdgeInsets.only(bottom: 1.4.h),
       decoration: BoxDecoration(
@@ -220,6 +258,31 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
                                 color: AppColor.grey,
                               ),
                             ),
+                            if (lastDate != null) ...[
+                              0.6.height,
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.history_rounded,
+                                    size: 3.4.w,
+                                    color: AppColor.grey,
+                                  ),
+                                  1.width,
+                                  Flexible(
+                                    child: Text(
+                                      "Modified ${InventoryDates.full(lastDate)}"
+                                      "${lastTime != null ? ' · $lastTime' : ''}",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 2.7.sp,
+                                        color: AppColor.grey,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -293,7 +356,11 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     );
   }
 
-  Widget _pager(WMSController controller, InventoryItemsMeta meta, bool loading) {
+  Widget _pager(
+    WMSController controller,
+    InventoryItemsMeta meta,
+    bool loading,
+  ) {
     final current = meta.currentPage ?? 1;
     final last = meta.lastPage ?? 1;
     return Padding(

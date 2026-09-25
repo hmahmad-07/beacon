@@ -9,6 +9,7 @@ import 'package:nominatim_flutter/model/request/request.dart';
 import 'package:nominatim_flutter/model/response/response.dart';
 import 'package:nominatim_flutter/nominatim_flutter.dart';
 import '../constants/constants.dart';
+import '../network/api_client.dart';
 import 'package:intl/intl.dart';
 import '../models/Employees/emp_working_detail_model.dart';
 import '../models/Employees/employes_model.dart';
@@ -23,12 +24,28 @@ class EmployesController extends ChangeNotifier {
 
   SitesDetailModel? get employesModel => sitesDetailModel;
 
-  Future<void> getSites(BuildContext context, {String? shopId}) async {
+  // True when the last getSites attempt failed and there's nothing to show,
+  // so HomeView can offer a retry instead of an empty rail.
+  bool sitesLoadFailed = false;
+  Future<void>? _sitesInFlight;
+
+  /// Splash, login and the reconnect listener can all call this at once;
+  /// they share one request instead of racing each other.
+  Future<void> getSites(BuildContext context, {String? shopId}) {
+    return _sitesInFlight ??= _getSites(
+      context,
+      shopId: shopId,
+    ).whenComplete(() => _sitesInFlight = null);
+  }
+
+  Future<void> _getSites(BuildContext context, {String? shopId}) async {
+    var succeeded = false;
     try {
       isLoading = true;
+      sitesLoadFailed = false;
       notifyListeners();
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final Map<String, dynamic> queryParams = {};
       if (shopId != null && shopId.isNotEmpty && shopId != 'all') {
         queryParams['shop_id'] = shopId;
@@ -48,6 +65,7 @@ class EmployesController extends ChangeNotifier {
         sitesDetailModel = SitesDetailModel.fromJson(response.data);
 
         if (sitesDetailModel?.error == 0) {
+          succeeded = true;
           log("Sites Fetched Successfully: ${sitesDetailModel?.totalShops}");
           _prefetchActiveEmployeeCounts();
         } else {
@@ -67,11 +85,15 @@ class EmployesController extends ChangeNotifier {
         }
       }
     } on DioException catch (e) {
-      log('Dio error: ${e.message}');
+      log('Dio error (${e.type}): ${e.message}');
+      // response.data can be an HTML/plain-text error page, not a map.
+      final data = e.response?.data;
+      final serverMsg = data is Map ? data['error_msg']?.toString() : null;
       if (context.mounted) {
         Utils.showSnackBar(
           context,
-          e.response?.data?['error_msg'] ?? 'Network error. Please try again.',
+          serverMsg ??
+              'Could not reach the server. Check your connection and retry.',
         );
       }
     } catch (e) {
@@ -81,6 +103,8 @@ class EmployesController extends ChangeNotifier {
       }
     } finally {
       isLoading = false;
+      // Keep showing previously loaded shops on a failed refresh.
+      sitesLoadFailed = !succeeded && shops.isEmpty;
       notifyListeners();
     }
   }
@@ -99,7 +123,7 @@ class EmployesController extends ChangeNotifier {
 
   Future<void> _prefetchActiveEmployeeCounts() async {
     if (sitesDetailModel?.shops == null) return;
-    final dio = Dio();
+    final dio = ApiClient.dio;
     final headers = {
       'Accept': 'application/json',
       'Authorization': 'Bearer ${Constants.token}',
@@ -156,7 +180,7 @@ class EmployesController extends ChangeNotifier {
       departmentEmployeesModel = null;
       notifyListeners();
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final Map<String, dynamic> queryParams = {'dept_id': deptId};
       if (shopId != null && shopId.isNotEmpty && shopId != 'all') {
         queryParams['shop_id'] = shopId;
@@ -279,7 +303,7 @@ class EmployesController extends ChangeNotifier {
           ? DateFormat('yyyy-MM-dd').format(date)
           : DateFormat('yyyy-MM-dd').format(externalReportDate);
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final url =
           '${Constants.baseUrl}tsm_daily_report.php?is_external_client=1&date=$targetDate';
       log("Fetching External Report: $url");
@@ -343,7 +367,7 @@ class EmployesController extends ChangeNotifier {
       notifyListeners();
 
       final targetDate = date ?? DateFormat('yyyy-MM-dd').format(selectedDate);
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final url =
           '${Constants.baseUrl}tsm_daily_report.php?user_id=$userId&date=$targetDate';
       log("URL: $url");
@@ -403,7 +427,7 @@ class EmployesController extends ChangeNotifier {
     Function(int progress, int total) onProgress,
   ) async {
     List<EmployesWorkingDetailModel> reports = [];
-    final dio = Dio();
+    final dio = ApiClient.dio;
     final targetDate = DateFormat('yyyy-MM-dd').format(date);
 
     for (int i = 0; i < users.length; i++) {
@@ -457,7 +481,7 @@ class EmployesController extends ChangeNotifier {
     Function(int progress, int total) onProgress,
   ) async {
     final List<EmployesWorkingDetailModel> reports = [];
-    final dio = Dio();
+    final dio = ApiClient.dio;
 
     final totalDays = endDate.difference(startDate).inDays + 1;
 
@@ -499,7 +523,7 @@ class EmployesController extends ChangeNotifier {
     Function(int progress, int total) onProgress,
   ) async {
     final List<ExternalClientReportModel> reports = [];
-    final dio = Dio();
+    final dio = ApiClient.dio;
 
     final totalDays = endDate.difference(startDate).inDays + 1;
 

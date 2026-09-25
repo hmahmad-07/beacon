@@ -11,6 +11,11 @@ class CustomDateRangePicker extends StatelessWidget {
   final ValueChanged<DateTimeRange> onRangeSelected;
   final VoidCallback? onClear;
 
+  /// When true, tapping CANCEL in the calendar clears the current range
+  /// (calls [onClear]) instead of just closing. Tapping outside the
+  /// dialog still leaves the range untouched.
+  final bool resetOnCancel;
+
   const CustomDateRangePicker({
     super.key,
     required this.hint,
@@ -18,18 +23,21 @@ class CustomDateRangePicker extends StatelessWidget {
     required this.selectedRange,
     required this.onRangeSelected,
     this.onClear,
+    this.resetOnCancel = false,
   });
 
   Future<void> _pickRange(BuildContext context) async {
     FocusScope.of(context).requestFocus(FocusNode());
 
-    final DateTimeRange? pickedRange = await showDialog<DateTimeRange>(
+    final result = await showDialog<Object>(
       context: context,
       builder: (context) => _CustomCalendarDialog(initialRange: selectedRange),
     );
 
-    if (pickedRange != null) {
-      onRangeSelected(pickedRange);
+    if (result is DateTimeRange) {
+      onRangeSelected(result);
+    } else if (identical(result, _cancelled) && resetOnCancel) {
+      onClear?.call();
     }
   }
 
@@ -101,6 +109,10 @@ class CustomDateRangePicker extends StatelessWidget {
     );
   }
 }
+
+// Popped by the CANCEL button, so it can be told apart from a barrier
+// dismiss (which pops null).
+const Object _cancelled = Object();
 
 class _CustomCalendarDialog extends StatefulWidget {
   final DateTimeRange? initialRange;
@@ -313,7 +325,7 @@ class _CustomCalendarDialogState extends State<_CustomCalendarDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, _cancelled),
           child: Text(
             "CANCEL",
             style: TextStyle(

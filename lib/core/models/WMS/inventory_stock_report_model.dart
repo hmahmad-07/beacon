@@ -1,4 +1,6 @@
 // GET /inventory_stock.php
+import '../../utils/inventory_dates.dart';
+
 class InventoryStockReportModel {
   int? error;
   String? errorMsg;
@@ -84,6 +86,7 @@ class StockReportItem {
   num? totalOut;
   num? balance;
   List<StockStoreBreakdown>? byStore;
+  String? modifiedDate;
 
   StockReportItem({
     this.id,
@@ -96,9 +99,11 @@ class StockReportItem {
     this.totalOut,
     this.balance,
     this.byStore,
+    this.modifiedDate,
   });
 
   String get displayName => (name ?? "").trim();
+  DateTime? get modifiedDateTime => InventoryDates.parse(modifiedDate);
 
   factory StockReportItem.fromJson(Map<String, dynamic> json) =>
       StockReportItem(
@@ -116,6 +121,7 @@ class StockReportItem {
             : List<StockStoreBreakdown>.from(
                 json["by_store"].map((x) => StockStoreBreakdown.fromJson(x)),
               ),
+        modifiedDate: json["modified_date"],
       );
 }
 

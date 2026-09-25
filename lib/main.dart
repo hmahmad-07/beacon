@@ -77,7 +77,8 @@ class MyApp extends StatelessWidget {
                   builder: (context) {
                     SizeConfig.init(context);
                     return GestureDetector(
-                      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                      onTap: () =>
+                          FocusManager.instance.primaryFocus?.unfocus(),
                       behavior: HitTestBehavior.translucent,
                       child: Consumer<ConnectivityController>(
                         builder: (context, connectivity, _) {

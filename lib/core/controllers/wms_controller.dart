@@ -5,11 +5,13 @@ import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../constants/constants.dart';
+import '../network/api_client.dart';
 import '../models/WMS/inventory_store_model.dart';
 import '../models/WMS/inventory_item_model.dart';
 import '../models/WMS/inventory_stock_report_model.dart';
 import '../models/WMS/inventory_expiry_model.dart';
 import '../models/WMS/inventory_dashboard_model.dart';
+import '../utils/inventory_dates.dart';
 import '../utils/utils.dart';
 
 // Every filter/page/expand-state field below used to live as local
@@ -19,13 +21,7 @@ import '../utils/utils.dart';
 // controller fields and call controller action methods, never mutate
 // their own state directly.
 class WMSController extends ChangeNotifier {
-  static final Dio _client = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
-      sendTimeout: const Duration(seconds: 15),
-    ),
-  );
+  static Dio get _client => ApiClient.dio;
 
   Map<String, dynamic> _headers() => {
     'Accept': 'application/json',
@@ -109,8 +105,6 @@ class WMSController extends ChangeNotifier {
     if (storesModel == null && !isStoresLoading) getStores(context);
   }
 
-  /// Name of an active store by id, for labels ("Filtered to <store>")
-  /// that only have the id on hand.
   String? storeNameById(String? id) {
     if (id == null) return null;
     final match = activeStores.where((s) => s.id == id);
@@ -171,16 +165,19 @@ class WMSController extends ChangeNotifier {
 
   // ================================================== Items (paginated) ==================================================
 
-  // Same page-by-page pattern as getStockReport: inventory_items.php is
-  // paginated server-side (per_page capped at 100, default 25) with its
-  // own store_id/search/status filters, so this fetches one page at a
-  // time instead of pulling the whole catalogue up front.
   bool isItemsLoading = false;
   InventoryItemsListModel? itemsModel;
   String? itemsStoreId;
-  String itemsStatus = ""; // "" | in_stock | out_of_stock
+  String itemsStatus = "";
   String itemsSearch = "";
   int itemsPage = 1;
+  DateTimeRange? itemsDateRange; // modified_from / modified_to
+
+  Future<void> setItemsDateRange(BuildContext context, DateTimeRange? range) {
+    itemsDateRange = range;
+    itemsPage = 1;
+    return getItems(context);
+  }
 
   Future<void> setItemsStore(BuildContext context, String? storeId) {
     itemsStoreId = storeId;
@@ -218,6 +215,7 @@ class WMSController extends ChangeNotifier {
             'store_id': itemsStoreId,
           if (itemsSearch.isNotEmpty) 'search': itemsSearch,
           if (itemsStatus.isNotEmpty) 'status': itemsStatus,
+          ..._modifiedRangeParams(itemsDateRange),
           'per_page': 25,
           'page': itemsPage,
         },
@@ -339,8 +337,13 @@ class WMSController extends ChangeNotifier {
     }
   }
 
-  String _apiDate(DateTime d) =>
-      "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+  String _apiDate(DateTime d) => InventoryDates.api(d);
+
+  // Items / stock / expiry all filter on modified_date server-side.
+  Map<String, dynamic> _modifiedRangeParams(DateTimeRange? range) => {
+    if (range != null) 'modified_from': _apiDate(range.start),
+    if (range != null) 'modified_to': _apiDate(range.end),
+  };
 
   // ================================================== Stock report (paginated) ==================================================
 
@@ -354,7 +357,17 @@ class WMSController extends ChangeNotifier {
   String stockReportSearch = "";
   bool stockReportLowStockOnly = false;
   int stockReportPage = 1;
+  DateTimeRange? stockReportDateRange; // modified_from / modified_to
   final Set<String> stockReportExpandedIds = {};
+
+  Future<void> setStockReportDateRange(
+    BuildContext context,
+    DateTimeRange? range,
+  ) {
+    stockReportDateRange = range;
+    stockReportPage = 1;
+    return getStockReport(context);
+  }
 
   Future<void> setStockReportStore(BuildContext context, String? storeId) {
     stockReportStoreId = storeId;
@@ -402,6 +415,7 @@ class WMSController extends ChangeNotifier {
             'store_id': stockReportStoreId,
           if (stockReportSearch.isNotEmpty) 'search': stockReportSearch,
           if (stockReportLowStockOnly) 'low_stock_only': 1,
+          ..._modifiedRangeParams(stockReportDateRange),
           'per_page': 25,
           'page': stockReportPage,
         },
@@ -439,6 +453,19 @@ class WMSController extends ChangeNotifier {
   bool isExpiryLoading = false;
   InventoryExpiryModel? expiryModel;
   String? expiryStoreId;
+  // true: latest received/expiry date on top; false: soonest expiry on top.
+  bool expirySortLatest = true;
+  DateTimeRange? expiryDateRange; // modified_from / modified_to
+
+  void setExpirySortLatest(bool value) {
+    expirySortLatest = value;
+    notifyListeners();
+  }
+
+  Future<void> setExpiryDateRange(BuildContext context, DateTimeRange? range) {
+    expiryDateRange = range;
+    return getExpiryReport(context);
+  }
 
   Future<void> setExpiryStore(BuildContext context, String? storeId) {
     expiryStoreId = storeId;
@@ -456,6 +483,7 @@ class WMSController extends ChangeNotifier {
         queryParameters: {
           if (expiryStoreId != null && expiryStoreId!.isNotEmpty)
             'store_id': expiryStoreId,
+          ..._modifiedRangeParams(expiryDateRange),
         },
         options: Options(headers: _headers()),
       );

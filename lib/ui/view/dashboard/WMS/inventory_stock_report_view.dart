@@ -2,12 +2,15 @@ import 'package:beacon/core/controllers/wms_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_stock_report_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_button.dart';
+import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/components/custom_field.dart';
 import 'package:beacon/ui/components/custom_toggle_switch.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
@@ -85,6 +88,17 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
               _searchBar(controller),
               2.height,
               _lowStockToggle(controller),
+              2.height,
+              CustomDateRangePicker(
+                hint: "Filter by modified date",
+                resetOnCancel: true,
+                selectedRange: controller.stockReportDateRange,
+                onRangeSelected: (r) =>
+                    controller.setStockReportDateRange(context, r),
+                onClear: controller.stockReportDateRange == null
+                    ? null
+                    : () => controller.setStockReportDateRange(context, null),
+              ),
               2.height,
               if (model?.summary != null) _summaryCards(model!.summary!),
               2.height,
@@ -232,9 +246,25 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
     );
   }
 
+  // Latest movement first, bucketed under a day header.
   Widget _itemList(WMSController controller, List<StockReportItem> items) {
+    final sorted = InventoryDates.sortLatestFirst(
+      items,
+      (i) => i.modifiedDateTime,
+    );
+    final groups = InventoryDates.groupByDay(sorted, (i) => i.modifiedDateTime);
     return Column(
-      children: items.map((item) => _itemCard(controller, item)).toList(),
+      children: [
+        for (final g in groups) ...[
+          InventoryDateHeader(
+            day: g.key,
+            count: g.value.length,
+            countLabel: g.value.length == 1 ? "item" : "items",
+            accentColor: widget.accentColor,
+          ),
+          ...g.value.map((item) => _itemCard(controller, item)),
+        ],
+      ],
     );
   }
 
@@ -242,6 +272,8 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
     final expanded = controller.stockReportExpandedIds.contains(item.id);
     final negative = (item.balance ?? 0) < 0;
     final hasByStore = (item.byStore ?? []).isNotEmpty;
+    final lastDate = item.modifiedDateTime;
+    final lastTime = InventoryDates.timeOf(lastDate);
 
     return Container(
       margin: EdgeInsets.only(bottom: 1.4.h),
@@ -332,6 +364,39 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
                               ),
                             ],
                           ),
+                          if (lastDate != null) ...[
+                            1.2.height,
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.history_rounded,
+                                  size: 3.4.w,
+                                  color: AppColor.grey,
+                                ),
+                                1.width,
+                                Expanded(
+                                  child: Text(
+                                    "Modified ${InventoryDates.full(lastDate)}"
+                                    "${lastTime != null ? ' · $lastTime' : ''}",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 2.7.sp,
+                                      color: AppColor.grey,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  InventoryDates.relative(lastDate),
+                                  style: TextStyle(
+                                    fontSize: 2.7.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: widget.accentColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),

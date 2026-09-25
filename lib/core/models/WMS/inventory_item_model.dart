@@ -1,4 +1,4 @@
-// GET /inventory_items.php (list mode: no item_id; detail mode: item_id set)
+import '../../utils/inventory_dates.dart';
 
 class InventoryItemsListModel {
   int? error;
@@ -54,7 +54,8 @@ class InventoryItemSummary {
   String? uom;
   num? costPrice;
   num? stock;
-  String? status; // in_stock | out_of_stock
+  String? status;
+  String? modifiedDate;
 
   InventoryItemSummary({
     this.id,
@@ -66,9 +67,11 @@ class InventoryItemSummary {
     this.costPrice,
     this.stock,
     this.status,
+    this.modifiedDate,
   });
 
   String get displayName => (name ?? "").trim();
+  DateTime? get modifiedDateTime => InventoryDates.parse(modifiedDate);
   bool get isOutOfStock => status == "out_of_stock";
 
   factory InventoryItemSummary.fromJson(Map<String, dynamic> json) =>
@@ -82,6 +85,7 @@ class InventoryItemSummary {
         costPrice: json["cost_price"],
         stock: json["stock"],
         status: json["status"],
+        modifiedDate: json["modified_date"],
       );
 }
 
@@ -114,6 +118,7 @@ class InventoryItemDetail {
   String? status;
   InventoryItemStock? stock;
   List<InventoryItemMovement>? movements;
+  String? modifiedDate;
 
   InventoryItemDetail({
     this.id,
@@ -125,9 +130,11 @@ class InventoryItemDetail {
     this.status,
     this.stock,
     this.movements,
+    this.modifiedDate,
   });
 
   String get displayName => (name ?? "").trim();
+  DateTime? get modifiedDateTime => InventoryDates.parse(modifiedDate);
 
   factory InventoryItemDetail.fromJson(Map<String, dynamic> json) =>
       InventoryItemDetail(
@@ -138,15 +145,14 @@ class InventoryItemDetail {
         itemClass: json["class"],
         costPrice: json["cost_price"],
         status: json["status"],
+        modifiedDate: json["modified_date"],
         stock: json["stock"] == null
             ? null
             : InventoryItemStock.fromJson(json["stock"]),
         movements: json["movements"] == null
             ? null
             : List<InventoryItemMovement>.from(
-                json["movements"].map(
-                  (x) => InventoryItemMovement.fromJson(x),
-                ),
+                json["movements"].map((x) => InventoryItemMovement.fromJson(x)),
               ),
       );
 }
@@ -185,7 +191,7 @@ class InventoryStoreBalance {
 
 class InventoryItemMovement {
   String? date;
-  String? documentType; // GRN | ISSUE | RETURN | TRANSFER_IN | TRANSFER_OUT
+  String? documentType;
   String? documentNo;
   String? storeId;
   String? storeName;
@@ -203,6 +209,8 @@ class InventoryItemMovement {
     this.outQty,
     this.runningBalance,
   });
+
+  DateTime? get dateTime => InventoryDates.parse(date);
 
   factory InventoryItemMovement.fromJson(Map<String, dynamic> json) =>
       InventoryItemMovement(

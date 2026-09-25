@@ -2,18 +2,23 @@ import 'package:beacon/core/controllers/wms_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_expiry_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/custom_date_range_picker.dart';
+import 'package:beacon/ui/components/custom_segmented_tabs.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_store_filter.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-/// Mirrors the "Expiry" page of the reference dashboard. The API currently
-/// always returns an empty list -- no GRN line in the database has
-/// EXPIRE_DATE set yet -- so this screen mostly renders the empty state,
-/// same as the reference dashboard does today.
+/// Mirrors the "Expiry" page of the reference dashboard. Batches are
+/// grouped under expiry-date headers -- latest date on top by default, or
+/// soonest expiry on top via the sort toggle (controller.expirySortLatest).
+/// modified_date is shown on the card when the API sends it (it's null for
+/// every batch today, so it can't be the grouping key).
 class InventoryExpiryView extends StatefulWidget {
   const InventoryExpiryView({super.key, required this.accentColor});
 
@@ -25,6 +30,10 @@ class InventoryExpiryView extends StatefulWidget {
 
 class _InventoryExpiryViewState extends State<InventoryExpiryView> {
   final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
+  static const _warning = Color(0xFFFF9F43);
+
+  static const _sortLatest = "Latest first";
+  static const _sortSoonest = "Expiring soonest";
 
   @override
   void initState() {
@@ -32,6 +41,17 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => context.read<WMSController>().getExpiryReport(context),
     );
+  }
+
+  List<InventoryExpiryBatch> _sorted(
+    List<InventoryExpiryBatch> batches,
+    bool latest,
+  ) {
+    final newestFirst = InventoryDates.sortLatestFirst(
+      batches,
+      (b) => b.expiryDateTime,
+    );
+    return latest ? newestFirst : newestFirst.reversed.toList();
   }
 
   @override
@@ -43,31 +63,67 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
         builder: (context, controller, child) {
           final batches = controller.expiryModel?.data ?? [];
           final loading = controller.isExpiryLoading;
+          final latest = controller.expirySortLatest;
 
-          final expired = batches
-              .where((b) => (b.daysRemaining ?? 0) < 0)
-              .length;
-          final expiringSoon = batches
-              .where((b) => (b.daysRemaining ?? 999) >= 0 && (b.daysRemaining ?? 999) <= 7)
-              .length;
+          final summary = controller.expiryModel?.summary;
+          final expired =
+              summary?.expired ?? batches.where((b) => b.isExpired).length;
+          final expiringSoon =
+              summary?.expiringSoon ??
+              batches.where((b) => !b.isExpired).length;
+          final tracked = summary?.tracked ?? batches.length;
+
+          final sorted = _sorted(batches, latest);
+          final groups = InventoryDates.groupByDay(
+            sorted,
+            (b) => b.expiryDateTime,
+          );
 
           return ListView(
             padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
             children: [
               InventoryStoreFilter(
                 selectedStoreId: controller.expiryStoreId,
-                onChanged: (id) =>
-                    controller.setExpiryStore(context, id),
+                onChanged: (id) => controller.setExpiryStore(context, id),
               ),
               2.height,
-              _summaryRow(expired, expiringSoon, batches.length),
+              _summaryRow(expired, expiringSoon, tracked),
               2.height,
+              CustomDateRangePicker(
+                hint: "Filter by modified date",
+                resetOnCancel: true,
+                selectedRange: controller.expiryDateRange,
+                onRangeSelected: (r) =>
+                    controller.setExpiryDateRange(context, r),
+                onClear: controller.expiryDateRange == null
+                    ? null
+                    : () => controller.setExpiryDateRange(context, null),
+              ),
+              1.5.height,
+              CustomSegmentedTabs(
+                options: const [_sortLatest, _sortSoonest],
+                selected: latest ? _sortLatest : _sortSoonest,
+                activeColor: widget.accentColor,
+                onChanged: (v) =>
+                    controller.setExpirySortLatest(v == _sortLatest),
+              ),
+              1.5.height,
               if (loading)
                 Center(child: Custom3DLoader(color: widget.accentColor))
               else if (batches.isEmpty)
                 _emptyState()
               else
-                ...batches.map(_batchTile),
+                for (final g in groups) ...[
+                  InventoryDateHeader(
+                    day: g.key,
+                    count: g.value.length,
+                    countLabel: g.value.length == 1
+                        ? "batch expiring"
+                        : "batches expiring",
+                    accentColor: widget.accentColor,
+                  ),
+                  ...g.value.map(_batchTile),
+                ],
             ],
           );
         },
@@ -78,7 +134,7 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
   Widget _summaryRow(int expired, int expiringSoon, int tracked) {
     final tiles = [
       ("Expired", expired, AppColor.red),
-      ("Expiring soon", expiringSoon, const Color(0xFFFF9F43)),
+      ("Expiring soon", expiringSoon, _warning),
       ("Tracked batches", tracked, widget.accentColor),
     ];
     return Row(
@@ -106,6 +162,8 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
                 0.3.height,
                 Text(
                   t.$1,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 2.3.sp, color: AppColor.grey),
                 ),
               ],
@@ -116,65 +174,185 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
     );
   }
 
+  (String, Color) _status(InventoryExpiryBatch b) {
+    final days = b.daysRemaining;
+    if (b.isExpired) {
+      return (days == null ? "Expired" : "Expired ${-days}d ago", AppColor.red);
+    }
+    if (days == null) return ("Expiring soon", _warning);
+    if (days == 0) return ("Expires today", AppColor.red);
+    return ("$days days left", days <= 7 ? _warning : AppColor.green);
+  }
+
   Widget _batchTile(InventoryExpiryBatch batch) {
-    final days = batch.daysRemaining;
-    final expired = (days ?? 0) < 0;
+    final (label, color) = _status(batch);
+
     return Container(
       margin: EdgeInsets.only(bottom: 1.2.h),
-      padding: EdgeInsets.all(3.5.w),
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(3.5.r),
         boxShadow: AppShadow.soft,
       ),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(width: 1.1.w, color: color),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(3.5.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                batch.itemName ?? "",
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 3.5.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColor.appDarkColor,
+                                ),
+                              ),
+                              0.3.height,
+                              Text(
+                                [
+                                  if ((batch.storeName ?? "").isNotEmpty)
+                                    batch.storeName!,
+                                  if ((batch.grnNo ?? "").isNotEmpty)
+                                    "GRN ${batch.grnNo}",
+                                ].join(" · "),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 2.6.sp,
+                                  color: AppColor.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        2.width,
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 2.w,
+                            vertical: 0.4.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(2.5.r),
+                          ),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 2.6.sp,
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    1.2.height,
+                    Row(
+                      children: [
+                        _dateCell(
+                          "Expiry date",
+                          InventoryDates.full(batch.expiryDateTime),
+                          Icons.event_busy_outlined,
+                          valueColor: color,
+                        ),
+                        _dateCell(
+                          "Modified",
+                          InventoryDates.full(batch.modifiedDateTime),
+                          Icons.edit_calendar_outlined,
+                        ),
+                      ],
+                    ),
+                    1.2.height,
+                    Row(
+                      children: [
+                        _qtyCell("Received", batch.receivedQty),
+                        _qtyCell("Issued", batch.issuedQty),
+                        _qtyCell(
+                          "Remaining",
+                          batch.remainingQty,
+                          valueColor: widget.accentColor,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dateCell(
+    String label,
+    String value,
+    IconData icon, {
+    Color? valueColor,
+  }) {
+    return Expanded(
       child: Row(
         children: [
+          Icon(icon, size: 4.w, color: AppColor.grey),
+          1.5.width,
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  batch.itemName ?? "",
+                  label,
+                  style: TextStyle(fontSize: 2.4.sp, color: AppColor.grey),
+                ),
+                Text(
+                  value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 3.4.sp,
-                    fontWeight: FontWeight.bold,
-                    color: AppColor.appDarkColor,
+                    fontSize: 2.9.sp,
+                    fontWeight: FontWeight.w600,
+                    color: valueColor ?? AppColor.appDarkColor,
                   ),
-                ),
-                0.3.height,
-                Text(
-                  "${batch.storeName ?? ''} · GRN ${batch.grnNo ?? ''}",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey),
-                ),
-                0.3.height,
-                Text(
-                  "Remaining: ${_decimalFormat.format(batch.remainingQty ?? 0)}",
-                  style: TextStyle(fontSize: 2.6.sp, color: AppColor.black),
                 ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                batch.expiryDate ?? "",
-                style: TextStyle(fontSize: 2.8.sp, color: AppColor.grey),
-              ),
-              0.3.height,
-              Text(
-                expired ? "Expired" : "${days ?? '—'} days left",
-                style: TextStyle(
-                  fontSize: 2.8.sp,
-                  fontWeight: FontWeight.bold,
-                  color: expired ? AppColor.red : AppColor.green,
-                ),
-              ),
-            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _qtyCell(String label, num? value, {Color? valueColor}) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 2.4.sp, color: AppColor.grey),
+          ),
+          Text(
+            value == null ? "—" : _decimalFormat.format(value),
+            style: TextStyle(
+              fontSize: 3.2.sp,
+              fontWeight: FontWeight.bold,
+              color: valueColor ?? AppColor.appDarkColor,
+            ),
           ),
         ],
       ),

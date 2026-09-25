@@ -91,11 +91,17 @@ class _HomeViewState extends State<HomeView> {
         body: SafeArea(
           child: Consumer<EmployesController>(
             builder: (context, controller, child) {
-              if (controller.isLoading) {
+              if (controller.isLoading && controller.shops.isEmpty) {
                 return const Center(child: CircularProgressIndicator());
               }
 
               final shops = _orderedShops(controller.shops);
+
+              // Splash/login's getSites failed (e.g. connect timeout) --
+              // offer a retry instead of an empty rail.
+              if (shops.isEmpty) {
+                return _loadFailedState(controller);
+              }
 
               if (!_didSelectDefaultShop && shops.isNotEmpty) {
                 _didSelectDefaultShop = true;
@@ -137,6 +143,66 @@ class _HomeViewState extends State<HomeView> {
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _loadFailedState(EmployesController controller) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 10.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 16.w,
+              color: Colors.grey.shade400,
+            ),
+            2.height,
+            Text(
+              controller.sitesLoadFailed
+                  ? "Couldn't load your shops"
+                  : "No shops found",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 4.sp,
+                fontWeight: FontWeight.bold,
+                color: AppColor.appDarkColor,
+              ),
+            ),
+            0.8.height,
+            Text(
+              controller.sitesLoadFailed
+                  ? "The server didn't respond in time. Check your internet and try again."
+                  : "Pull the latest list from the server.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
+            ),
+            3.height,
+            ElevatedButton.icon(
+              onPressed: () => controller.getSites(context),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text("Retry"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColor.appColor1,
+                foregroundColor: AppColor.white,
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 1.4.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(3.r),
+                ),
+              ),
+            ),
+            2.height,
+            TextButton(
+              onPressed: () => context.read<AuthController>().logout(context),
+              child: Text(
+                "Log out",
+                style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
+              ),
+            ),
+          ],
         ),
       ),
     );

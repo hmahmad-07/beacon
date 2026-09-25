@@ -4,6 +4,7 @@ import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../constants/constants.dart';
+import '../network/api_client.dart';
 import '../models/HR/employee_salary_type_model.dart';
 import '../models/HR/department_salary_cost_model.dart';
 import '../models/HR/attendance_report_model.dart';
@@ -63,7 +64,7 @@ class HRController extends ChangeNotifier {
       salaryTypeReportModel = null;
       notifyListeners();
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final response = await dio.request(
         '${Constants.baseUrl}report_salary_type.php',
         queryParameters: {
@@ -154,7 +155,7 @@ class HRController extends ChangeNotifier {
       salaryCostReportModel = null;
       notifyListeners();
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final response = await dio.request(
         '${Constants.baseUrl}report_dept_cost.php',
         queryParameters: {
@@ -244,7 +245,7 @@ class HRController extends ChangeNotifier {
       }
       notifyListeners();
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final response = await dio.request(
         '${Constants.baseUrl}report_attendance.php',
         queryParameters: {
@@ -325,7 +326,7 @@ class HRController extends ChangeNotifier {
         _mapSalaryEmployeesToAttendance();
         return;
       }
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final response = await dio.request(
         '${Constants.baseUrl}report_salary_type.php',
         queryParameters: {
@@ -401,7 +402,7 @@ class HRController extends ChangeNotifier {
       headcountReportModel = null;
       notifyListeners();
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final response = await dio.request(
         '${Constants.baseUrl}report_dept_headcount.php',
         queryParameters: {
@@ -475,7 +476,7 @@ class HRController extends ChangeNotifier {
       hrSummaryModel = null;
       notifyListeners();
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final response = await dio.request(
         '${Constants.baseUrl}report_hr_summary.php',
         queryParameters: {
@@ -549,7 +550,7 @@ class HRController extends ChangeNotifier {
       budgetHeadcountModel = null;
       notifyListeners();
 
-      final dio = Dio();
+      final dio = ApiClient.dio;
       final response = await dio.request(
         '${Constants.baseUrl}report_budget_headcount.php',
         queryParameters: {
