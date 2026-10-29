@@ -169,7 +169,7 @@ class AuthController extends ChangeNotifier {
       if (!context.mounted) return;
       AppRoutes.pushAndRemoveAll(const SplashView());
     } catch (e) {
-      debugPrint('Logout error: $e');
+      log('Logout error: $e');
 
       if (context.mounted) {
         Utils.showSnackBar(context, "Logout failed");

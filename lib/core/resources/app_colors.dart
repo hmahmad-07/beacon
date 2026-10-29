@@ -1,8 +1,12 @@
 // ignore_for_file: file_names
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// One palette for the whole app. The primary is a deep emerald and the
+/// highlight is gold. Neutrals are shared by every screen. Site accents (cc,
+/// paani, rth, ...) stay separate so each site keeps its own identity.
 class AppColor {
   static Color red = const Color.fromARGB(255, 189, 12, 12);
   static Color green = const Color.fromARGB(255, 9, 188, 15);
@@ -10,9 +14,9 @@ class AppColor {
   static Color grey = const Color(0xFF696D75);
   static Color darkGrey = const Color(0xFF4B4B4B);
   static Color scaffold = const Color.fromARGB(255, 247, 247, 249);
-  static Color appColor1 = const Color(0xFF1E88E5);
-  static Color appColor2 = const Color(0xffE5C13C);
-  static Color appDarkColor = const Color(0xFF181E4C);
+  static Color appColor1 = const Color(0xFF1F2A37);
+  static Color appColor2 = const Color(0xFFB8922A);
+  static Color appDarkColor = const Color(0xFF111827);
   static Color black = const Color(0xFF111111);
   static Color white = const Color(0xFFFFFFFF);
   static Color transparent = Colors.transparent;
@@ -52,6 +56,15 @@ class AppTheme {
 
   static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
+    // iOS behaviour for Material widgets: iOS scroll physics, iOS-style page
+    // transitions (edge swipe back), and iOS-style text selection and icons.
+    platform: TargetPlatform.iOS,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+      },
+    ),
     colorScheme: ColorScheme(
       brightness: Brightness.light,
       primary: AppColor.appColor1,
@@ -68,20 +81,23 @@ class AppTheme {
     ),
     scaffoldBackgroundColor: AppColor.white,
     appBarTheme: AppBarTheme(
-      backgroundColor: AppColor.appColor1,
-      foregroundColor: AppColor.white,
+      backgroundColor: AppColor.white,
+      foregroundColor: AppColor.appDarkColor,
+      surfaceTintColor: AppColor.transparent,
+      shadowColor: AppColor.appLightColor,
       elevation: 0,
-      centerTitle: true,
+      scrolledUnderElevation: 0.5,
+      centerTitle: false,
       titleTextStyle: TextStyle(
-        color: AppColor.white,
+        color: AppColor.appDarkColor,
         fontSize: 18,
         fontWeight: FontWeight.w700,
       ),
-      iconTheme: IconThemeData(color: AppColor.white),
+      iconTheme: IconThemeData(color: AppColor.appDarkColor),
       systemOverlayStyle: SystemUiOverlayStyle(
-        statusBarColor: AppColor.white,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
+        statusBarColor: AppColor.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(

@@ -2,7 +2,6 @@ import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
-import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_dashboard_view.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_expiry_view.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_items_view.dart';
@@ -58,11 +57,8 @@ class InventoryHubView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColor.scaffold,
-      appBar: CustomAppBar(title: "Inventory"),
-      body: AnimationLimiter(
-        child: ListView(
+    return AnimationLimiter(
+      child: ListView(
           padding: EdgeInsets.fromLTRB(5.w, 2.5.h, 5.w, 4.h),
           children: AnimationConfiguration.toStaggeredList(
             duration: const Duration(milliseconds: 450),
@@ -99,7 +95,6 @@ class InventoryHubView extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 

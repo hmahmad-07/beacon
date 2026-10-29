@@ -37,5 +37,19 @@ class AppModule {
     icon: BoxIcons.bx_package,
   );
 
-  static const List<AppModule> all = [employees, hr, inventory];
+  static const sales = AppModule(
+    id: "sales",
+    title: "Sales",
+    subtitle: "Paani & CC sales reports",
+    icon: BoxIcons.bxs_bar_chart_alt_2,
+  );
+
+  static const checklists = AppModule(
+    id: "checklists",
+    title: "Checklists",
+    subtitle: "Daily task checklists & submissions",
+    icon: Icons.checklist_rounded,
+  );
+
+  static const List<AppModule> all = [employees, hr, inventory, sales];
 }

@@ -24,13 +24,9 @@ class EmployesController extends ChangeNotifier {
 
   SitesDetailModel? get employesModel => sitesDetailModel;
 
-  // True when the last getSites attempt failed and there's nothing to show,
-  // so HomeView can offer a retry instead of an empty rail.
   bool sitesLoadFailed = false;
   Future<void>? _sitesInFlight;
 
-  /// Splash, login and the reconnect listener can all call this at once;
-  /// they share one request instead of racing each other.
   Future<void> getSites(BuildContext context, {String? shopId}) {
     return _sitesInFlight ??= _getSites(
       context,
@@ -86,7 +82,6 @@ class EmployesController extends ChangeNotifier {
       }
     } on DioException catch (e) {
       log('Dio error (${e.type}): ${e.message}');
-      // response.data can be an HTML/plain-text error page, not a map.
       final data = e.response?.data;
       final serverMsg = data is Map ? data['error_msg']?.toString() : null;
       if (context.mounted) {
@@ -103,7 +98,6 @@ class EmployesController extends ChangeNotifier {
       }
     } finally {
       isLoading = false;
-      // Keep showing previously loaded shops on a failed refresh.
       sitesLoadFailed = !succeeded && shops.isEmpty;
       notifyListeners();
     }
@@ -111,14 +105,13 @@ class EmployesController extends ChangeNotifier {
 
   // ============================================= Active Count Cache =============================================
 
-  // Key: "deptId" or "deptId_shopId"
   final Map<String, int> _activeCountCache = {};
 
   int getActiveCount(dynamic deptId, {String? shopId}) {
     final key = shopId != null && shopId.isNotEmpty && shopId != 'all'
         ? '${deptId}_$shopId'
         : '$deptId';
-    return _activeCountCache[key] ?? -1; // -1 means not yet fetched
+    return _activeCountCache[key] ?? -1;
   }
 
   Future<void> _prefetchActiveEmployeeCounts() async {
@@ -269,7 +262,6 @@ class EmployesController extends ChangeNotifier {
   List<User> getEmployeesByDept(String dept, {String? shopId}) {
     if (departmentEmployeesModel?.employees != null) {
       var list = departmentEmployeesModel!.employees!;
-      // Only show active employees (status == "A")
       list = list.where((e) => e.status?.toUpperCase() == 'A').toList();
       if (shopId != null && shopId.isNotEmpty && shopId != 'all') {
         list = list
@@ -504,7 +496,6 @@ class EmployesController extends ChangeNotifier {
 
         if (response.statusCode == 200) {
           final r = EmployesWorkingDetailModel.fromJson(response.data);
-          // Only add if there is some activity
           if (r.visits.isNotEmpty || r.checkin != null || r.checkout != null) {
             reports.add(r);
           }
@@ -625,8 +616,6 @@ class EmployesController extends ChangeNotifier {
     _nominatimConfigured = true;
   }
 
-  /// Builds an English, most-specific-first address from a Nominatim
-  /// response, or null when it has nothing finer than city/province.
   static String? _formatNominatimAddress(NominatimResponse response) {
     final addr = response.address;
     if (addr == null) return null;
@@ -664,10 +653,6 @@ class EmployesController extends ChangeNotifier {
     return parts.isNotEmpty ? parts.join(', ') : null;
   }
 
-  /// Resolves an address for [latitude]/[longitude]: tries the device's
-  /// fast native geocoder first, and only falls back to a single (slower)
-  /// Nominatim/OpenStreetMap lookup when that result is too generic
-  /// (nothing finer than city/province).
   Future<String> getAddressFromLatLng(double latitude, double longitude) async {
     String? nativeAddress;
     bool hasFineDetail = false;
@@ -695,9 +680,7 @@ class EmployesController extends ChangeNotifier {
         ].where((e) => e != null && e.trim().isNotEmpty).join(', ');
         if (nativeAddress.isEmpty) nativeAddress = null;
       }
-    } catch (_) {
-      // fall through to Nominatim below
-    }
+    } catch (_) {}
 
     if (hasFineDetail && nativeAddress != null) return nativeAddress;
 
@@ -715,9 +698,7 @@ class EmployesController extends ChangeNotifier {
           .timeout(const Duration(seconds: 8));
       final better = _formatNominatimAddress(response);
       if (better != null) return better;
-    } catch (_) {
-      // keep whatever the native geocoder returned, if anything
-    }
+    } catch (_) {}
 
     return nativeAddress ?? 'Address not found';
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../resources/app_colors.dart';
+import 'Employees/employes_model.dart';
 
 class AppProject {
   final String id;
@@ -17,7 +18,7 @@ class AppProject {
     required this.accent,
   });
 
-  static AppProject snackShack = AppProject(
+  static final AppProject snackShack = AppProject(
     id: "POS-0001",
     name: "Snack Shack",
     shortName: "Snack Shack",
@@ -25,7 +26,7 @@ class AppProject {
     accent: AppColor.ss,
   );
 
-  static AppProject corporateCanteen = AppProject(
+  static final AppProject corporateCanteen = AppProject(
     id: "POS-0002",
     name: "Corporate Canteen",
     shortName: "Corporate Canteen",
@@ -33,7 +34,7 @@ class AppProject {
     accent: AppColor.cc,
   );
 
-  static AppProject paani = AppProject(
+  static final AppProject paani = AppProject(
     id: "POS-0003",
     name: "Paani.",
     shortName: "Paani.",
@@ -41,7 +42,7 @@ class AppProject {
     accent: AppColor.paani,
   );
 
-  static AppProject rabiaTrust = AppProject(
+  static final AppProject rabiaTrust = AppProject(
     id: "POS-0010",
     name: "Rabia Trust Hospital",
     shortName: "Rabia Trust Hospital",
@@ -49,7 +50,7 @@ class AppProject {
     accent: AppColor.rth,
   );
 
-  static AppProject alAzeem = AppProject(
+  static final AppProject alAzeem = AppProject(
     id: "POS-0011",
     name: "Al Azeem Foundation",
     shortName: "Al Azeem Foundation",
@@ -57,7 +58,7 @@ class AppProject {
     accent: AppColor.aa,
   );
 
-  static AppProject opd = AppProject(
+  static final AppProject opd = AppProject(
     id: "POS-0012",
     name: "OPD",
     shortName: "OPD",
@@ -65,7 +66,7 @@ class AppProject {
     accent: AppColor.opd,
   );
 
-  static AppProject amtax = AppProject(
+  static final AppProject amtax = AppProject(
     id: "POS-0009",
     name: "AMTEX",
     shortName: "AMTEX",
@@ -73,7 +74,7 @@ class AppProject {
     accent: AppColor.amtax,
   );
 
-  static List<AppProject> all = [
+  static final List<AppProject> all = [
     snackShack,
     corporateCanteen,
     paani,
@@ -82,4 +83,42 @@ class AppProject {
     opd,
     amtax,
   ];
+
+  /// Businesses that have a dedicated Sales section (Sales API scope).
+  static final List<AppProject> salesBusinesses = [paani, corporateCanteen];
+
+  static String _normalize(String value) =>
+      value.toLowerCase().replaceAll(" ", "").replaceAll(".", "");
+
+  /// Matches a shop to its project. The shop ID is authoritative and is
+  /// checked first. Name matching is a fallback, and it ignores empty names
+  /// so a blank shop name can never match an arbitrary project.
+  static AppProject? matchShop(Shop shop) {
+    final shopId = (shop.shopId ?? "").trim().toLowerCase();
+    if (shopId.isNotEmpty) {
+      for (final project in all) {
+        if (project.id.toLowerCase() == shopId) return project;
+      }
+    }
+
+    final name = _normalize(shop.shopName ?? "");
+    if (name.isEmpty) return null;
+
+    for (final project in all) {
+      final pName = _normalize(project.name);
+      final pShort = _normalize(project.shortName);
+      if (name == pName || name == pShort) return project;
+    }
+    for (final project in all) {
+      final pName = _normalize(project.name);
+      final pShort = _normalize(project.shortName);
+      if (name.contains(pName) ||
+          pName.contains(name) ||
+          name.contains(pShort) ||
+          pShort.contains(name)) {
+        return project;
+      }
+    }
+    return null;
+  }
 }

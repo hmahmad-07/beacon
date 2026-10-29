@@ -12,12 +12,13 @@ import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'core/network/internet_connectivity.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/core/controllers/auth_controller.dart';
-import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/controllers/hr_controller.dart';
 import 'package:beacon/core/controllers/wms_controller.dart';
+import 'package:beacon/core/controllers/auth_controller.dart';
+import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/ui/components/responsive_web_shell.dart';
 import 'package:beacon/core/controllers/connectivity_controller.dart';
+import 'package:beacon/core/controllers/sales_period_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,6 +59,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => HRController()),
         ChangeNotifierProvider(create: (_) => WMSController()),
         ChangeNotifierProvider(create: (_) => ConnectivityController()),
+        ChangeNotifierProvider(create: (_) => SalesPeriodController()),
       ],
       child: Consumer<ThemeManager>(
         builder: (context, themeManager, _) {
@@ -72,7 +74,12 @@ class MyApp extends StatelessWidget {
             ),
             home: const SplashView(),
             builder: (context, child) {
-              return ResponsiveWebShell(
+              // Wrapping the whole app in a transparent Material gives every
+              // route (including the Cupertino screens) a Material ancestor.
+              // This removes the yellow debug underline under text.
+              return Material(
+                type: MaterialType.transparency,
+                child: ResponsiveWebShell(
                 child: Builder(
                   builder: (context) {
                     SizeConfig.init(context);
@@ -94,6 +101,7 @@ class MyApp extends StatelessWidget {
                       ),
                     );
                   },
+                ),
                 ),
               );
             },
