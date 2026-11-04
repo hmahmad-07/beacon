@@ -4,10 +4,10 @@ import 'package:beacon/core/models/WMS/inventory_item_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/app_constants.dart';
-import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -57,7 +57,7 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
           if (controller.isItemDetailLoading) {
-            return Center(child: Custom3DLoader(color: widget.accentColor));
+            return AppLoadingView(color: widget.accentColor);
           }
           final item = controller.itemDetailModel?.data;
           if (item == null) {
@@ -705,9 +705,9 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
       case 'STORE_RETURN':
         return AppColor.appColor1;
       case 'STORE_TRANSFER_IN':
-        return AppColor.opd;
+        return AppColor.appColor2;
       case 'STORE_TRANSFER_OUT':
-        return AppColor.ss;
+        return AppColor.grey;
       default:
         return AppColor.darkGrey;
     }

@@ -11,12 +11,12 @@ import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:beacon/ui/view/dashboard/HR/employee_salary_detail_view.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
 class SalaryCostReportView extends StatefulWidget {
   const SalaryCostReportView({
@@ -40,10 +40,10 @@ class SalaryCostReportView extends StatefulWidget {
 
 class _SalaryCostReportViewState extends State<SalaryCostReportView>
     with SingleTickerProviderStateMixin {
-  static const Color _salaryColor = Color(0xFFFF9F43);
-  static const Color _paidColor = Color(0xFF00A86B);
-  static const Color _pendingColor = Color(0xFFE83E8C);
-  static const Color _accentBlue = Color(0xFF007AFF);
+  static const Color _salaryColor = Color(0xFF696D75);
+  static const Color _paidColor = Color(0xFFB8922A);
+  static const Color _pendingColor = Color(0xFFD9B65E);
+  static const Color _accentBlue = Color(0xFF1F2A37);
 
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
@@ -193,7 +193,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
                 children: [
                   _buildHeaderBanner(controller),
                   if (isLoading)
-                    _buildShimmerLoading()
+                    const AppLoadingView()
                   else if (model == null ||
                       model.departmentEmployees == null ||
                       model.departmentEmployees!.isEmpty)
@@ -1568,29 +1568,6 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
           color: _salaryColor,
           fontWeight: FontWeight.bold,
           fontSize: 3.5.sp,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildShimmerLoading() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Padding(
-        padding: EdgeInsets.all(5.w),
-        child: Column(
-          children: List.generate(
-            4,
-            (index) => Container(
-              height: 12.h,
-              margin: EdgeInsets.only(bottom: 1.5.h),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
         ),
       ),
     );

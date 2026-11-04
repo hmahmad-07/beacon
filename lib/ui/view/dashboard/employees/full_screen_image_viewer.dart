@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import '../../../../core/resources/app_colors.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 
 class FullScreenImageViewer extends StatelessWidget {
   final List<String> images;
@@ -41,11 +42,9 @@ class FullScreenImageViewer extends StatelessWidget {
                       fit: BoxFit.contain,
                       width: double.infinity,
                       height: double.infinity,
-                      placeholder: (context, url) => Center(
-                        child: CupertinoActivityIndicator(
-                          radius: 12,
-                          color: AppColor.white,
-                        ),
+                      placeholder: (context, url) => AppLoadingView(
+                        color: AppColor.white,
+                        textColor: AppColor.white,
                       ),
                       errorWidget: (context, url, error) => Column(
                         mainAxisAlignment: MainAxisAlignment.center,

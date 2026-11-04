@@ -7,11 +7,11 @@ import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
 import 'package:beacon/core/utils/pdf_report_generator.dart';
 import 'package:beacon/core/utils/utils.dart';
@@ -167,16 +167,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CupertinoActivityIndicator(
-                  radius: 7.r,
-                  color: AppColor.appColor1,
-                ),
-                3.height,
-                Text(
-                  "Preparing Report...",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 4.sp),
-                ),
+                const AppLoadingView(label: "Preparing Report..."),
 
                 1.5.height,
 
@@ -284,12 +275,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
       body: Consumer<EmployesController>(
         builder: (context, controller, child) {
           if (controller.isDeptEmployeesLoading) {
-            return Center(
-              child: CupertinoActivityIndicator(
-                radius: 7.r,
-                color: AppColor.appColor1,
-              ),
-            );
+            return const AppLoadingView();
           }
 
           final employees = controller.getEmployeesByDept(
@@ -476,15 +462,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                       child: CachedNetworkImage(
                         imageUrl: user.profilePic ?? "",
                         fit: BoxFit.fill,
-                        placeholder: (context, url) => Shimmer.fromColors(
-                          baseColor: AppColor.grey.withValues(alpha: 0.15),
-                          highlightColor: AppColor.grey.withValues(alpha: 0.05),
-                          child: Container(
-                            width: double.infinity,
-                            height: double.infinity,
-                            color: AppColor.appLightColor,
-                          ),
-                        ),
+                        placeholder: (context, url) => Center(child: CupertinoActivityIndicator(radius: 8, color: AppColor.grey)),
                         errorWidget: (context, url, error) => Center(
                           child: Icon(
                             Icons.person_rounded,

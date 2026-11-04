@@ -62,26 +62,30 @@ class SiteEntry {
   /// True when the site has at least one department set up.
   bool get hasDepartments => shop?.departments?.isNotEmpty ?? false;
 
-  /// Modules listed on this site's screen. Employees and HR need departments.
-  /// Checklists need Al-Azeem. Sales needs a Sales business. Inventory is in
-  /// the drawer, not here.
+  /// Modules listed on this site's screen. Employees is the general module and
+  /// is shown for every site. HR needs departments and is in use. Checklists
+  /// need Al-Azeem. Sales needs a Sales business. Inventory is in the drawer.
   List<AppModule> get screenModules => [
-    if (hasModules) AppModule.employees,
+    if (hasEmployees) AppModule.employees,
     if (hasModules) AppModule.hr,
     if (hasChecklists) AppModule.checklists,
     if (hasSales) AppModule.sales,
   ];
 
-  /// Sites whose modules are not in use yet. The API still returns
-  /// departments for them, so they are listed here explicitly.
-  static final Set<String> _noModuleIds = {
+  /// Sites whose HR module is not in use yet. The API still returns
+  /// departments for them, so HR is hidden for them explicitly.
+  static final Set<String> _noHrIds = {
     AppProject.rabiaTrust.id,
     AppProject.opd.id,
     AppProject.snackShack.id,
   };
 
-  /// True when this site's Employees and HR modules are in use.
-  bool get hasModules => !_noModuleIds.contains(project?.id) && hasDepartments;
+  /// True when the site has a shop record, so the general Employees module
+  /// can open. Rabia Trust, OPD and Snack Shack are included.
+  bool get hasEmployees => shop != null;
+
+  /// True when this site's HR module is in use.
+  bool get hasModules => !_noHrIds.contains(project?.id) && hasDepartments;
 
   /// Whether this site can open [module] at all.
   bool supports(AppModule module) {

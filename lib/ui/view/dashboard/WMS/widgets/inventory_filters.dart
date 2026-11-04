@@ -4,6 +4,7 @@ import 'package:beacon/core/models/WMS/inventory_store_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_field.dart';
 import 'package:beacon/ui/components/custom_toggle_switch.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -797,11 +798,7 @@ class _StorePickerSheetState extends State<_StorePickerSheet> {
               1.2.height,
               Expanded(
                 child: controller.isStoresLoading && stores.isEmpty
-                    ? Center(
-                        child: CircularProgressIndicator(
-                          color: widget.accentColor,
-                        ),
-                      )
+                    ? AppLoadingView(color: widget.accentColor)
                     : ListView(
                         padding: EdgeInsets.fromLTRB(5.w, 0.5.h, 5.w, 3.h),
                         children: [

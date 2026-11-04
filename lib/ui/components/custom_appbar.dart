@@ -1,9 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 👈 add karo
+import 'package:flutter/services.dart';
+
 import '../../core/extensions/sizer.dart';
 import '../../core/resources/app_colors.dart';
 
+/// The one app bar for every screen. It is white with dark text and a centred
+/// title, and its back button is the iOS-style chevron.
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool hasLeading;
   final String title;
@@ -22,50 +25,31 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-      ),
-    );
-
     return Container(
       decoration: BoxDecoration(
         color: AppColor.white,
-        boxShadow: [
-          BoxShadow(
-            color: AppColor.grey.withValues(alpha: .1),
-            blurRadius: 3,
-            spreadRadius: 2,
-            offset: const Offset(0, .3),
-          ),
-        ],
-        gradient: LinearGradient(
-          colors: [
-            AppColor.appColor1,
-            AppColor.appDarkColor.withValues(alpha: 0.9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        border: Border(bottom: BorderSide(color: AppColor.appLightColor)),
       ),
       child: AppBar(
         automaticallyImplyLeading: true,
         centerTitle: true,
-        foregroundColor: AppColor.white,
-        backgroundColor: AppColor.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: AppColor.white,
         surfaceTintColor: AppColor.transparent,
+        foregroundColor: AppColor.appDarkColor,
+        iconTheme: IconThemeData(color: AppColor.appDarkColor),
         systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.light,
-          statusBarBrightness: Brightness.dark,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
         ),
         leading: hasLeading
             ? IconButton(
+                tooltip: "Back",
                 icon: Icon(
-                  icon ?? CupertinoIcons.arrow_left,
-                  color: AppColor.white,
+                  icon ?? CupertinoIcons.back,
+                  color: AppColor.appDarkColor,
                 ),
                 onPressed: icon == null
                     ? onTap ?? () => Navigator.pop(context)
@@ -75,9 +59,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         title: Text(
           title,
           style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 6.5.sp,
-            color: AppColor.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 5.8.sp,
+            color: AppColor.appDarkColor,
           ),
         ),
         actions: actions,

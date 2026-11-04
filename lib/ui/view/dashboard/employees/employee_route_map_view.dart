@@ -4,6 +4,7 @@ import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -396,9 +397,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                           SizedBox(
                             width: 3.w,
                             height: 3.w,
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: const CupertinoActivityIndicator(radius: 5),
                           ),
                           2.width,
                           Text(

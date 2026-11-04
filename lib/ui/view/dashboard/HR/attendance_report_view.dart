@@ -11,12 +11,12 @@ import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:beacon/ui/view/dashboard/HR/employee_attendance_detail_view.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
 class AttendanceReportView extends StatefulWidget {
   const AttendanceReportView({
@@ -40,7 +40,7 @@ class AttendanceReportView extends StatefulWidget {
 
 class _AttendanceReportViewState extends State<AttendanceReportView>
     with SingleTickerProviderStateMixin {
-  static const Color _accent = Color(0xFF007AFF);
+  static const Color _accent = Color(0xFF1F2A37);
 
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
@@ -146,7 +146,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
                 children: [
                   _buildHeaderBanner(controller),
                   if (isLoading)
-                    _buildShimmerLoading()
+                    const AppLoadingView()
                   else if (employees.isEmpty)
                     _buildEmptyState(controller)
                   else ...[
@@ -346,7 +346,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
               "Present Days",
               present.toString(),
               BoxIcons.bxs_check_circle,
-              const Color(0xFF00A86B),
+              const Color(0xFFB8922A),
             ),
           ),
           2.width,
@@ -355,7 +355,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
               "Unknown",
               unknown.toString(),
               BoxIcons.bxs_error_circle,
-              const Color(0xFF8E8E93),
+              const Color(0xFF696D75),
             ),
           ),
         ],
@@ -791,29 +791,6 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
           color: _accent,
           fontWeight: FontWeight.bold,
           fontSize: 3.5.sp,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildShimmerLoading() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Padding(
-        padding: EdgeInsets.all(5.w),
-        child: Column(
-          children: List.generate(
-            5,
-            (index) => Container(
-              height: 12.h,
-              margin: EdgeInsets.only(bottom: 1.5.h),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
         ),
       ),
     );

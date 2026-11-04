@@ -6,11 +6,11 @@ import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
 class BudgetHeadcountReportView extends StatefulWidget {
   const BudgetHeadcountReportView({
@@ -35,9 +35,9 @@ class BudgetHeadcountReportView extends StatefulWidget {
 
 class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
     with SingleTickerProviderStateMixin {
-  static const Color _actualColor = Color(0xFF007AFF);
-  static const Color _budgetColor = Color(0xFFFF9F43);
-  static const Color _accent = Color(0xFF00A86B);
+  static const Color _actualColor = Color(0xFF1F2A37);
+  static const Color _budgetColor = Color(0xFF696D75);
+  static const Color _accent = Color(0xFFB8922A);
 
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
@@ -135,7 +135,7 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
                 children: [
                   _buildHeaderBanner(controller, model),
                   if (isLoading)
-                    _buildShimmerLoading()
+                    const AppLoadingView()
                   else if (rows.isEmpty)
                     _buildEmptyState()
                   else ...[
@@ -373,7 +373,7 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
                         : BoxIcons.bx_down_arrow_alt),
               variance == 0
                   ? _accent
-                  : (variance > 0 ? const Color(0xFFE83E8C) : _accent),
+                  : (variance > 0 ? const Color(0xFFD9B65E) : _accent),
             ),
           ),
         ],
@@ -740,43 +740,6 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildShimmerLoading() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
-        child: Column(
-          children: [
-            Row(
-              children: List.generate(
-                3,
-                (index) => Expanded(
-                  child: Container(
-                    height: 10.h,
-                    margin: EdgeInsets.only(right: index < 2 ? 2.w : 0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            2.height,
-            Container(
-              height: 24.h,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

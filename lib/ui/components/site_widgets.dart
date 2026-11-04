@@ -1,15 +1,10 @@
 import 'package:beacon/core/controllers/auth_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/custom_3d_loader.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// Shared widgets for the sites flow. Every screen in the flow uses these, so
-/// the look and the loader stay the same everywhere.
-
-/// A site logo inside a rounded box. Falls back to an accent-tinted icon when
-/// the asset is missing.
 class SiteLogo extends StatelessWidget {
   const SiteLogo({super.key, this.asset, required this.accent, this.size});
 
@@ -118,7 +113,9 @@ class AppTile extends StatelessWidget {
                 ),
               ),
               Icon(
-                locked ? Icons.lock_outline_rounded : Icons.chevron_right_rounded,
+                locked
+                    ? Icons.lock_outline_rounded
+                    : Icons.chevron_right_rounded,
                 color: AppColor.grey,
               ),
             ],
@@ -129,20 +126,38 @@ class AppTile extends StatelessWidget {
   }
 }
 
-/// The one loader for the app. It wraps Custom3DLoader so every screen uses
-/// the same look.
+/// The one loader for the whole app: a Cupertino spinner with a short label
+/// under it. Use it wherever data is loading.
 class AppLoadingView extends StatelessWidget {
-  const AppLoadingView({super.key, this.color, this.label});
+  const AppLoadingView({super.key, this.color, this.label, this.textColor});
 
   final Color? color;
   final String? label;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Custom3DLoader(
-        color: color ?? AppColor.appColor1,
-        label: label ?? "Loading…",
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 4.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoActivityIndicator(
+              radius: 12,
+              color: color ?? AppColor.appColor1,
+            ),
+            1.5.height,
+            Text(
+              label ?? "Loading…",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 3.4.sp,
+                color: textColor ?? AppColor.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -191,7 +206,6 @@ class AppErrorView extends StatelessWidget {
   }
 }
 
-/// Asks for confirmation, then logs out. Used by every screen in the flow.
 Future<void> confirmLogout(BuildContext context) async {
   final confirmed = await showDialog<bool>(
     context: context,

@@ -8,12 +8,13 @@ import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
 class HeadcountReportView extends StatefulWidget {
   const HeadcountReportView({
@@ -144,7 +145,7 @@ class _HeadcountReportViewState extends State<HeadcountReportView>
                 children: [
                   _buildHeaderBanner(controller),
                   if (isLoading)
-                    _buildShimmerLoading()
+                    const AppLoadingView()
                   else if (rows.isEmpty)
                     _buildEmptyState(controller)
                   else ...[
@@ -329,7 +330,7 @@ class _HeadcountReportViewState extends State<HeadcountReportView>
               "Departments",
               rows.length,
               BoxIcons.bxs_buildings,
-              const Color(0xFF007AFF),
+              const Color(0xFF1F2A37),
             ),
           ),
         ],
@@ -394,12 +395,12 @@ class _HeadcountReportViewState extends State<HeadcountReportView>
 
   Color _colorForJobType(String key) {
     final t = key.toUpperCase();
-    if (t.contains("PERMANENT")) return const Color(0xFF00A86B);
-    if (t.contains("CONTRACT")) return const Color(0xFFFF9F43);
+    if (t.contains("PERMANENT")) return const Color(0xFFB8922A);
+    if (t.contains("CONTRACT")) return const Color(0xFF696D75);
     if (t.contains("DAILY") || t.contains("WAGE")) {
-      return const Color(0xFF007AFF);
+      return const Color(0xFF1F2A37);
     }
-    if (t.contains("TEMP")) return const Color(0xFFE83E8C);
+    if (t.contains("TEMP")) return const Color(0xFFD9B65E);
     return _accent;
   }
 
@@ -781,11 +782,7 @@ class _HeadcountReportViewState extends State<HeadcountReportView>
                             ? CachedNetworkImage(
                                 imageUrl: emp.profilePic!,
                                 fit: BoxFit.cover,
-                                placeholder: (c, u) => Shimmer.fromColors(
-                                  baseColor: Colors.grey[300]!,
-                                  highlightColor: Colors.grey[100]!,
-                                  child: Container(color: Colors.white),
-                                ),
+                                placeholder: (c, u) => Center(child: CupertinoActivityIndicator(radius: 8, color: AppColor.grey)),
                                 errorWidget: (c, u, e) => _avatarFallback(emp),
                               )
                             : _avatarFallback(emp),
@@ -864,43 +861,6 @@ class _HeadcountReportViewState extends State<HeadcountReportView>
           color: _accent,
           fontWeight: FontWeight.bold,
           fontSize: 3.5.sp,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildShimmerLoading() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
-        child: Column(
-          children: [
-            Row(
-              children: List.generate(
-                2,
-                (index) => Expanded(
-                  child: Container(
-                    height: 10.h,
-                    margin: EdgeInsets.only(right: index < 1 ? 2.w : 0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            2.height,
-            Container(
-              height: 22.h,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ],
         ),
       ),
     );

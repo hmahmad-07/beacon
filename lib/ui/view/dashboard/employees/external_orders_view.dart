@@ -9,13 +9,12 @@ import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/employees/pdf_preview_view.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:skeletonizer/skeletonizer.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/utils/utils.dart';
 
@@ -59,56 +58,13 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
             children: [
               _buildModernDateSelector(controller),
               Expanded(
-                child: Skeletonizer(
-                  enabled: controller.isExternalReportLoading,
-                  child: controller.isExternalReportLoading
-                      ? _buildSkeletonLoading()
-                      : _buildReportContent(controller),
-                ),
+                child: controller.isExternalReportLoading
+                    ? const AppLoadingView()
+                    : _buildReportContent(controller),
               ),
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildSkeletonLoading() {
-    return ListView(
-      padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
-      children: [
-        _shimmerBox(height: 10.h, width: double.infinity, borderRadius: 2.r),
-        2.height,
-        ...List.generate(
-          5,
-          (index) => Padding(
-            padding: EdgeInsets.only(bottom: 2.h),
-            child: _shimmerBox(
-              height: 16.h,
-              width: double.infinity,
-              borderRadius: 2.r,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _shimmerBox({
-    required double height,
-    double? width,
-    double borderRadius = 4,
-  }) {
-    return Shimmer.fromColors(
-      baseColor: AppColor.grey.withValues(alpha: 0.1),
-      highlightColor: AppColor.white.withValues(alpha: 0.5),
-      child: Container(
-        height: height,
-        width: width,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(borderRadius.r),
-        ),
       ),
     );
   }
@@ -404,16 +360,7 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CupertinoActivityIndicator(
-                  radius: 7.r,
-                  color: AppColor.appColor1,
-                ),
-                3.height,
-                Text(
-                  "Preparing Summary...",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                const AppLoadingView(label: "Preparing Summary..."),
                 1.5.height,
                 Text(
                   "Analyzing external sales for $dateRangeText...",

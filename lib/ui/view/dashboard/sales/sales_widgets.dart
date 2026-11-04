@@ -1,10 +1,10 @@
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/extensions/sizer.dart';
 import '../../../../core/models/Sales/sales_common.dart';
 import '../../../../core/resources/app_colors.dart';
-import '../../../components/custom_3d_loader.dart';
 
 final NumberFormat salesAmountFormat = NumberFormat('#,##0.00', 'en_US');
 final NumberFormat salesQuantityFormat = NumberFormat('#,##0.##', 'en_US');
@@ -218,9 +218,7 @@ class SalesLoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Custom3DLoader(color: color, label: label ?? "Loading…"),
-    );
+    return AppLoadingView(color: color, label: label);
   }
 }
 

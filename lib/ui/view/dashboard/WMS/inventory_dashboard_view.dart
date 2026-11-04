@@ -8,11 +8,11 @@ import 'package:beacon/core/models/WMS/inventory_item_model.dart'
     show InventoryStoreBalance;
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
-import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_stock_report_view.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -34,14 +34,14 @@ class InventoryDashboardView extends StatefulWidget {
 class _InventoryDashboardViewState extends State<InventoryDashboardView>
     with SingleTickerProviderStateMixin {
   static const List<Color> _categoryPalette = [
-    Color(0xFF7367F0),
-    Color(0xFF00A86B),
-    Color(0xFFFF9F43),
-    Color(0xFF007AFF),
-    Color(0xFFE83E8C),
-    Color(0xFF28C76F),
+    Color(0xFF3E4C5E),
+    Color(0xFFB8922A),
+    Color(0xFF696D75),
+    Color(0xFF1F2A37),
+    Color(0xFFD9B65E),
+    Color(0xFF8C97A8),
     Color(0xFFEA5455),
-    Color(0xFF00CFE8),
+    Color(0xFF5B6B82),
   ];
 
   AnimationController? _chartAnimController;
@@ -125,7 +125,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
                 ),
                 2.height,
                 if (loading && data == null)
-                  _loadingSkeleton()
+                  const AppLoadingView()
                 else if (data == null)
                   _emptyState()
                 else
@@ -228,19 +228,19 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
         "Stock value",
         _wholeFormat.format(kpis?.stockValue ?? 0),
         BoxIcons.bxs_wallet,
-        const Color(0xFF00A86B),
+        const Color(0xFFB8922A),
       ),
       _KpiData(
         "Below min stock",
         zeroOrBelow,
         BoxIcons.bxs_bell,
-        const Color(0xFFFF9F43),
+        const Color(0xFF696D75),
       ),
       _KpiData(
         "Out of stock",
         zeroOrBelow,
         BoxIcons.bxs_error,
-        const Color(0xFFE83E8C),
+        const Color(0xFFD9B65E),
       ),
     ];
 
@@ -314,9 +314,9 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
       children: [
         Row(
           children: [
-            _legendDot(const Color(0xFF00A86B), "Received"),
+            _legendDot(const Color(0xFFB8922A), "Received"),
             3.width,
-            _legendDot(const Color(0xFFFF9F43), "Issued"),
+            _legendDot(const Color(0xFF696D75), "Issued"),
           ],
         ),
         1.5.height,
@@ -375,13 +375,13 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
                   lineBarsData: [
                     _lineSeries(
                       months,
-                      const Color(0xFF00A86B),
+                      const Color(0xFFB8922A),
                       (m) => m.received,
                       animValue,
                     ),
                     _lineSeries(
                       months,
-                      const Color(0xFFFF9F43),
+                      const Color(0xFF696D75),
                       (m) => m.issued,
                       animValue,
                     ),
@@ -970,18 +970,6 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
         child: Text(
           "No dashboard data",
           style: TextStyle(fontSize: 3.5.sp, color: AppColor.grey),
-        ),
-      ),
-    );
-  }
-
-  Widget _loadingSkeleton() {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8.h),
-      child: Center(
-        child: Custom3DLoader(
-          color: widget.accentColor,
-          label: "Loading dashboard…",
         ),
       ),
     );

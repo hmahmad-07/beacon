@@ -1,3 +1,5 @@
+import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -5,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
-import 'package:shimmer/shimmer.dart';
 
 import 'package:beacon/core/controllers/hr_controller.dart';
 import 'package:beacon/core/models/HR/employee_salary_type_model.dart';
@@ -169,15 +170,15 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     if (type == null) return AppColor.grey;
     final t = type.trim().toUpperCase();
     if (t.contains("PERMANENT")) {
-      return const Color(0xFF00A86B);
+      return const Color(0xFFB8922A);
     } else if (t.contains("CONTRACTUAL") || t.contains("CONTRACT")) {
-      return const Color(0xFFFF9F43);
+      return const Color(0xFF696D75);
     } else if (t.contains("DAILY") || t.contains("WAGE")) {
-      return const Color(0xFF007AFF);
+      return const Color(0xFF1F2A37);
     } else if (t.contains("TEMP")) {
-      return const Color(0xFFE83E8C);
+      return const Color(0xFFD9B65E);
     } else {
-      return const Color(0xFF7367F0);
+      return const Color(0xFF3E4C5E);
     }
   }
 
@@ -362,7 +363,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                 children: [
                   _buildHeaderBanner(controller),
                   if (isLoading)
-                    _buildShimmerLoading()
+                    const AppLoadingView()
                   else if (model == null ||
                       model.departmentEmployees == null ||
                       model.departmentEmployees!.isEmpty)
@@ -560,7 +561,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
               value: totalEmployees,
               suffix: "",
               icon: BoxIcons.bxs_group,
-              color: const Color(0xFF007AFF),
+              color: const Color(0xFF1F2A37),
             ),
           ),
           2.5.width,
@@ -570,7 +571,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
               value: jobTypeCount,
               suffix: " Types",
               icon: BoxIcons.bxs_badge_check,
-              color: const Color(0xFF00A86B),
+              color: const Color(0xFFB8922A),
             ),
           ),
           2.5.width,
@@ -580,7 +581,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
               value: activeCount,
               suffix: "",
               icon: BoxIcons.bxs_pie_chart_alt,
-              color: const Color(0xFF7367F0),
+              color: const Color(0xFF3E4C5E),
             ),
           ),
         ],
@@ -1508,13 +1509,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                                         imageUrl: emp.profilePic!,
                                         fit: BoxFit.cover,
                                         placeholder: (c, u) =>
-                                            Shimmer.fromColors(
-                                              baseColor: Colors.grey[300]!,
-                                              highlightColor: Colors.grey[100]!,
-                                              child: Container(
-                                                color: Colors.white,
-                                              ),
-                                            ),
+                                            Center(child: CupertinoActivityIndicator(radius: 8, color: AppColor.grey)),
                                         errorWidget: (c, u, e) =>
                                             _avatarFallback(emp),
                                       )
@@ -1685,57 +1680,6 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
           color: AppColor.appColor1,
           fontWeight: FontWeight.bold,
           fontSize: 4.sp,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildShimmerLoading() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
-        child: Column(
-          children: [
-            Row(
-              children: List.generate(
-                3,
-                (index) => Expanded(
-                  child: Container(
-                    height: 10.h,
-                    margin: EdgeInsets.only(right: index < 2 ? 2.w : 0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            2.height,
-            Container(
-              height: 22.h,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            2.height,
-            Column(
-              children: List.generate(
-                3,
-                (index) => Container(
-                  height: 12.h,
-                  margin: EdgeInsets.only(bottom: 1.5.h),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

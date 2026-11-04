@@ -4,6 +4,7 @@ import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:beacon/core/extensions/sizer.dart';
@@ -268,10 +269,7 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
                               ? SizedBox(
                                   width: 4.w,
                                   height: 4.w,
-                                  child: const CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
+                                  child: const CupertinoActivityIndicator(radius: 7, color: Colors.white),
                                 )
                               : const Icon(Icons.near_me_rounded),
                           label: Text(

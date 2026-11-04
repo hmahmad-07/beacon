@@ -3,9 +3,9 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_store_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/app_constants.dart';
-import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -85,7 +85,7 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
               ),
               Expanded(
                 child: controller.isStoresLoading && active.isEmpty
-                    ? _loadingSkeleton()
+                    ? const AppLoadingView()
                     : filtered.isEmpty
                     ? Center(
                         child: Text(
@@ -248,15 +248,6 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _loadingSkeleton() {
-    return Center(
-      child: Custom3DLoader(
-        color: widget.accentColor,
-        label: "Loading stores…",
       ),
     );
   }

@@ -9,11 +9,11 @@ import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
 class EmployeeAttendanceDetailView extends StatefulWidget {
   const EmployeeAttendanceDetailView({
@@ -43,7 +43,7 @@ class EmployeeAttendanceDetailView extends StatefulWidget {
 class _EmployeeAttendanceDetailViewState
     extends State<EmployeeAttendanceDetailView>
     with SingleTickerProviderStateMixin {
-  static const Color _accent = Color(0xFF007AFF);
+  static const Color _accent = Color(0xFF1F2A37);
 
   late DateTime _selectedMonth;
   AnimationController? _chartAnimController;
@@ -212,7 +212,7 @@ class _EmployeeAttendanceDetailViewState
                 children: [
                   _buildProfileHeader(employee),
                   if (isLoading)
-                    _buildShimmer()
+                    const AppLoadingView()
                   else if (model == null ||
                       (counts.isEmpty &&
                           (employee?.dailyAttendance ?? []).isEmpty))
@@ -1159,29 +1159,6 @@ class _EmployeeAttendanceDetailViewState
     }
 
     return '${hours}h ${remainingMinutes}m';
-  }
-
-  Widget _buildShimmer() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Padding(
-        padding: EdgeInsets.all(5.w),
-        child: Column(
-          children: List.generate(
-            6,
-            (index) => Container(
-              height: 8.h,
-              margin: EdgeInsets.only(bottom: 1.2.h),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildEmpty() {

@@ -74,34 +74,33 @@ class MyApp extends StatelessWidget {
             ),
             home: const SplashView(),
             builder: (context, child) {
-              // Wrapping the whole app in a transparent Material gives every
-              // route (including the Cupertino screens) a Material ancestor.
-              // This removes the yellow debug underline under text.
               return Material(
                 type: MaterialType.transparency,
                 child: ResponsiveWebShell(
-                child: Builder(
-                  builder: (context) {
-                    SizeConfig.init(context);
-                    return GestureDetector(
-                      onTap: () =>
-                          FocusManager.instance.primaryFocus?.unfocus(),
-                      behavior: HitTestBehavior.translucent,
-                      child: Consumer<ConnectivityController>(
-                        builder: (context, connectivity, _) {
-                          return Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              child ?? const SizedBox.shrink(),
-                              if (!connectivity.isOnline)
-                                const Positioned.fill(child: NoInternetView()),
-                            ],
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
+                  child: Builder(
+                    builder: (context) {
+                      SizeConfig.init(context);
+                      return GestureDetector(
+                        onTap: () =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        behavior: HitTestBehavior.translucent,
+                        child: Consumer<ConnectivityController>(
+                          builder: (context, connectivity, _) {
+                            return Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                child ?? const SizedBox.shrink(),
+                                if (!connectivity.isOnline)
+                                  const Positioned.fill(
+                                    child: NoInternetView(),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
                 ),
               );
             },

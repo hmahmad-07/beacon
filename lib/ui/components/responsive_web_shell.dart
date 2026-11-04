@@ -22,7 +22,7 @@ class ResponsiveWebShell extends StatelessWidget {
     if (mediaQuery.size.width < breakpoint) return child;
 
     return ColoredBox(
-      color: const Color(0xFF11131A),
+      color: const Color(0xFF111827),
       child: Center(
         child: SizedBox(
           width: frameWidth,

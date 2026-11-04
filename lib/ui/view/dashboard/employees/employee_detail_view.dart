@@ -12,6 +12,7 @@ import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/view/dashboard/employees/employee_route_map_view.dart';
 import 'package:beacon/ui/view/dashboard/employees/visit_details_list_view.dart';
 import 'package:beacon/ui/view/dashboard/employees/full_screen_image_viewer.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:beacon/core/extensions/sizer.dart';
@@ -25,8 +26,6 @@ import 'package:beacon/ui/view/dashboard/employees/pdf_preview_view.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 
 class EmployeeDetailView extends StatefulWidget {
   final User user;
@@ -88,10 +87,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                     ),
               Expanded(
                 child: controller.isWorkingDetailLoading
-                    ? Skeletonizer(
-                        enabled: true,
-                        child: _buildSkeletonLoading(),
-                      )
+                    ? const AppLoadingView()
                     : _buildDashboardContent(context, controller, detail),
               ),
             ],
@@ -348,16 +344,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CupertinoActivityIndicator(
-                  radius: 7.r,
-                  color: AppColor.appColor1,
-                ),
-                3.height,
-                Text(
-                  "Preparing Report...",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                const AppLoadingView(label: "Preparing Report..."),
                 1.5.height,
                 Text(
                   isFinalizing
@@ -1089,64 +1076,6 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
     ),
   );
 
-  Widget _buildSkeletonLoading() {
-    return ListView(
-      padding: EdgeInsets.all(5.w),
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        Row(
-          spacing: 2.w,
-          children: List.generate(7, (index) {
-            return Expanded(
-              child: _skeletonBox(height: 10.h, width: 5.w),
-            );
-          }),
-        ),
-        2.height,
-        _skeletonBox(height: 12.h, width: double.infinity),
-        3.height,
-        _skeletonBox(height: 2.h, width: 45.w),
-        2.height,
-        _skeletonBox(height: 18.h, width: double.infinity),
-        3.height,
-        _skeletonBox(height: 2.h, width: 35.w),
-        2.height,
-        Row(
-          children: [
-            Expanded(child: _skeletonBox(height: 12.h)),
-            4.width,
-            Expanded(child: _skeletonBox(height: 12.h)),
-          ],
-        ),
-        3.height,
-        _skeletonBox(height: 2.h, width: 50.w),
-        2.height,
-        _skeletonBox(height: 10.h, width: double.infinity),
-        1.5.height,
-        _skeletonBox(height: 10.h, width: double.infinity),
-        1.height,
-        _skeletonBox(height: 3.h, width: double.infinity),
-        1.height,
-        _skeletonBox(height: 3.h, width: double.infinity),
-      ],
-    );
-  }
-
-  Widget _skeletonBox({required double height, double? width}) {
-    return Shimmer.fromColors(
-      baseColor: AppColor.grey.withValues(alpha: 0.1),
-      highlightColor: AppColor.white.withValues(alpha: 0.5),
-      child: Container(
-        height: height,
-        width: width,
-        decoration: BoxDecoration(
-          color: AppColor.white,
-          borderRadius: BorderRadius.circular(4.r),
-        ),
-      ),
-    );
-  }
-
   Widget _buildEmptyState() {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
@@ -1319,17 +1248,7 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
                                 width: double.infinity,
                                 height: 20.h,
                                 fit: BoxFit.fill,
-                                placeholder: (c, u) => Shimmer.fromColors(
-                                  baseColor: AppColor.grey.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  highlightColor: AppColor.white,
-                                  child: Container(
-                                    width: double.infinity,
-                                    height: 20.h,
-                                    color: AppColor.white,
-                                  ),
-                                ),
+                                placeholder: (c, u) => Center(child: CupertinoActivityIndicator(radius: 8, color: AppColor.grey)),
                                 errorWidget: (c, u, e) => Container(
                                   width: double.infinity,
                                   height: 20.h,

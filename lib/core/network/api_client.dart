@@ -2,6 +2,9 @@ import 'dart:developer';
 
 import 'package:dio/dio.dart';
 
+import '../constants/constants.dart';
+import '../utils/session_guard.dart';
+
 /// One shared Dio for the app.
 ///
 /// Why not `Dio()` per call: a bare Dio has no connectTimeout, so when the
@@ -20,7 +23,27 @@ class ApiClient {
       receiveTimeout: const Duration(seconds: 45),
       sendTimeout: const Duration(seconds: 30),
     ),
-  )..interceptors.add(_RetryInterceptor());
+  )..interceptors.addAll([_RetryInterceptor(), _SessionInterceptor()]);
+}
+
+/// Watches for a rejected token (HTTP 401) on any request made while a user
+/// is signed in. The login request is skipped, so a wrong password is not
+/// treated as an expired session.
+class _SessionInterceptor extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final isLogin = err.requestOptions.path.contains('login_admin.php');
+    final isSignedIn = Constants.token.isNotEmpty;
+
+    final status = err.response?.statusCode;
+    final isRejected = status == 401 || status == 403;
+
+    if (isRejected && isSignedIn && !isLogin) {
+      SessionGuard.handleExpired();
+    }
+
+    handler.next(err);
+  }
 }
 
 /// Retries GET requests (safe to repeat) that failed before getting any

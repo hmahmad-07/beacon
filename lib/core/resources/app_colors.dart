@@ -4,12 +4,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// One palette for the whole app. The primary is a deep emerald and the
-/// highlight is gold. Neutrals are shared by every screen. Site accents (cc,
-/// paani, rth, ...) stay separate so each site keeps its own identity.
+/// One theme for the whole app, matching the PARC Impact identity: a deep
+/// navy primary with a gold highlight, on white and soft neutral surfaces.
+/// Every site uses this same palette. The site keys below are kept so existing
+/// references still compile, but they all resolve to the single theme colour.
 class AppColor {
-  static Color red = const Color.fromARGB(255, 189, 12, 12);
-  static Color green = const Color.fromARGB(255, 9, 188, 15);
+  static Color red = const Color.fromARGB(255, 180, 35, 24);
+  static Color green = const Color.fromARGB(255, 22, 128, 84);
   static Color appLightColor = const Color(0xFFE3E3E3);
   static Color grey = const Color(0xFF696D75);
   static Color darkGrey = const Color(0xFF4B4B4B);
@@ -20,13 +21,15 @@ class AppColor {
   static Color black = const Color(0xFF111111);
   static Color white = const Color(0xFFFFFFFF);
   static Color transparent = Colors.transparent;
-  static Color cc = Color(0xFFAF2F03);
-  static Color paani = Color(0xFF3A8C9E);
-  static Color rth = Color(0xFFD01372);
-  static Color aa = Color(0xFFC9922B);
-  static Color ss = Color(0xFFF28C28);
-  static Color opd = Color(0xFF00897B);
-  static Color amtax = Color(0xFF37474F);
+
+  // Site keys. All of them use the one theme colour (no per-site colours).
+  static Color cc = appColor1;
+  static Color paani = appColor1;
+  static Color rth = appColor1;
+  static Color aa = appColor1;
+  static Color ss = appColor1;
+  static Color opd = appColor1;
+  static Color amtax = appColor1;
 
   static void swapColors() {
     final tempWhite = white;

@@ -6,11 +6,11 @@ import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
 class MonthlyHRReportView extends StatefulWidget {
   const MonthlyHRReportView({
@@ -34,10 +34,10 @@ class MonthlyHRReportView extends StatefulWidget {
 
 class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
     with SingleTickerProviderStateMixin {
-  static const Color _accent = Color(0xFF181E4C);
-  static const Color _paidColor = Color(0xFF00A86B);
-  static const Color _joinersColor = Color(0xFF007AFF);
-  static const Color _leaversColor = Color(0xFFFF9F43);
+  static const Color _accent = Color(0xFF1F2A37);
+  static const Color _paidColor = Color(0xFFB8922A);
+  static const Color _joinersColor = Color(0xFF1F2A37);
+  static const Color _leaversColor = Color(0xFF696D75);
 
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
@@ -138,7 +138,7 @@ class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
                 children: [
                   _buildHeaderBanner(controller),
                   if (isLoading)
-                    _buildShimmerLoading()
+                    const AppLoadingView()
                   else if (kpis == null)
                     _buildEmptyState(controller)
                   else ...[
@@ -317,7 +317,7 @@ class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
             (kpis.totalGrossSalary ?? 0).toDouble(),
             _formatCompactCurrency,
             BoxIcons.bxs_wallet,
-            const Color(0xFFFF9F43),
+            const Color(0xFF696D75),
           ),
           _kpiCard(
             "Salary Paid",
@@ -675,45 +675,6 @@ class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildShimmerLoading() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
-        child: Column(
-          children: [
-            Wrap(
-              spacing: 2.5.w,
-              runSpacing: 1.5.h,
-              children: List.generate(
-                5,
-                (index) => SizedBox(
-                  width: (100.w - 15.w) / 3,
-                  child: Container(
-                    height: 11.h,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            2.height,
-            Container(
-              height: 24.h,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

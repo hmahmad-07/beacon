@@ -6,6 +6,7 @@ import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/ui/view/auth/login_view.dart';
 import 'package:beacon/ui/components/loading_view.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
@@ -28,6 +29,10 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _rotationAnimation;
+
+  // Colours taken from the app icon: near-black ground, navy, and gold.
+  static const Color _ink = Color(0xFF0B0E14);
+  static const Color _gold = Color(0xFFE0A447);
 
   @override
   void initState() {
@@ -97,19 +102,15 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColor.transparent,
+      backgroundColor: _ink,
       body: Stack(
         children: [
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  AppColor.appDarkColor,
-                  AppColor.appDarkColor,
-                  AppColor.appColor1,
-                ],
+                colors: [_ink, _ink, Color(0xFF1F2A37)],
               ),
             ),
           ),
@@ -122,7 +123,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
               width: 35.h,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColor.scaffold.withValues(alpha: 0.1),
+                color: _gold.withValues(alpha: 0.06),
               ),
             ),
           ),
@@ -135,7 +136,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
               width: 40.h,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColor.appColor2.withValues(alpha: 0.3),
+                color: _gold.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -156,7 +157,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppColor.appColor1.withValues(alpha: 0.2),
+                            color: _gold.withValues(alpha: 0.35),
                             width: .4.w,
                           ),
                         ),
@@ -164,14 +165,15 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                           padding: EdgeInsets.all(4.w),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [AppColor.appColor1, AppColor.appColor2],
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF1F2A37), _ink],
                             ),
+                            border: Border.all(color: _gold, width: 1.5),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColor.appColor1.withValues(
-                                  alpha: 0.45,
-                                ),
+                                color: _gold.withValues(alpha: 0.30),
                                 blurRadius: 35,
                                 spreadRadius: 2,
                               ),
@@ -179,7 +181,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                           ),
                           child: Icon(
                             Icons.radar_rounded,
-                            color: AppColor.white,
+                            color: _gold,
                             size: 20.w,
                           ),
                         ),
@@ -190,8 +192,8 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
 
                     ShaderMask(
                       shaderCallback: (bounds) {
-                        return LinearGradient(
-                          colors: [AppColor.white, AppColor.appColor2],
+                        return const LinearGradient(
+                          colors: [Colors.white, _gold],
                         ).createShader(bounds);
                       },
                       child: Text(
@@ -214,15 +216,15 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                       ),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(30),
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: _gold.withValues(alpha: 0.06),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: _gold.withValues(alpha: 0.30),
                         ),
                       ),
                       child: Text(
                         "MONITORING SYSTEM",
                         style: TextStyle(
-                          color: AppColor.white,
+                          color: AppColor.appLightColor,
                           fontSize: 4.sp,
                           fontWeight: FontWeight.normal,
                           letterSpacing: 1.5.w,
@@ -239,26 +241,10 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
             bottom: 6.h,
             left: 8.w,
             right: 8.w,
-            child: Column(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: LinearProgressIndicator(
-                    minHeight: .7.h,
-                    backgroundColor: AppColor.white.withValues(alpha: 0.08),
-                    valueColor: AlwaysStoppedAnimation(AppColor.appColor2),
-                  ),
-                ),
-                2.height,
-                Text(
-                  "Initializing System...",
-                  style: TextStyle(
-                    color: AppColor.appLightColor,
-                    fontSize: 3.8.sp,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
+            child: AppLoadingView(
+              label: "Initializing System...",
+              color: _gold,
+              textColor: AppColor.appLightColor,
             ),
           ),
         ],

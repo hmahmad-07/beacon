@@ -5,10 +5,10 @@ import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -102,7 +102,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
               if (model?.summary != null) _summaryCards(model!.summary!),
               2.height,
               if (loading && model == null)
-                _loadingSkeleton()
+                const AppLoadingView()
               else if (displayItems.isEmpty)
                 Center(
                   child: Padding(
@@ -659,18 +659,6 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
             onTap: () => controller.goToStockReportPage(context, current + 1),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _loadingSkeleton() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.only(top: 10.h),
-        child: Custom3DLoader(
-          color: widget.accentColor,
-          label: "Loading stock report …",
-        ),
       ),
     );
   }

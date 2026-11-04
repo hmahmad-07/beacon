@@ -68,7 +68,7 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF4F7FC),
+      backgroundColor: const Color(0xFFF7F7F9),
       body: Stack(
         children: [
           Container(

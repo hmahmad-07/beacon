@@ -7,10 +7,10 @@ import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
-import 'package:shimmer/shimmer.dart';
 
 class EmployeeSalaryDetailView extends StatefulWidget {
   const EmployeeSalaryDetailView({
@@ -33,9 +33,9 @@ class EmployeeSalaryDetailView extends StatefulWidget {
 
 class _EmployeeSalaryDetailViewState extends State<EmployeeSalaryDetailView>
     with SingleTickerProviderStateMixin {
-  static const Color _salaryColor = Color(0xFFFF9F43);
-  static const Color _paidColor = Color(0xFF00A86B);
-  static const Color _pendingColor = Color(0xFFE83E8C);
+  static const Color _salaryColor = Color(0xFF696D75);
+  static const Color _paidColor = Color(0xFFB8922A);
+  static const Color _pendingColor = Color(0xFFD9B65E);
 
   AnimationController? _animController;
   Animation<double>? _anim;
@@ -146,11 +146,7 @@ class _EmployeeSalaryDetailViewState extends State<EmployeeSalaryDetailView>
                   ? CachedNetworkImage(
                       imageUrl: emp.profilePic!,
                       fit: BoxFit.cover,
-                      placeholder: (_, _) => Shimmer.fromColors(
-                        baseColor: Colors.grey[300]!,
-                        highlightColor: Colors.grey[100]!,
-                        child: Container(color: Colors.white),
-                      ),
+                      placeholder: (_, _) => Center(child: CupertinoActivityIndicator(radius: 8, color: AppColor.grey)),
                       errorWidget: (_, _, _) => _initials(emp),
                     )
                   : _initials(emp),

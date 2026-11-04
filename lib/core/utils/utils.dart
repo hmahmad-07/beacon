@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:beacon/core/resources/app_images.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -161,7 +162,17 @@ class Utils {
               ),
             ],
           ),
-          child: const CircularProgressIndicator(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CupertinoActivityIndicator(radius: 12),
+              const SizedBox(height: 12),
+              Text(
+                "Loading…",
+                style: TextStyle(fontSize: 14, color: AppColor.grey),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:beacon/core/extensions/sizer.dart';
+import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:flutter/material.dart';
 
@@ -56,10 +57,7 @@ class PrivacyPolicyView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColor.white,
-      appBar: AppBar(
-        title: const Text("Privacy policy"),
-        backgroundColor: AppColor.white,
-      ),
+      appBar: const CustomAppBar(title: "Privacy policy"),
       body: ListView(
         padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
         children: [

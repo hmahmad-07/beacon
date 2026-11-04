@@ -4,11 +4,11 @@ import 'package:beacon/core/models/WMS/inventory_expiry_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/app_constants.dart';
-import 'package:beacon/ui/components/custom_3d_loader.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
+import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +29,7 @@ class InventoryExpiryView extends StatefulWidget {
 
 class _InventoryExpiryViewState extends State<InventoryExpiryView> {
   final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
-  static const _warning = Color(0xFFFF9F43);
+  static const _warning = Color(0xFFB8922A);
 
   final _searchController = TextEditingController();
 
@@ -211,7 +211,7 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
               _summaryRow(expired, expiringSoon, tracked),
               1.5.height,
               if (loading)
-                Center(child: Custom3DLoader(color: widget.accentColor))
+                AppLoadingView(color: widget.accentColor)
               else if (allBatches.isEmpty)
                 _emptyState()
               else if (batches.isEmpty)
@@ -480,7 +480,7 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
             Icon(
               Icons.event_busy_rounded,
               size: 15.w,
-              color: Colors.grey.shade300,
+              color: const Color(0xFFE3E3E3),
             ),
             2.height,
             Text(
