@@ -1,17 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:beacon/core/controllers/hr_controller.dart';
-import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/HR/attendance_report_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:beacon/ui/view/dashboard/HR/employee_attendance_detail_view.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
@@ -40,7 +38,7 @@ class AttendanceReportView extends StatefulWidget {
 
 class _AttendanceReportViewState extends State<AttendanceReportView>
     with SingleTickerProviderStateMixin {
-  static const Color _accent = Color(0xFF1F2A37);
+  Color get _accent => context.siteAccent;
 
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
@@ -169,148 +167,22 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
     final formattedMonth = DateFormat(
       'MMMM yyyy',
     ).format(controller.attendanceSelectedDate);
-    final now = DateTime.now();
-    final selected = controller.attendanceSelectedDate;
-    final isCurrentMonth =
-        selected.year == now.year && selected.month == now.month;
-
-    return Container(
-      width: double.infinity,
-      margin: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 1.5.h),
-      padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_accent, AppColor.appDarkColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 12.w,
-                height: 12.w,
-                padding: EdgeInsets.all(1.5.w),
-                decoration: BoxDecoration(
-                  color: AppColor.white.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: widget.siteImage != null && widget.siteImage!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12.w),
-                        child: Image.asset(
-                          widget.siteImage!,
-                          fit: BoxFit.contain,
-                        ),
-                      )
-                    : Icon(
-                        BoxIcons.bxs_calendar_check,
-                        color: AppColor.white,
-                        size: 6.w,
-                      ),
-              ),
-              3.width,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.siteName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColor.white,
-                        fontSize: 4.5.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    0.4.height,
-                    Text(
-                      widget.deptName,
-                      style: TextStyle(
-                        color: AppColor.white.withValues(alpha: 0.85),
-                        fontSize: 3.sp,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          2.height,
-          InkWell(
-            onTap: () async {
-              await CustomMonthPicker.showMonthPickerDialog(
-                context: context,
-                selectedMonth: controller.attendanceSelectedDate,
-                onMonthSelected: (date) {
-                  controller.setAttendanceSelectedDate(date);
-                  _fetchReportData();
-                },
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-              decoration: BoxDecoration(
-                color: AppColor.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColor.white.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        BoxIcons.bx_calendar,
-                        color: AppColor.white,
-                        size: 4.5.w,
-                      ),
-                      2.width,
-                      Text(
-                        isCurrentMonth
-                            ? "Month: $formattedMonth"
-                            : "Month: $formattedMonth",
-                        style: TextStyle(
-                          color: AppColor.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 3.5.sp,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 2.w,
-                      vertical: 0.4.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColor.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "CHANGE",
-                      style: TextStyle(
-                        color: AppColor.appDarkColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 2.6.sp,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    return SiteReportHeader(
+      title: widget.siteName,
+      subtitle: widget.deptName,
+      logoAsset: widget.siteImage,
+      icon: BoxIcons.bxs_calendar_check,
+      periodLabel: "Month: $formattedMonth",
+      onChangePeriod: () async {
+        await CustomMonthPicker.showMonthPickerDialog(
+          context: context,
+          selectedMonth: controller.attendanceSelectedDate,
+          onMonthSelected: (date) {
+            controller.setAttendanceSelectedDate(date);
+            _fetchReportData();
+          },
+        );
+      },
     );
   }
 
@@ -346,7 +218,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
               "Present Days",
               present.toString(),
               BoxIcons.bxs_check_circle,
-              const Color(0xFFB8922A),
+              _accent,
             ),
           ),
           2.width,
@@ -368,15 +240,8 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
       padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 1.5.h),
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,7 +285,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
         border: Border.all(
           color: AppColor.appLightColor.withValues(alpha: 0.7),
         ),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,49 +407,13 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
       children: [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 5.w),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(1.8.w),
-                    decoration: BoxDecoration(
-                      color: _accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(BoxIcons.bxs_group, color: _accent, size: 4.w),
-                  ),
-                  2.width,
-                  Text(
-                    "Department Employees",
-                    style: TextStyle(
-                      fontSize: 4.sp,
-                      fontWeight: FontWeight.bold,
-                      color: AppColor.appDarkColor,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 2.5.w,
-                  vertical: 0.4.h,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColor.grey.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Text(
-                  "${employees.length} staff",
-                  style: TextStyle(
-                    fontSize: 2.8.sp,
-                    fontWeight: FontWeight.bold,
-                    color: AppColor.appDarkColor,
-                  ),
-                ),
-              ),
-            ],
+          child: SiteSectionTitle(
+            "Department Employees",
+            padding: EdgeInsets.zero,
+            trailing: SitePill.tint(
+              "${employees.length} staff",
+              context.siteAccent,
+            ),
           ),
         ),
         1.5.height,
@@ -626,7 +455,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          AppRoutes.push(
+          context.pushSite(
             EmployeeAttendanceDetailView(
               siteName: widget.siteName,
               siteID: widget.siteID,
@@ -643,7 +472,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
           decoration: BoxDecoration(
             color: AppColor.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: AppShadow.soft,
+            boxShadow: siteCardShadow,
           ),
           child: IntrinsicHeight(
             child: Row(
@@ -803,7 +632,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         children: [

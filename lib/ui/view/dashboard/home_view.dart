@@ -91,16 +91,17 @@ class _HomeViewState extends State<HomeView> {
         padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          mainAxisSpacing: 2.5.w,
-          crossAxisSpacing: 2.5.w,
-          childAspectRatio: 0.82,
+          mainAxisSpacing: 3.w,
+          crossAxisSpacing: 3.w,
+          childAspectRatio: 0.9,
         ),
         itemCount: sites.length,
         itemBuilder: (context, index) {
           final site = sites[index];
           return _SiteCard(
             site: site,
-            onTap: () => AppRoutes.push(SiteHomeView(site: site)),
+            onTap: () =>
+                AppRoutes.push(SiteHomeView(site: site, clr: site.accent)),
           );
         },
       ),
@@ -210,7 +211,6 @@ class _Header extends StatelessWidget {
 class _SiteDrawer extends StatelessWidget {
   const _SiteDrawer();
 
-  // Inventory covers every site's stores, so it is not tied to one site.
   void _openInventory(BuildContext context) {
     final navigator = Navigator.of(context);
     navigator.pop();
@@ -250,7 +250,6 @@ class _SiteDrawer extends StatelessWidget {
       width: MediaQuery.sizeOf(context).width * 0.7,
       backgroundColor: AppColor.white,
       shape: const RoundedRectangleBorder(),
-      // The header paints under the status bar, so SafeArea skips the top.
       child: SafeArea(
         top: false,
         child: Column(
@@ -261,21 +260,6 @@ class _SiteDrawer extends StatelessWidget {
               role: Constants.type.trim(),
             ),
 
-            // Menu
-            Padding(
-              padding: EdgeInsets.fromLTRB(5.w, 3.h, 5.w, 1.h),
-              child: Text(
-                "MENU",
-                style: TextStyle(
-                  fontSize: 2.5.sp,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w700,
-                  color: AppColor.grey,
-                ),
-              ),
-            ),
-
-            // Inventory: a highlighted card, since it covers every site's stores
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               child: Material(
@@ -332,7 +316,6 @@ class _SiteDrawer extends StatelessWidget {
               ),
             ),
             1.5.height,
-
             _DrawerItem(
               icon: Icons.privacy_tip_outlined,
               label: "Privacy policy",
@@ -345,17 +328,13 @@ class _SiteDrawer extends StatelessWidget {
               subtitle: "Rules for using Beacon",
               onTap: () => _openTerms(context),
             ),
-
             const Spacer(),
-
-            // Account
             const Divider(height: 1),
             _DrawerItem(
               icon: Icons.logout_rounded,
               label: "Logout",
               subtitle: "Sign out of CENTREX",
               color: AppColor.red,
-              // The navigator's context stays valid while the drawer closes.
               onTap: () {
                 final navigator = Navigator.of(context);
                 navigator.pop();
@@ -370,8 +349,6 @@ class _SiteDrawer extends StatelessWidget {
   }
 }
 
-/// Top of the menu: brand, the signed-in user's avatar, name and role. It also
-/// paints under the status bar so the top of the drawer is one colour.
 class _DrawerHeader extends StatelessWidget {
   const _DrawerHeader({required this.name, required this.role});
 
@@ -405,17 +382,15 @@ class _DrawerHeader extends StatelessWidget {
             "CENTREX",
             style: TextStyle(
               color: AppColor.appColor2,
-              fontSize: 3.6.sp,
+              fontSize: 7.sp,
               fontWeight: FontWeight.bold,
               letterSpacing: 2.5,
             ),
           ),
-          3.height,
           Row(
             children: [
               Container(
-                width: 18.w,
-                height: 18.w,
+                padding: EdgeInsets.all(6.r),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -564,49 +539,83 @@ class _SiteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final count = site.screenModules.length;
-
-    return Material(
-      color: AppColor.white,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: EdgeInsets.all(3.w),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColor.appLightColor),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Center(
-                  child: SiteLogo(
-                    asset: site.asset,
-                    accent: site.accent,
-                    size: 22.w,
+        ],
+      ),
+      child: Material(
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(4.r),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.all(4.w),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: site.accent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Hero(
+                        tag: 'site-logo-${site.name}',
+                        child: SiteLogo(
+                          asset: site.asset,
+                          accent: site.accent,
+                          size: 24.w,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              1.height,
-              Text(
-                site.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 3.8.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColor.appDarkColor,
+                1.2.height,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            site.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 3.8.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColor.appDarkColor,
+                            ),
+                          ),
+                          0.2.height,
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: EdgeInsets.all(1.6.w),
+                      decoration: BoxDecoration(
+                        color: site.accent.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 3.2.w,
+                        color: site.accent,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              0.4.height,
-              Text(
-                "$count ${count == 1 ? 'module' : 'modules'}",
-                style: TextStyle(fontSize: 3.1.sp, color: AppColor.grey),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

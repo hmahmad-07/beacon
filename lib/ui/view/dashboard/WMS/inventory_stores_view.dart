@@ -2,10 +2,9 @@ import 'package:beacon/core/controllers/wms_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_store_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -126,7 +125,7 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(3.5.r),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: IntrinsicHeight(

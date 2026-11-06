@@ -7,6 +7,7 @@ import '../../../../core/models/Sales/sales_common.dart';
 import '../../../../core/models/Sales/sales_models.dart';
 import '../../../../core/resources/app_colors.dart';
 import '../../../components/app_constants.dart';
+import '../../../components/site_design.dart';
 import '../../../components/custom_date_picker.dart';
 import '../../../components/custom_date_range_picker.dart';
 import '../../../components/custom_month_picker.dart';
@@ -78,28 +79,10 @@ class SalesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(4.r);
-    final content = Padding(
+    return SiteCard(
+      onTap: onTap,
       padding: padding ?? EdgeInsets.all(4.w),
       child: child,
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        borderRadius: radius,
-        boxShadow: AppShadow.soft,
-      ),
-      child: onTap == null
-          ? content
-          : Material(
-              color: AppColor.transparent,
-              child: InkWell(
-                borderRadius: radius,
-                onTap: onTap,
-                child: content,
-              ),
-            ),
     );
   }
 }
@@ -113,25 +96,10 @@ class SalesSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 1.2.h, top: 0.5.h),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 3.9.sp,
-                fontWeight: FontWeight.bold,
-                color: AppColor.appDarkColor,
-              ),
-            ),
-          ),
-          if (trailing != null) trailing!,
-        ],
-      ),
+    return SiteSectionTitle(
+      title,
+      trailing: trailing,
+      padding: EdgeInsets.only(bottom: 1.4.h, top: 0.6.h),
     );
   }
 }
@@ -155,67 +123,106 @@ class SalesHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deep = Color.lerp(accent, AppColor.appDarkColor, 0.35) ?? accent;
+    final deep = siteShade(accent, -0.12);
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(5.w),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [accent, deep],
         ),
-        borderRadius: BorderRadius.circular(4.r),
-        boxShadow: AppShadow.soft,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.32),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
         children: [
+          _heroBubble(32.w, 0.10, right: -8.w, top: -8.w),
+          _heroBubble(22.w, 0.08, right: 14.w, bottom: -12.w),
+          Padding(
+            padding: EdgeInsets.all(5.w),
+            child: _heroContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroBubble(
+    double size,
+    double alpha, {
+    double? right,
+    double? top,
+    double? bottom,
+  }) => Positioned(
+    right: right,
+    top: top,
+    bottom: bottom,
+    child: Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: alpha),
+      ),
+    ),
+  );
+
+  Widget _heroContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 2.6.sp,
+            letterSpacing: 1,
+            fontWeight: FontWeight.w600,
+            color: AppColor.white.withValues(alpha: 0.85),
+          ),
+        ),
+        1.height,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 7.sp,
+              fontWeight: FontWeight.bold,
+              color: AppColor.white,
+            ),
+          ),
+        ),
+        if (subtitle != null) ...[
+          0.8.height,
           Text(
-            title.toUpperCase(),
+            subtitle!,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 2.6.sp,
-              letterSpacing: 1,
-              fontWeight: FontWeight.w600,
-              color: AppColor.white.withValues(alpha: 0.85),
+              fontSize: 3.1.sp,
+              color: AppColor.white.withValues(alpha: 0.9),
             ),
           ),
-          1.height,
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 7.sp,
-                fontWeight: FontWeight.bold,
-                color: AppColor.white,
-              ),
-            ),
-          ),
-          if (subtitle != null) ...[
-            0.8.height,
-            Text(
-              subtitle!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 3.1.sp,
-                color: AppColor.white.withValues(alpha: 0.9),
-              ),
-            ),
-          ],
-          if (comparison != null) ...[
-            1.6.height,
-            _GrowthPill(comparison: comparison!),
-          ],
         ],
-      ),
+        if (comparison != null) ...[
+          1.6.height,
+          _GrowthPill(comparison: comparison!),
+        ],
+      ],
     );
   }
 }

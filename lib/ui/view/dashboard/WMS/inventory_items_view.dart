@@ -4,13 +4,12 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_item_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/inventory_dates.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_item_detail_view.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -251,7 +250,7 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(3.5.r),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(

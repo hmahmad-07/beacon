@@ -11,7 +11,7 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:beacon/core/constants/constants.dart';
-import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:provider/provider.dart';
 
 class VisitNavigationMapView extends StatefulWidget {
@@ -23,6 +23,8 @@ class VisitNavigationMapView extends StatefulWidget {
 }
 
 class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
+  Color get _accent => context.siteAccent;
+
   late GoogleMapController _controller;
   LatLng? _currentPosition;
 
@@ -80,7 +82,9 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
           markerId: const MarkerId('user_pos'),
           position: _currentPosition!,
           infoWindow: const InfoWindow(title: "Your Location"),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            HSVColor.fromColor(_accent).hue,
+          ),
         ),
       );
       controller.updateMarkers(currentMarkers);
@@ -112,7 +116,7 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
           Polyline(
             polylineId: const PolylineId("nav_route"),
             points: roadPoints,
-            color: AppColor.appColor1,
+            color: _accent,
             width: 5,
             geodesic: true,
             jointType: JointType.round,
@@ -129,7 +133,7 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
                 double.parse(widget.visit.effectiveLongitude),
               ),
             ],
-            color: AppColor.appColor1.withValues(alpha: 0.5),
+            color: _accent.withValues(alpha: 0.5),
             width: 5,
           ),
         );
@@ -209,26 +213,15 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
               padding: EdgeInsets.all(5.w),
               decoration: BoxDecoration(
                 color: AppColor.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: AppShadow.soft,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: siteCardShadow,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: EdgeInsets.all(2.w),
-                        decoration: BoxDecoration(
-                          color: AppColor.appColor1.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.store_rounded,
-                          color: AppColor.appColor1,
-                          size: 6.w,
-                        ),
-                      ),
+                      SiteIconBadge(Icons.store_rounded, size: 12.w),
                       4.width,
                       Expanded(
                         child: Column(
@@ -278,11 +271,11 @@ class _VisitNavigationMapViewState extends State<VisitNavigationMapView> {
                                 : "START NAVIGATION",
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColor.appDarkColor,
+                            backgroundColor: _accent,
                             foregroundColor: AppColor.white,
                             padding: EdgeInsets.symmetric(vertical: 2.h),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                             ),
                           ),
                         ),

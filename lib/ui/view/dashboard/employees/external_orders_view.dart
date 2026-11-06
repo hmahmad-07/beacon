@@ -3,19 +3,17 @@
 import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/models/Employees/external_client_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/core/utils/pdf_report_generator.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/employees/pdf_preview_view.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:beacon/core/extensions/routes.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:beacon/core/utils/utils.dart';
 
 class ExternalOrdersView extends StatefulWidget {
@@ -42,7 +40,7 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
         title: "External Clients Orders",
         actions: [
           IconButton(
-            icon: const Icon(Icons.analytics_rounded, color: Colors.white),
+            icon: Icon(Icons.analytics_rounded, color: context.siteAccent),
             tooltip: "Monthly Summary Report",
             onPressed: () {
               final controller = context.read<EmployesController>();
@@ -59,7 +57,7 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
               _buildModernDateSelector(controller),
               Expanded(
                 child: controller.isExternalReportLoading
-                    ? const AppLoadingView()
+                    ? const SiteLoading(label: "Loading orders…")
                     : _buildReportContent(controller),
               ),
             ],
@@ -72,7 +70,11 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
   Widget _buildReportContent(EmployesController controller) {
     final report = controller.externalReport;
     if (report == null || report.orders.isEmpty) {
-      return _buildEmptyState();
+      return RefreshIndicator(
+        onRefresh: () => controller.fetchExternalReport(context),
+        color: context.siteAccent,
+        child: _buildEmptyState(),
+      );
     }
 
     double totalRevenue = 0;
@@ -81,110 +83,58 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
         totalRevenue += item.totalAmount;
       }
     }
+    final productive = report.orders.where((o) => o.isProductive).length;
 
+    var i = 0;
     return RefreshIndicator(
       onRefresh: () => controller.fetchExternalReport(context),
-      color: AppColor.appColor1,
-      child: ListView(
-        padding: EdgeInsets.zero,
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          _buildSummaryCard(report.totalOrders, totalRevenue),
-          ...report.orders.map(
-            (order) => Padding(
-              padding: EdgeInsets.symmetric(horizontal: 5.w),
-              child: _buildOrderCard(order),
-            ),
+      color: context.siteAccent,
+      child: AnimationLimiter(
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
           ),
-          5.height,
-        ],
+          children: [
+            siteStagger(
+              i++,
+              _buildSummaryCard(report.totalOrders, totalRevenue, productive),
+            ),
+            3.height,
+            siteStagger(
+              i++,
+              SiteSectionTitle("Client orders", count: report.orders.length),
+            ),
+            ...report.orders.map(
+              (order) => siteStagger(i++, _buildOrderCard(order)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.shopping_bag_outlined, size: 15.w, color: AppColor.grey),
-          2.height,
-          Text(
-            "No orders for this date",
-            style: TextStyle(fontSize: 4.sp, color: AppColor.grey),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: const SiteEmptyState(
+            icon: Icons.shopping_bag_outlined,
+            title: "No orders for this date",
+            message: "Pick another day above or pull down to refresh.",
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildModernDateSelector(EmployesController controller) {
-    return Container(
-      height: 12.h,
-      padding: EdgeInsets.symmetric(vertical: 1.5.h),
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        boxShadow: AppShadow.soft,
-      ),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 5.w),
-        itemCount: controller.dateRange.length,
-        itemBuilder: (context, index) {
-          final date = controller.dateRange[index];
-          final isSelected =
-              DateFormat('yyyy-MM-dd').format(date) ==
-              DateFormat('yyyy-MM-dd').format(controller.externalReportDate);
-
-          return GestureDetector(
-            onTap: () => controller.updateExternalReportDate(context, date),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 13.w,
-              margin: EdgeInsets.only(right: 3.w),
-              decoration: BoxDecoration(
-                gradient: isSelected
-                    ? LinearGradient(
-                        colors: [AppColor.appColor1, AppColor.appDarkColor],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                color: isSelected
-                    ? null
-                    : AppColor.scaffold.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(4.r),
-                boxShadow: isSelected ? AppShadow.soft : null,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat('E').format(date).toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 2.sp,
-                      color: isSelected ? AppColor.white : AppColor.grey,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  0.5.height,
-                  Text(
-                    DateFormat('dd').format(date),
-                    style: TextStyle(
-                      fontSize: 4.2.sp,
-                      fontWeight: FontWeight.w800,
-                      color: isSelected
-                          ? AppColor.white
-                          : AppColor.appDarkColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+    return SiteDateStrip(
+      dates: controller.dateRange,
+      selected: controller.externalReportDate,
+      onSelected: (date) => controller.updateExternalReportDate(context, date),
     );
   }
 
@@ -209,7 +159,7 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
               ),
               title: Row(
                 children: [
-                  Icon(Icons.analytics_rounded, color: AppColor.appColor1),
+                  Icon(Icons.analytics_rounded, color: context.siteAccent),
                   2.width,
                   Text(
                     "Monthly Audit",
@@ -300,7 +250,7 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
                     Navigator.pop(context, true);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColor.appColor1,
+                    backgroundColor: context.siteAccent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -360,7 +310,7 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const AppLoadingView(label: "Preparing Summary..."),
+                const SiteLoading(label: "Preparing Summary..."),
                 1.5.height,
                 Text(
                   "Analyzing external sales for $dateRangeText...",
@@ -371,7 +321,7 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
                 LinearProgressIndicator(
                   value: totalDays == 0 ? 0 : currentDay / totalDays,
                   backgroundColor: AppColor.scaffold,
-                  color: AppColor.appColor2,
+                  color: context.siteAccent,
                   borderRadius: BorderRadius.circular(20),
                   minHeight: 7,
                 ),
@@ -419,72 +369,66 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
       final fileName =
           "External_Monthly_${dateRangeText.replaceAll(' ', '_')}.pdf";
 
-      AppRoutes.push(PdfPreviewView(pdfBytes: bytes, fileName: fileName));
+      context.pushSite(PdfPreviewView(pdfBytes: bytes, fileName: fileName));
     } catch (e) {
       if (Navigator.canPop(context)) Navigator.pop(context);
       Utils.showSnackBar(context, "Error: $e");
     }
   }
 
-  Widget _buildSummaryCard(int totalOrders, double revenue) {
-    return Container(
-      margin: EdgeInsets.all(4.w),
-      padding: EdgeInsets.all(5.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColor.appDarkColor, AppColor.appColor1],
+  Widget _buildSummaryCard(int totalOrders, double revenue, int productive) {
+    return SiteBanner(
+      eyebrow: DateFormat(
+        'EEEE, dd MMM yyyy',
+      ).format(context.read<EmployesController>().externalReportDate),
+      title: "External client orders",
+      titleSize: 4.6.sp,
+      pills: [
+        SiteBannerPill(
+          "$productive productive",
+          icon: Icons.check_circle_rounded,
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: AppShadow.soft,
-      ),
+        SiteBannerPill(
+          "${totalOrders - productive < 0 ? 0 : totalOrders - productive} non-productive",
+          icon: Icons.block_rounded,
+        ),
+      ],
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _summaryColumn("TOTAL ORDERS", totalOrders.toString()),
-          Container(width: 1, height: 4.h, color: Colors.white24),
-          _summaryColumn("TOTAL VALUE", "PKR ${revenue.toStringAsFixed(0)}"),
+          Expanded(
+            child: _summaryColumn("Total orders", totalOrders.toString()),
+          ),
+          Container(
+            width: 1,
+            height: 5.h,
+            color: Colors.white.withValues(alpha: 0.25),
+          ),
+          4.width,
+          Expanded(
+            child: _summaryColumn(
+              "Total value",
+              "PKR ${revenue.toStringAsFixed(0)}",
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _summaryColumn(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 2.2.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        1.height,
-        Text(
-          value,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 4.sp,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    );
+    return SiteBannerStat(label: label, value: value);
   }
 
   Widget _buildOrderCard(ExternalOrder order) {
+    final accent = context.siteAccent;
     double orderTotal = 0;
     for (var item in order.items) {
       orderTotal += item.totalAmount;
     }
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 2.h),
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
-      ),
+    return SiteCard(
+      margin: EdgeInsets.only(bottom: 1.6.h),
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
           Padding(
@@ -493,84 +437,97 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    SiteIconBadge(Icons.storefront_rounded, size: 10.w),
+                    3.width,
                     Expanded(
-                      child: Text(
-                        order.entityName?.toUpperCase() ?? "UNKNOWN CLIENT",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 3.8.sp,
-                          color: AppColor.appDarkColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            order.entityName ?? "Unknown client",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 3.9.sp,
+                              color: AppColor.appDarkColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          0.3.height,
+                          Text(
+                            "${order.entityNo ?? 'N/A'} · ${Utils.formatDate(order.orderDate)}",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 2.8.sp,
+                              color: AppColor.grey,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    2.width,
                     _statusBadge(order.isProductive),
                   ],
                 ),
-                1.height,
-                Row(
-                  children: [
-                    Icon(
-                      Icons.numbers_rounded,
-                      size: 3.w,
-                      color: AppColor.grey,
-                    ),
-                    1.width,
-                    Text(
-                      "Entity No: ${order.entityNo ?? 'N/A'}",
-                      style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.access_time_filled_rounded,
-                      size: 3.w,
-                      color: AppColor.grey,
-                    ),
-                    1.width,
-                    Text(
-                      order.orderDate,
-                      style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey),
-                    ),
-                  ],
-                ),
-                const Divider(),
-                ...order.items.map(
-                  (item) => Padding(
-                    padding: EdgeInsets.symmetric(vertical: 0.5.h),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            "${item.itemName} (x${(item.qtyPcs + item.qtyBox).toInt()})",
-                            style: TextStyle(
-                              fontSize: 2.8.sp,
-                              fontWeight: FontWeight.w600,
+                if (order.items.isNotEmpty) ...[
+                  1.6.height,
+                  ...order.items.map(
+                    (item) => Padding(
+                      padding: EdgeInsets.symmetric(vertical: 0.5.h),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 1.6.w,
+                            height: 1.6.w,
+                            decoration: BoxDecoration(
+                              color: accent,
+                              shape: BoxShape.circle,
                             ),
                           ),
-                        ),
-                        Text(
-                          "PKR ${item.totalAmount.toStringAsFixed(0)}",
-                          style: TextStyle(
-                            fontSize: 2.8.sp,
-                            fontWeight: FontWeight.bold,
+                          2.5.width,
+                          Expanded(
+                            child: Text(
+                              "${item.itemName} × ${(item.qtyPcs + item.qtyBox).toInt()}",
+                              style: TextStyle(
+                                fontSize: 3.sp,
+                                fontWeight: FontWeight.w600,
+                                color: AppColor.darkGrey,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                          Text(
+                            "PKR ${item.totalAmount.toStringAsFixed(0)}",
+                            style: TextStyle(
+                              fontSize: 3.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColor.appDarkColor,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                ] else if ((order.remarks ?? '').isNotEmpty) ...[
+                  1.2.height,
+                  Text(
+                    "Remarks: ${order.remarks}",
+                    style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
+                  ),
+                ],
               ],
             ),
           ),
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.4.h),
             decoration: BoxDecoration(
-              color: AppColor.scaffold.withValues(alpha: 0.5),
+              color: accent.withValues(alpha: 0.05),
+              border: Border(
+                top: BorderSide(color: accent.withValues(alpha: 0.08)),
+              ),
               borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(16),
+                bottom: Radius.circular(22),
               ),
             ),
             child: Row(
@@ -579,17 +536,18 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
                 Text(
                   "ORDER TOTAL",
                   style: TextStyle(
-                    fontSize: 2.5.sp,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 2.6.sp,
+                    fontWeight: FontWeight.w700,
                     color: AppColor.grey,
+                    letterSpacing: 0.8,
                   ),
                 ),
                 Text(
                   "PKR ${orderTotal.toStringAsFixed(0)}",
                   style: TextStyle(
-                    fontSize: 3.5.sp,
+                    fontSize: 4.sp,
                     fontWeight: FontWeight.w900,
-                    color: AppColor.appColor1,
+                    color: accent,
                   ),
                 ),
               ],
@@ -601,21 +559,9 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
   }
 
   Widget _statusBadge(bool productive) {
-    Color color = productive ? AppColor.green : AppColor.red;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.4.h),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4.r),
-      ),
-      child: Text(
-        productive ? "PRODUCTIVE" : "NON-PRODUCTIVE",
-        style: TextStyle(
-          color: color,
-          fontSize: 2.2.sp,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+    return SitePill.tint(
+      productive ? "Productive" : "Non-productive",
+      productive ? AppColor.green : AppColor.red,
     );
   }
 }

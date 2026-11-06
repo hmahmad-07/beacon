@@ -4,10 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// One theme for the whole app, matching the PARC Impact identity: a deep
-/// navy primary with a gold highlight, on white and soft neutral surfaces.
-/// Every site uses this same palette. The site keys below are kept so existing
-/// references still compile, but they all resolve to the single theme colour.
 class AppColor {
   static Color red = const Color.fromARGB(255, 180, 35, 24);
   static Color green = const Color.fromARGB(255, 22, 128, 84);
@@ -22,14 +18,13 @@ class AppColor {
   static Color white = const Color(0xFFFFFFFF);
   static Color transparent = Colors.transparent;
 
-  // Site keys. All of them use the one theme colour (no per-site colours).
-  static Color cc = appColor1;
-  static Color paani = appColor1;
-  static Color rth = appColor1;
-  static Color aa = appColor1;
-  static Color ss = appColor1;
-  static Color opd = appColor1;
-  static Color amtax = appColor1;
+  static Color cc = const Color(0xffB33400);
+  static Color paani = const Color(0xff117998);
+  static Color rth = const Color(0xffD31A6E);
+  static Color aa = const Color(0xffA27346);
+  static Color ss = const Color(0xffF88416);
+  static Color opd = const Color(0xff164FA3);
+  static Color amtax = const Color(0xff1E2A3A);
 
   static void swapColors() {
     final tempWhite = white;
@@ -59,8 +54,7 @@ class AppTheme {
 
   static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
-    // iOS behaviour for Material widgets: iOS scroll physics, iOS-style page
-    // transitions (edge swipe back), and iOS-style text selection and icons.
+
     platform: TargetPlatform.iOS,
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {

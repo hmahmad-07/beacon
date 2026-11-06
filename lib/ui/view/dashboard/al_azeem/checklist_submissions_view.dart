@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:beacon/core/controllers/al_azeem_checklist_controller.dart';
 import 'package:beacon/core/controllers/al_azeem_checklist_period_controller.dart';
-import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/AlAzeem/al_azeem_checklist_models.dart';
 import 'package:beacon/core/models/Sales/sales_common.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:beacon/ui/view/dashboard/al_azeem/checklist_detail_view.dart';
 import 'package:beacon/ui/view/dashboard/al_azeem/checklist_widgets.dart';
 import 'package:beacon/ui/view/dashboard/sales/sales_ui.dart';
@@ -143,7 +142,7 @@ class _ChecklistSubmissionsScreenState
                 "${item.counts.completedTasks}/${item.counts.totalTasks}",
             trailingCaption: checklistDateText(item.taskDate),
             accent: accent,
-            onTap: () => AppRoutes.push(
+            onTap: () => context.pushSite(
               ChecklistDetailView(
                 submissionId: item.submissionId,
                 accentColor: accent,

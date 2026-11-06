@@ -2,11 +2,10 @@ import 'package:beacon/core/controllers/hr_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/HR/budget_headcount_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -35,9 +34,9 @@ class BudgetHeadcountReportView extends StatefulWidget {
 
 class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
     with SingleTickerProviderStateMixin {
-  static const Color _actualColor = Color(0xFF1F2A37);
+  Color get _actualColor => context.siteAccent;
   static const Color _budgetColor = Color(0xFF696D75);
-  static const Color _accent = Color(0xFFB8922A);
+  Color get _accent => context.siteAccent;
 
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
@@ -156,175 +155,25 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
     HRController controller,
     BudgetHeadcountModel? model,
   ) {
-    final note = model?.filters?.note;
     final formattedMonth = DateFormat(
       'MMMM yyyy',
     ).format(controller.budgetSelectedDate);
-
-    return Container(
-      width: double.infinity,
-      margin: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 1.5.h),
-      padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColor.appColor1, AppColor.appDarkColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 12.w,
-                height: 12.w,
-                padding: EdgeInsets.all(1.5.w),
-                decoration: BoxDecoration(
-                  color: AppColor.white.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: widget.siteImage != null && widget.siteImage!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12.w),
-                        child: Image.asset(
-                          widget.siteImage!,
-                          fit: BoxFit.contain,
-                        ),
-                      )
-                    : Icon(
-                        BoxIcons.bxs_bar_chart_alt_2,
-                        color: AppColor.white,
-                        size: 6.w,
-                      ),
-              ),
-              3.width,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.siteName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColor.white,
-                        fontSize: 4.5.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    0.4.height,
-                    Text(
-                      widget.deptName,
-                      style: TextStyle(
-                        color: AppColor.white.withValues(alpha: 0.85),
-                        fontSize: 3.sp,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          2.height,
-          InkWell(
-            onTap: () async {
-              await CustomMonthPicker.showMonthPickerDialog(
-                context: context,
-                selectedMonth: controller.budgetSelectedDate,
-                onMonthSelected: (date) {
-                  controller.setBudgetSelectedDate(date);
-                  _fetchReportData();
-                },
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-              decoration: BoxDecoration(
-                color: AppColor.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColor.white.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        BoxIcons.bx_calendar,
-                        color: AppColor.white,
-                        size: 4.5.w,
-                      ),
-                      2.width,
-                      Text(
-                        "Month: $formattedMonth",
-                        style: TextStyle(
-                          color: AppColor.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 3.5.sp,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 2.w,
-                      vertical: 0.4.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColor.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "CHANGE",
-                      style: TextStyle(
-                        color: AppColor.appDarkColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 2.6.sp,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (note != null && note.trim().isNotEmpty) ...[
-            1.5.height,
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-              decoration: BoxDecoration(
-                color: AppColor.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    BoxIcons.bx_info_circle,
-                    color: AppColor.white,
-                    size: 4.w,
-                  ),
-                  2.width,
-                  Expanded(
-                    child: Text(
-                      note,
-                      style: TextStyle(
-                        color: AppColor.white.withValues(alpha: 0.9),
-                        fontSize: 2.6.sp,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
+    return SiteReportHeader(
+      title: widget.siteName,
+      subtitle: widget.deptName,
+      logoAsset: widget.siteImage,
+      icon: BoxIcons.bxs_bar_chart_alt_2,
+      periodLabel: "Month: $formattedMonth",
+      onChangePeriod: () async {
+        await CustomMonthPicker.showMonthPickerDialog(
+          context: context,
+          selectedMonth: controller.budgetSelectedDate,
+          onMonthSelected: (date) {
+            controller.setBudgetSelectedDate(date);
+            _fetchReportData();
+          },
+        );
+      },
     );
   }
 
@@ -392,15 +241,8 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
       padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 1.5.h),
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,7 +251,7 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
             padding: EdgeInsets.all(1.8.w),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 4.w),
           ),
@@ -468,7 +310,7 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
         border: Border.all(
           color: AppColor.appLightColor.withValues(alpha: 0.7),
         ),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -750,7 +592,7 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         children: [

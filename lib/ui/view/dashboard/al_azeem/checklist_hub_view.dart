@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:beacon/core/controllers/al_azeem_checklist_controller.dart';
 import 'package:beacon/core/controllers/al_azeem_checklist_period_controller.dart';
-import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:beacon/ui/view/dashboard/al_azeem/checklist_submissions_view.dart';
 import 'package:beacon/ui/view/dashboard/al_azeem/checklist_widgets.dart';
 import 'package:beacon/ui/view/dashboard/sales/sales_ui.dart';
@@ -43,6 +42,13 @@ class _ChecklistHubViewState extends State<ChecklistHubView> {
 
   @override
   Widget build(BuildContext context) {
+    return SiteScope.wrap(
+      accent: widget.accentColor,
+      child: Builder(builder: _buildContent),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     final accent = widget.accentColor;
 
     return AnimatedBuilder(
@@ -72,7 +78,8 @@ class _ChecklistHubViewState extends State<ChecklistHubView> {
                 icon: Icons.checklist_rounded,
                 title: "Submission list",
                 subtitle: "Every checklist, by employee and role",
-                onTap: () => AppRoutes.push(
+                onTap: () => pushInSite(
+                  accent,
                   ChecklistSubmissionsScreen(period: _period, accent: accent),
                 ),
               ),
@@ -173,53 +180,13 @@ class _ChecklistHubViewState extends State<ChecklistHubView> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    final accent = widget.accentColor;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: 1.5.h),
-      child: SalesCard(
-        onTap: onTap,
-        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(2.8.w),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accent.withValues(alpha: 0.12),
-              ),
-              child: Icon(icon, size: 5.5.w, color: accent),
-            ),
-            3.width,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 4.sp,
-                      fontWeight: FontWeight.bold,
-                      color: AppColor.appDarkColor,
-                    ),
-                  ),
-                  0.4.height,
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: AppColor.grey),
-          ],
-        ),
-      ),
+    return SiteActionTile(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      color: widget.accentColor,
+      onTap: onTap,
     );
   }
+
 }

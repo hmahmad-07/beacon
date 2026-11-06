@@ -4,12 +4,10 @@ import 'package:beacon/core/controllers/hr_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/HR/attendance_report_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -43,7 +41,7 @@ class EmployeeAttendanceDetailView extends StatefulWidget {
 class _EmployeeAttendanceDetailViewState
     extends State<EmployeeAttendanceDetailView>
     with SingleTickerProviderStateMixin {
-  static const Color _accent = Color(0xFF1F2A37);
+  Color get _accent => context.siteAccent;
 
   late DateTime _selectedMonth;
   AnimationController? _chartAnimController;
@@ -76,11 +74,6 @@ class _EmployeeAttendanceDetailViewState
   void dispose() {
     _chartAnimController?.dispose();
     super.dispose();
-  }
-
-  bool get _isCurrentMonth {
-    final now = DateTime.now();
-    return _selectedMonth.year == now.year && _selectedMonth.month == now.month;
   }
 
   String get _employeeIdParam {
@@ -240,160 +233,42 @@ class _EmployeeAttendanceDetailViewState
   Widget _buildProfileHeader(AttendanceEmployee? employee) {
     final emp = employee ?? widget.employee;
     final formattedMonth = DateFormat('MMMM yyyy').format(_selectedMonth);
+    final code = emp.employeeCode?.trim() ?? '';
+    final jobType = emp.jobType?.trim() ?? '';
 
-    return Container(
-      width: double.infinity,
-      margin: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 1.5.h),
-      padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_accent, AppColor.appDarkColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return SiteReportHeader(
+      leading: Container(
+        padding: EdgeInsets.all(0.8.w),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.22),
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 16.w,
-                height: 16.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColor.white, width: 2),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(50),
-                  child: emp.profilePic != null && emp.profilePic!.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: emp.profilePic!,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, _, _) => _initials(emp),
-                        )
-                      : _initials(emp),
-                ),
-              ),
-              3.width,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      emp.name ?? "Employee",
-                      style: TextStyle(
-                        color: AppColor.white,
-                        fontSize: 4.2.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      emp.designation ?? widget.deptName,
-                      style: TextStyle(
-                        color: AppColor.white.withValues(alpha: 0.85),
-                        fontSize: 3.sp,
-                      ),
-                    ),
-                    if (emp.employeeCode != null)
-                      Text(
-                        "Code: ${emp.employeeCode}  •  ${emp.jobType ?? ''}",
-                        style: TextStyle(
-                          color: AppColor.white.withValues(alpha: 0.75),
-                          fontSize: 2.5.sp,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          2.height,
-          InkWell(
-            onTap: () async {
-              await CustomMonthPicker.showMonthPickerDialog(
-                context: context,
-                selectedMonth: _selectedMonth,
-                onMonthSelected: (date) {
-                  setState(() => _selectedMonth = date);
-                  _fetchData();
-                },
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-              decoration: BoxDecoration(
-                color: AppColor.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColor.white.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        BoxIcons.bx_calendar,
-                        color: AppColor.white,
-                        size: 4.5.w,
-                      ),
-                      2.width,
-                      Text(
-                        _isCurrentMonth ? formattedMonth : formattedMonth,
-                        style: TextStyle(
-                          color: AppColor.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 3.4.sp,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 2.w,
-                      vertical: 0.4.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColor.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "CHANGE",
-                      style: TextStyle(
-                        color: AppColor.appDarkColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 2.6.sp,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _initials(AttendanceEmployee emp) {
-    final initials = emp.name != null && emp.name!.trim().isNotEmpty
-        ? emp.name!.trim().split(' ').take(2).map((e) => e[0]).join()
-        : '?';
-    return Container(
-      color: AppColor.white.withValues(alpha: 0.2),
-      alignment: Alignment.center,
-      child: Text(
-        initials.toUpperCase(),
-        style: TextStyle(
-          color: AppColor.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 4.sp,
+        child: SiteAvatar(
+          name: emp.name ?? '',
+          imageUrl: emp.profilePic,
+          size: 15.w,
+          color: siteShade(_accent, -0.08),
         ),
       ),
+      eyebrow: emp.designation ?? widget.deptName,
+      title: emp.name ?? "Employee",
+      subtitle: widget.siteName,
+      pills: [
+        if (code.isNotEmpty) SiteBannerPill(code, icon: Icons.badge_outlined),
+        if (jobType.isNotEmpty)
+          SiteBannerPill(jobType, icon: Icons.work_outline_rounded),
+      ],
+      periodLabel: formattedMonth,
+      onChangePeriod: () async {
+        await CustomMonthPicker.showMonthPickerDialog(
+          context: context,
+          selectedMonth: _selectedMonth,
+          onMonthSelected: (date) {
+            setState(() => _selectedMonth = date);
+            _fetchData();
+          },
+        );
+      },
     );
   }
 
@@ -477,7 +352,7 @@ class _EmployeeAttendanceDetailViewState
         border: Border.all(
           color: AppColor.appLightColor.withValues(alpha: 0.7),
         ),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1030,7 +905,7 @@ class _EmployeeAttendanceDetailViewState
             border: Border.all(
               color: AppColor.appLightColor.withValues(alpha: 0.7),
             ),
-            boxShadow: AppShadow.soft,
+            boxShadow: siteCardShadow,
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
@@ -1168,7 +1043,7 @@ class _EmployeeAttendanceDetailViewState
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         children: [

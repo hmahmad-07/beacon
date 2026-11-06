@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/controllers/sales_controller.dart';
 import '../../../../core/controllers/sales_period_controller.dart';
-import '../../../../core/extensions/routes.dart';
 import '../../../../core/extensions/sizer.dart';
 import '../../../../core/models/Sales/sales_common.dart';
 import '../../../../core/models/project_model.dart';
@@ -11,6 +10,7 @@ import '../../../../core/resources/app_colors.dart';
 import 'sales_clients_view.dart';
 import 'sales_dashboard_view.dart';
 import 'sales_salespersons_view.dart';
+import '../../../components/site_design.dart';
 import 'sales_ui.dart';
 import 'sales_widgets.dart';
 
@@ -32,100 +32,106 @@ class SalesHubView extends StatelessWidget {
     final api = salesBusinessFor(business);
     final period = context.read<SalesPeriodController>();
 
-    return ChangeNotifierProvider(
-      create: (_) =>
-          SalesController(business: api, initialFilters: period.filters)
-            ..bindPeriod(period, (c) => c.loadDashboard())
-            ..loadDashboard(),
-      child: Consumer<SalesController>(
-        builder: (context, controller, _) {
-          final accent = business.accent;
+    return SiteScope.wrap(
+      accent: business.accent,
+      child: ChangeNotifierProvider(
+        create: (_) =>
+            SalesController(business: api, initialFilters: period.filters)
+              ..bindPeriod(period, (c) => c.loadDashboard())
+              ..loadDashboard(),
+        child: Consumer<SalesController>(
+          builder: (context, controller, _) {
+            final accent = business.accent;
 
-          return RefreshIndicator(
-            onRefresh: controller.loadDashboard,
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Overview",
-                            style: TextStyle(
-                              fontSize: 4.8.sp,
-                              fontWeight: FontWeight.bold,
-                              color: AppColor.appDarkColor,
-                            ),
-                          ),
-                          if (controller.lastUpdated != null) ...[
-                            0.3.height,
+            return RefreshIndicator(
+              onRefresh: controller.loadDashboard,
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              salesUpdatedLabel(controller.lastUpdated),
+                              "Overview",
                               style: TextStyle(
-                                fontSize: 2.6.sp,
-                                color: AppColor.grey,
+                                fontSize: 4.8.sp,
+                                fontWeight: FontWeight.bold,
+                                color: AppColor.appDarkColor,
                               ),
                             ),
+                            if (controller.lastUpdated != null) ...[
+                              0.3.height,
+                              Text(
+                                salesUpdatedLabel(controller.lastUpdated),
+                                style: TextStyle(
+                                  fontSize: 2.6.sp,
+                                  color: AppColor.grey,
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
+                      ),
+                      SalesPillButton(
+                        icon: Icons.calendar_month_rounded,
+                        label: salesPeriodLabel(controller.filters),
+                        accent: accent,
+                        onTap: () => _changePeriod(context),
+                      ),
+                    ],
+                  ),
+                  2.height,
+                  _overview(controller, accent),
+                  2.5.height,
+                  const SalesSectionTitle("Reports"),
+                  _reportTile(
+                    icon: Icons.dashboard_rounded,
+                    title: "Dashboard",
+                    subtitle: "KPIs, monthly and daily trends, top lists",
+                    accent: accent,
+                    onTap: () => pushInSite(
+                      accent,
+                      SalesDashboardScreen(
+                        business: api,
+                        filters: controller.filters,
                       ),
                     ),
-                    SalesPillButton(
-                      icon: Icons.calendar_month_rounded,
-                      label: salesPeriodLabel(controller.filters),
-                      accent: accent,
-                      onTap: () => _changePeriod(context),
-                    ),
-                  ],
-                ),
-                2.height,
-                _overview(controller, accent),
-                2.5.height,
-                const SalesSectionTitle("Reports"),
-                _reportTile(
-                  icon: Icons.dashboard_rounded,
-                  title: "Dashboard",
-                  subtitle: "KPIs, monthly and daily trends, top lists",
-                  accent: accent,
-                  onTap: () => AppRoutes.push(
-                    SalesDashboardScreen(
-                      business: api,
-                      filters: controller.filters,
+                  ),
+                  _reportTile(
+                    icon: Icons.groups_rounded,
+                    title: "Clients",
+                    subtitle:
+                        "Internal clients, and external clients by order booker",
+                    accent: accent,
+                    onTap: () => pushInSite(
+                      accent,
+                      SalesClientsScreen(
+                        business: api,
+                        filters: controller.filters,
+                      ),
                     ),
                   ),
-                ),
-                _reportTile(
-                  icon: Icons.groups_rounded,
-                  title: "Clients",
-                  subtitle:
-                      "Internal clients, and external clients by order booker",
-                  accent: accent,
-                  onTap: () => AppRoutes.push(
-                    SalesClientsScreen(
-                      business: api,
-                      filters: controller.filters,
+                  _reportTile(
+                    icon: Icons.badge_rounded,
+                    title: "Salespersons",
+                    subtitle: "Monthly performance for each salesperson",
+                    accent: accent,
+                    onTap: () => pushInSite(
+                      accent,
+                      SalesSalespersonsScreen(
+                        business: api,
+                        filters: controller.filters,
+                      ),
                     ),
                   ),
-                ),
-                _reportTile(
-                  icon: Icons.badge_rounded,
-                  title: "Salespersons",
-                  subtitle: "Monthly performance for each salesperson",
-                  accent: accent,
-                  onTap: () => AppRoutes.push(
-                    SalesSalespersonsScreen(
-                      business: api,
-                      filters: controller.filters,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -213,51 +219,12 @@ class SalesHubView extends StatelessWidget {
     required Color accent,
     required VoidCallback onTap,
   }) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 1.5.h),
-      child: SalesCard(
-        onTap: onTap,
-        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(2.8.w),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accent.withValues(alpha: 0.12),
-              ),
-              child: Icon(icon, size: 5.5.w, color: accent),
-            ),
-            3.width,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 4.sp,
-                      fontWeight: FontWeight.bold,
-                      color: AppColor.appDarkColor,
-                    ),
-                  ),
-                  0.4.height,
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 3.sp, color: AppColor.grey),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: AppColor.grey),
-          ],
-        ),
-      ),
+    return SiteActionTile(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      color: accent,
+      onTap: onTap,
     );
   }
 }

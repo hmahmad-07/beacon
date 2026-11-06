@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
@@ -54,13 +55,13 @@ class PdfPreviewView extends StatelessWidget {
               ),
             ),
           ),
-          _buildActionFooter(),
+          _buildActionFooter(context.siteAccent),
         ],
       ),
     );
   }
 
-  Widget _buildActionFooter() {
+  Widget _buildActionFooter(Color accent) {
     return Container(
       padding: EdgeInsets.fromLTRB(6.w, 2.h, 6.w, 4.h),
       decoration: BoxDecoration(
@@ -82,8 +83,9 @@ class PdfPreviewView extends StatelessWidget {
               child: _actionButton(
                 icon: Icons.share_rounded,
                 label: "Share Report",
-                color: AppColor.appColor1,
+                color: accent,
                 onTap: _sharePdf,
+                filled: true,
               ),
             ),
             4.width,
@@ -91,7 +93,7 @@ class PdfPreviewView extends StatelessWidget {
               child: _actionButton(
                 icon: Icons.print_rounded,
                 label: "Print / Save",
-                color: AppColor.appColor2,
+                color: accent,
                 onTap: _printPdf,
               ),
             ),
@@ -106,26 +108,34 @@ class PdfPreviewView extends StatelessWidget {
     required String label,
     required Color color,
     required VoidCallback onTap,
+    bool filled = false,
   }) {
-    return InkWell(
+    final fg = filled ? Colors.white : color;
+    return SitePressable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: 1.5.h),
+        padding: EdgeInsets.symmetric(vertical: 1.6.h),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
+          gradient: filled
+              ? LinearGradient(
+                  colors: [siteShade(color, 0.08), color],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: filled ? null : color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: filled ? 1 : 0.2)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 4.5.w),
+            Icon(icon, color: fg, size: 4.5.w),
             2.width,
             Text(
               label,
               style: TextStyle(
-                color: color,
+                color: fg,
                 fontWeight: FontWeight.bold,
                 fontSize: 3.2.sp,
               ),

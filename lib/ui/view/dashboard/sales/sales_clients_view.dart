@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/controllers/sales_controller.dart';
 import '../../../../core/controllers/sales_period_controller.dart';
-import '../../../../core/extensions/routes.dart';
 import '../../../../core/extensions/sizer.dart';
 import '../../../../core/models/Sales/sales_common.dart';
 import '../../../../core/models/Sales/sales_ledger_directory.dart';
@@ -11,6 +10,7 @@ import '../../../../core/models/Sales/sales_models.dart';
 import '../../../../core/resources/app_colors.dart';
 import '../../../components/custom_appbar.dart';
 import 'sales_client_detail_view.dart';
+import '../../../components/site_design.dart';
 import 'sales_ui.dart';
 import 'sales_widgets.dart';
 
@@ -44,7 +44,12 @@ class SalesClientsScreen extends StatelessWidget {
   final String? initialName;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => SiteScope.wrap(
+    accent: salesAccentFor(business),
+    child: Builder(builder: _build),
+  );
+
+  Widget _build(BuildContext context) {
     final internal = kind == SalesClientKind.internal;
     final pick = initialPickId ?? '';
     final scoped = filters.copyWith(
@@ -406,7 +411,7 @@ class _ClientsBodyState extends State<_ClientsBody> {
               trailingCaption: "${salesQty(row.quantity)} qty",
               accent: accent,
               comparison: row.comparison,
-              onTap: () => AppRoutes.push(
+              onTap: () => context.pushSite(
                 SalesClientDetailScreen(
                   business: controller.business,
                   filters: controller.filters,

@@ -1,5 +1,5 @@
-import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -14,7 +14,6 @@ import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 
 class JobTypeData {
   final String rawKey;
@@ -56,6 +55,8 @@ class EmpSalaryTypeView extends StatefulWidget {
 
 class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     with SingleTickerProviderStateMixin {
+  Color get _accent => context.siteAccent;
+
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
 
@@ -170,13 +171,13 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
     if (type == null) return AppColor.grey;
     final t = type.trim().toUpperCase();
     if (t.contains("PERMANENT")) {
-      return const Color(0xFFB8922A);
+      return _accent;
     } else if (t.contains("CONTRACTUAL") || t.contains("CONTRACT")) {
       return const Color(0xFF696D75);
     } else if (t.contains("DAILY") || t.contains("WAGE")) {
-      return const Color(0xFF1F2A37);
+      return siteShade(_accent, -0.16);
     } else if (t.contains("TEMP")) {
-      return const Color(0xFFD9B65E);
+      return siteShade(_accent, 0.24);
     } else {
       return const Color(0xFF3E4C5E);
     }
@@ -352,7 +353,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
           final isLoading = controller.isSalaryReportLoading;
 
           return RefreshIndicator(
-            color: AppColor.appColor1,
+            color: _accent,
             onRefresh: () async => _fetchReportData(),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(
@@ -386,162 +387,26 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
 
   // Header Banner
   Widget _buildHeaderBanner(HRController controller) {
-    final formattedMonth = DateFormat(
-      'MMMM yyyy',
-    ).format(controller.selectedDate);
-
-    return Container(
-      width: double.infinity,
-      margin: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 1.5.h),
-      padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColor.appColor1, AppColor.appDarkColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 12.w,
-                height: 12.w,
-                padding: EdgeInsets.all(1.5.w),
-                decoration: BoxDecoration(
-                  color: AppColor.white.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: widget.siteImage != null && widget.siteImage!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12.w),
-                        child: Image.asset(
-                          widget.siteImage!,
-                          fit: BoxFit.contain,
-                        ),
-                      )
-                    : Icon(
-                        BoxIcons.bx_buildings,
-                        color: AppColor.white,
-                        size: 6.w,
-                      ),
-              ),
-              3.width,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.siteName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColor.white,
-                        fontSize: 4.5.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    0.4.height,
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 2.5.w,
-                        vertical: 0.3.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColor.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        widget.deptName,
-                        style: TextStyle(
-                          color: AppColor.white,
-                          fontSize: 3.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          2.height,
-          InkWell(
-            onTap: () async {
-              await CustomMonthPicker.showMonthPickerDialog(
-                context: context,
-                selectedMonth: controller.selectedDate,
-                onMonthSelected: (date) {
-                  controller.setSelectedDate(date);
-                  _fetchReportData();
-                },
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-              decoration: BoxDecoration(
-                color: AppColor.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColor.white.withValues(alpha: 0.25),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        BoxIcons.bx_calendar,
-                        color: AppColor.white,
-                        size: 4.5.w,
-                      ),
-                      2.width,
-                      Text(
-                        "Report Month: $formattedMonth",
-                        style: TextStyle(
-                          color: AppColor.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 3.5.sp,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 2.w,
-                      vertical: 0.4.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColor.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "CHANGE",
-                      style: TextStyle(
-                        color: AppColor.appDarkColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 2.6.sp,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    final formattedMonth = DateFormat('MMMM yyyy').format(controller.selectedDate);
+    return SiteReportHeader(
+      title: widget.siteName,
+      subtitle: widget.deptName,
+      logoAsset: widget.siteImage,
+      icon: BoxIcons.bxs_id_card,
+      periodLabel: "Report Month: $formattedMonth",
+      onChangePeriod: () async {
+        await CustomMonthPicker.showMonthPickerDialog(
+          context: context,
+          selectedMonth: controller.selectedDate,
+          onMonthSelected: (date) {
+            controller.setSelectedDate(date);
+            _fetchReportData();
+          },
+        );
+      },
     );
   }
 
-  // Summary Metrics Row (Employee Count & Nature Focus)
   Widget _buildMetricsRow(SalaryTypeReportModel model) {
     final totalEmployees =
         model.totalDepartmentEmployees ??
@@ -571,7 +436,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
               value: jobTypeCount,
               suffix: " Types",
               icon: BoxIcons.bxs_badge_check,
-              color: const Color(0xFFB8922A),
+              color: _accent,
             ),
           ),
           2.5.width,
@@ -600,15 +465,8 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
       padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 1.5.h),
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -685,7 +543,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
         border: Border.all(
           color: AppColor.appLightColor.withValues(alpha: 0.7),
         ),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,12 +553,12 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
               Container(
                 padding: EdgeInsets.all(1.8.w),
                 decoration: BoxDecoration(
-                  color: AppColor.appColor1.withValues(alpha: 0.1),
+                  color: _accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   BoxIcons.bxs_pie_chart_alt_2,
-                  color: AppColor.appColor1,
+                  color: _accent,
                   size: 4.5.w,
                 ),
               ),
@@ -857,7 +715,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
           color: AppColor.appLightColor.withValues(alpha: 0.8),
           width: 1,
         ),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -875,12 +733,12 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                 Container(
                   padding: EdgeInsets.all(1.8.w),
                   decoration: BoxDecoration(
-                    color: AppColor.appColor1.withValues(alpha: 0.12),
+                    color: _accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     BoxIcons.bx_bar_chart_alt_2,
-                    color: AppColor.appColor1,
+                    color: _accent,
                     size: 4.5.w,
                   ),
                 ),
@@ -1275,7 +1133,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                           child: Icon(
                             Icons.check_rounded,
                             size: 3.w,
-                            color: AppColor.appColor1,
+                            color: _accent,
                           ),
                         )
                       : CircleAvatar(
@@ -1300,11 +1158,11 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                           : AppColor.appDarkColor,
                     ),
                   ),
-                  selectedColor: AppColor.appColor1,
+                  selectedColor: _accent,
                   backgroundColor: AppColor.white,
                   side: BorderSide(
                     color: isSelected
-                        ? AppColor.appColor1
+                        ? _accent
                         : AppColor.appLightColor,
                     width: 1.5,
                   ),
@@ -1312,7 +1170,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                     borderRadius: BorderRadius.circular(20),
                   ),
                   elevation: isSelected ? 2 : 0,
-                  shadowColor: AppColor.appColor1.withValues(alpha: 0.3),
+                  shadowColor: _accent.withValues(alpha: 0.3),
                   onSelected: (selected) {
                     controller.setSelectedJobType(type);
                     _replayChartAnimation();
@@ -1377,53 +1235,10 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
       children: [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 5.w),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(1.8.w),
-                    decoration: BoxDecoration(
-                      color: AppColor.appColor1.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      BoxIcons.bxs_group,
-                      color: AppColor.appColor1,
-                      size: 4.w,
-                    ),
-                  ),
-                  2.width,
-                  Text(
-                    "Employee Records",
-                    style: TextStyle(
-                      fontSize: 4.sp,
-                      fontWeight: FontWeight.bold,
-                      color: AppColor.appDarkColor,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 2.5.w,
-                  vertical: 0.4.h,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColor.grey.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Text(
-                  "${filteredEmployees.length} Shown",
-                  style: TextStyle(
-                    fontSize: 2.8.sp,
-                    fontWeight: FontWeight.bold,
-                    color: AppColor.appDarkColor,
-                  ),
-                ),
-              ),
-            ],
+          child: SiteSectionTitle(
+            "Employee Records",
+            padding: EdgeInsets.zero,
+            trailing: SitePill.tint("${filteredEmployees.length} Shown", context.siteAccent),
           ),
         ),
         1.5.height,
@@ -1466,7 +1281,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
         border: Border.all(
           color: AppColor.appLightColor.withValues(alpha: 0.6),
         ),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -1651,7 +1466,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 3.3.w, color: AppColor.appColor1),
+          Icon(icon, size: 3.3.w, color: _accent),
           1.3.width,
           Text(
             label,
@@ -1672,12 +1487,12 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
         : "?";
 
     return Container(
-      color: AppColor.appColor1.withValues(alpha: 0.1),
+      color: _accent.withValues(alpha: 0.1),
       alignment: Alignment.center,
       child: Text(
         initials.toUpperCase(),
         style: TextStyle(
-          color: AppColor.appColor1,
+          color: _accent,
           fontWeight: FontWeight.bold,
           fontSize: 4.sp,
         ),
@@ -1693,7 +1508,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Center(
         child: Column(
@@ -1702,13 +1517,13 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
             Container(
               padding: EdgeInsets.all(5.w),
               decoration: BoxDecoration(
-                color: AppColor.appColor1.withValues(alpha: 0.1),
+                color: _accent.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 BoxIcons.bx_folder_open,
                 size: 12.w,
-                color: AppColor.appColor1,
+                color: _accent,
               ),
             ),
             2.height,
@@ -1738,7 +1553,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColor.appColor1,
+                backgroundColor: _accent,
                 padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.2.h),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1808,7 +1623,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
               height: 0.7.h,
               decoration: BoxDecoration(
                 color: isActive
-                    ? AppColor.appColor1
+                    ? _accent
                     : AppColor.grey.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(4),
               ),
@@ -1841,12 +1656,12 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
           padding: EdgeInsets.symmetric(vertical: 1.h),
           decoration: BoxDecoration(
             color: selected
-                ? AppColor.appColor1.withValues(alpha: 0.12)
+                ? _accent.withValues(alpha: 0.12)
                 : AppColor.scaffold,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: selected
-                  ? AppColor.appColor1.withValues(alpha: 0.4)
+                  ? _accent.withValues(alpha: 0.4)
                   : AppColor.appLightColor,
             ),
           ),
@@ -1856,7 +1671,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
               Icon(
                 icon,
                 size: 4.w,
-                color: selected ? AppColor.appColor1 : AppColor.grey,
+                color: selected ? _accent : AppColor.grey,
               ),
               1.5.width,
               Text(
@@ -1864,7 +1679,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
                 style: TextStyle(
                   fontSize: 2.8.sp,
                   fontWeight: FontWeight.bold,
-                  color: selected ? AppColor.appColor1 : AppColor.appDarkColor,
+                  color: selected ? _accent : AppColor.appDarkColor,
                 ),
               ),
             ],

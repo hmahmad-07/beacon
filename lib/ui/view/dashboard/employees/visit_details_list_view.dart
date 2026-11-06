@@ -3,7 +3,7 @@ import 'package:beacon/core/models/Employees/emp_working_detail_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/utils.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:beacon/ui/view/dashboard/employees/order_details_view.dart';
 import 'package:beacon/ui/view/dashboard/employees/full_screen_image_viewer.dart';
 import 'package:beacon/ui/view/dashboard/employees/visit_navigation_map_view.dart';
@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import '../../../../core/extensions/routes.dart';
 
 class VisitDetailsListView extends StatefulWidget {
   final List<Visit> visits;
@@ -95,27 +94,30 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
     );
   }
 
+  bool get _isSales => widget.dept.toLowerCase().contains("sales");
+  bool get _isQa => widget.dept.toLowerCase().contains("qlty. assurance");
+
+  Widget _buildHeader(List<Visit> visits) {
+    final productive = visits
+        .where((v) => v.orders.any((o) => o.isProductive))
+        .length;
+    return SiteHeaderCard(
+      margin: EdgeInsets.only(bottom: 1.h),
+      icon: Icons.fact_check_rounded,
+      title: "Field activity",
+      subtitle: widget.dept,
+      description: _isSales
+          ? "$productive productive · ${visits.length - productive} non-productive"
+          : "Customer touchpoints in visit order",
+      badge: "${visits.length} ${visits.length == 1 ? 'visit' : 'visits'}",
+    );
+  }
+
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.history_toggle_off_rounded,
-            size: 15.w,
-            color: AppColor.grey.withValues(alpha: 0.3),
-          ),
-          2.height,
-          Text(
-            'No Visits Recorded',
-            style: TextStyle(
-              fontSize: 4.sp,
-              fontWeight: FontWeight.bold,
-              color: AppColor.appDarkColor,
-            ),
-          ),
-        ],
-      ),
+    return const SiteEmptyState(
+      icon: Icons.history_toggle_off_rounded,
+      title: "No visits recorded",
+      message: "This employee has no customer visits for the selected day.",
     );
   }
 
@@ -124,26 +126,22 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
 
     return AnimationLimiter(
       child: ListView.builder(
-        padding: EdgeInsets.all(4.w),
+        padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
         physics: const BouncingScrollPhysics(),
-        itemCount: sortedVisits.length,
+        itemCount: sortedVisits.length + 1,
         itemBuilder: (context, index) {
-          return AnimationConfiguration.staggeredList(
-            position: index,
-            duration: const Duration(milliseconds: 400),
-            child: SlideAnimation(
-              horizontalOffset: 80.0,
-              child: FadeInAnimation(
-                child: _buildVisitCard(context, sortedVisits[index]),
-              ),
-            ),
+          if (index == 0) return siteStagger(0, _buildHeader(sortedVisits));
+          return siteStagger(
+            index,
+            _buildVisitCard(context, sortedVisits[index - 1], index),
           );
         },
       ),
     );
   }
 
-  Widget _buildVisitCard(BuildContext context, Visit visit) {
+  Widget _buildVisitCard(BuildContext context, Visit visit, int number) {
+    final accent = context.siteAccent;
     bool isProductive = visit.orders.any((o) => o.isProductive);
     String remarks =
         visit.orders.isNotEmpty && visit.orders.first.remarks != null
@@ -151,78 +149,64 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
         : visit.remarks ?? '';
 
     String stayTime = extractDuration(remarks);
+    final when =
+        visit.orders.isNotEmpty && visit.orders.first.orderDate.isNotEmpty
+        ? visit.orders.first.orderDate
+        : visit.createdAt;
+    final cleanRemarks = remarks.split('(').first.trim();
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 2.h),
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        borderRadius: BorderRadius.circular(4.r),
-        boxShadow: AppShadow.soft,
-      ),
+    return SiteCard(
+      margin: EdgeInsets.only(top: 1.6.h),
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.all(3.w),
+            padding: EdgeInsets.all(3.2.w),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildImageThumbnail(context, visit.effectivePhotos),
-                3.width,
-                Container(width: 1.5, height: 15.h, color: AppColor.scaffold),
-                3.width,
+                _buildImageThumbnail(context, visit.effectivePhotos, number),
+                3.5.width,
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                textAlign: TextAlign.left,
-                                visit.placeName.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 4.2.sp,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColor.appDarkColor,
-                                  letterSpacing: -0.2,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            child: Text(
+                              Utils.capitalize(visit.placeName.toLowerCase()),
+                              style: TextStyle(
+                                fontSize: 4.1.sp,
+                                fontWeight: FontWeight.w800,
+                                color: AppColor.appDarkColor,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (widget.dept.toLowerCase().contains(
-                            "qlty. assurance",
-                          )) ...[
+                          if (_isQa) ...[
+                            1.5.width,
                             _actionButton(
                               icon: Icons.map_rounded,
                               label: "Route",
-                              color: AppColor.appDarkColor,
-                              onTap: () => AppRoutes.push(
+                              color: accent,
+                              onTap: () => context.pushSite(
                                 VisitNavigationMapView(visit: visit),
                               ),
                             ),
                           ],
                         ],
                       ),
-                      0.7.height,
+                      0.8.height,
                       _detailRow(Icons.person_rounded, visit.ownerName),
-                      0.3.height,
                       _detailRow(Icons.category_rounded, visit.channel),
-                      0.3.height,
                       _detailRow(
-                        Icons.event_note_rounded,
-                        visit.orders.isNotEmpty &&
-                                visit.orders.first.orderDate.isNotEmpty
-                            ? visit.orders.first.orderDate
-                            : visit.createdAt,
+                        Icons.schedule_rounded,
+                        Utils.formatDate(when),
                       ),
-                      0.3.height,
-                      _detailRow(Icons.timer_rounded, "Stay Time: $stayTime"),
-                      0.7.height,
+                      if (stayTime.isNotEmpty)
+                        _detailRow(Icons.timer_rounded, "Stay $stayTime"),
                       _detailRow(
                         Icons.location_on_rounded,
                         visit.address,
@@ -234,59 +218,59 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
               ],
             ),
           ),
-          if (!widget.dept.toLowerCase().contains("qlty. assurance"))
-            Divider(height: 1, color: AppColor.scaffold, thickness: 1),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.w),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 3.2.w, vertical: 1.2.h),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.04),
+              border: Border(
+                top: BorderSide(color: accent.withValues(alpha: 0.08)),
+              ),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(22),
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    if (widget.dept.toLowerCase().contains("sales")) ...[
-                      _statusBadge(isProductive),
-                      const Spacer(),
-                    ],
-                    if (!widget.dept.toLowerCase().contains(
-                      "qlty. assurance",
-                    )) ...[
+                    if (_isSales) _statusBadge(isProductive),
+                    const Spacer(),
+                    if (!_isQa) ...[
                       _actionButton(
                         icon: Icons.map_rounded,
                         label: "Route",
-                        color: AppColor.appDarkColor,
-                        onTap: () => AppRoutes.push(
+                        color: accent,
+                        onTap: () => context.pushSite(
                           VisitNavigationMapView(visit: visit),
                         ),
                       ),
-                      3.width,
+                      2.width,
                       _actionButton(
                         icon: Icons.phone_rounded,
                         label: "Call",
-                        color: AppColor.appColor1,
+                        color: accent,
                         onTap: () =>
                             Utils.launchURL("tel:${visit.phoneNumber}"),
                       ),
                     ],
                     if (isProductive) ...[
-                      3.width,
+                      2.width,
                       _actionButton(
                         icon: Icons.shopping_cart_rounded,
                         label: "Order",
                         color: AppColor.green,
+                        filled: true,
                         onTap: () =>
-                            AppRoutes.push(OrderDetailsView(visit: visit)),
+                            context.pushSite(OrderDetailsView(visit: visit)),
                       ),
                     ],
                   ],
                 ),
-                if (!isProductive)
-                  Divider(color: AppColor.scaffold, thickness: 1),
-                if (!isProductive)
-                  if (!isProductive)
-                    _detailRow(
-                      Icons.note_alt_rounded,
-                      "Remarks: ${remarks.split('(').first.trim()}",
-                    ),
+                if (!isProductive && cleanRemarks.isNotEmpty) ...[
+                  1.height,
+                  _detailRow(Icons.note_alt_rounded, "Remarks: $cleanRemarks"),
+                ],
               ],
             ),
           ),
@@ -295,21 +279,26 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
     );
   }
 
-  Widget _buildImageThumbnail(BuildContext context, List<String> photos) {
+  Widget _buildImageThumbnail(
+    BuildContext context,
+    List<String> photos,
+    int number,
+  ) {
+    final accent = context.siteAccent;
     bool hasPhotos = photos.isNotEmpty;
-    return GestureDetector(
+    return SitePressable(
       onTap: hasPhotos
-          ? () => AppRoutes.push(FullScreenImageViewer(images: photos))
+          ? () => context.pushSite(FullScreenImageViewer(images: photos))
           : null,
       child: Container(
-        width: 30.w,
-        height: 15.h,
+        width: 25.w,
+        height: 25.w,
         decoration: BoxDecoration(
-          color: AppColor.scaffold,
-          borderRadius: BorderRadius.circular(4.r),
+          color: accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(4.r),
+          borderRadius: BorderRadius.circular(16),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -317,16 +306,17 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
                 CachedNetworkImage(
                   imageUrl: photos[0],
                   fit: BoxFit.cover,
-                  errorWidget: (c, u, e) =>
-                      Icon(Icons.broken_image, color: AppColor.grey),
+                  errorWidget: (c, u, e) => Icon(
+                    Icons.broken_image_rounded,
+                    color: accent.withValues(alpha: 0.6),
+                  ),
                 )
               else
                 Icon(
-                  Icons.image_not_supported_rounded,
-                  color: AppColor.grey,
-                  size: 8.w,
+                  Icons.storefront_rounded,
+                  color: accent.withValues(alpha: 0.55),
+                  size: 9.w,
                 ),
-
               if (photos.length > 1)
                 Container(
                   color: Colors.black45,
@@ -341,6 +331,28 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
                     ),
                   ),
                 ),
+              Positioned(
+                left: 1.5.w,
+                top: 1.5.w,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 1.8.w,
+                    vertical: 0.3.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    "#$number",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 2.4.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -349,46 +361,34 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
   }
 
   Widget _detailRow(IconData icon, String text, {bool isAddress = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        Icon(icon, size: 2.8.w, color: AppColor.appColor2),
-        1.5.width,
-        Expanded(
-          child: Text(
-            text,
-            textAlign: TextAlign.left,
-            maxLines: isAddress ? 1 : 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 3.sp,
-              color: isAddress ? AppColor.grey : AppColor.appDarkColor,
-              fontWeight: isAddress ? FontWeight.w500 : FontWeight.w700,
+    return Padding(
+      padding: EdgeInsets.only(bottom: 0.45.h),
+      child: Row(
+        children: [
+          Icon(icon, size: 3.2.w, color: context.siteAccent),
+          1.6.width,
+          Expanded(
+            child: Text(
+              text.isEmpty ? "—" : text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 3.sp,
+                color: isAddress ? AppColor.grey : AppColor.darkGrey,
+                fontWeight: isAddress ? FontWeight.w500 : FontWeight.w600,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _statusBadge(bool productive) {
-    Color color = productive ? AppColor.green : AppColor.red;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4.r),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        productive ? "PRODUCTIVE" : "NON-PRODUCTIVE",
-        style: TextStyle(
-          color: color,
-          fontSize: 2.5.sp,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.5,
-        ),
-      ),
+    return SitePill.tint(
+      productive ? "Productive" : "Non-productive",
+      productive ? AppColor.green : AppColor.red,
+      icon: productive ? Icons.check_circle_rounded : Icons.block_rounded,
     );
   }
 
@@ -397,27 +397,27 @@ class _VisitDetailsListViewState extends State<VisitDetailsListView> {
     required String label,
     required Color color,
     required VoidCallback onTap,
+    bool filled = false,
   }) {
-    return InkWell(
+    return SitePressable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(4.r),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 1.w),
+        padding: EdgeInsets.symmetric(horizontal: 2.8.w, vertical: 0.8.h),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(4.r),
+          color: filled ? color : color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 4.r, color: color),
-            1.5.width,
+            Icon(icon, size: 3.6.w, color: filled ? Colors.white : color),
+            1.2.width,
             Text(
               label,
               style: TextStyle(
-                color: color,
-                fontSize: 3.sp,
-                fontWeight: FontWeight.bold,
+                color: filled ? Colors.white : color,
+                fontSize: 2.9.sp,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],

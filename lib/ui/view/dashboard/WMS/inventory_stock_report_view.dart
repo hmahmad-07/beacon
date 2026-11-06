@@ -3,12 +3,11 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_stock_report_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/inventory_dates.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -235,7 +234,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
             decoration: BoxDecoration(
               color: AppColor.white,
               borderRadius: BorderRadius.circular(3.r),
-              boxShadow: AppShadow.soft,
+              boxShadow: siteCardShadow,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,7 +297,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(3.5.r),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

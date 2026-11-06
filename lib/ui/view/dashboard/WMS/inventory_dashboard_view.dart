@@ -7,12 +7,11 @@ import 'package:beacon/core/models/WMS/inventory_dashboard_model.dart';
 import 'package:beacon/core/models/WMS/inventory_item_model.dart'
     show InventoryStoreBalance;
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_stock_report_view.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -33,16 +32,20 @@ class InventoryDashboardView extends StatefulWidget {
 
 class _InventoryDashboardViewState extends State<InventoryDashboardView>
     with SingleTickerProviderStateMixin {
-  static const List<Color> _categoryPalette = [
-    Color(0xFF3E4C5E),
-    Color(0xFFB8922A),
-    Color(0xFF696D75),
-    Color(0xFF1F2A37),
-    Color(0xFFD9B65E),
-    Color(0xFF8C97A8),
-    Color(0xFFEA5455),
-    Color(0xFF5B6B82),
-  ];
+  /// Category colours, all drawn from the screen's colour.
+  List<Color> get _categoryPalette {
+    final a = widget.accentColor;
+    return [
+      a,
+      siteShade(a, 0.22),
+      const Color(0xFF696D75),
+      siteShade(a, -0.14),
+      siteShade(a, 0.36),
+      const Color(0xFF8C97A8),
+      siteShade(a, 0.08),
+      const Color(0xFF5B6B82),
+    ];
+  }
 
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
@@ -228,7 +231,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
         "Stock value",
         _wholeFormat.format(kpis?.stockValue ?? 0),
         BoxIcons.bxs_wallet,
-        const Color(0xFFB8922A),
+        widget.accentColor,
       ),
       _KpiData(
         "Below min stock",
@@ -240,7 +243,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
         "Out of stock",
         zeroOrBelow,
         BoxIcons.bxs_error,
-        const Color(0xFFD9B65E),
+        siteShade(widget.accentColor, 0.25),
       ),
     ];
 
@@ -261,7 +264,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
           decoration: BoxDecoration(
             color: AppColor.white,
             borderRadius: BorderRadius.circular(3.5.r),
-            boxShadow: AppShadow.soft,
+            boxShadow: siteCardShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,7 +317,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
       children: [
         Row(
           children: [
-            _legendDot(const Color(0xFFB8922A), "Received"),
+            _legendDot(widget.accentColor, "Received"),
             3.width,
             _legendDot(const Color(0xFF696D75), "Issued"),
           ],
@@ -375,7 +378,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
                   lineBarsData: [
                     _lineSeries(
                       months,
-                      const Color(0xFFB8922A),
+                      widget.accentColor,
                       (m) => m.received,
                       animValue,
                     ),
@@ -916,7 +919,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView>
       decoration: BoxDecoration(
         color: AppColor.white,
         borderRadius: BorderRadius.circular(3.5.r),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

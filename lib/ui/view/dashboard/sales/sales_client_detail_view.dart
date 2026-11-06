@@ -9,6 +9,7 @@ import '../../../../core/models/Sales/sales_ledger_directory.dart';
 import '../../../../core/models/Sales/sales_models.dart';
 import '../../../../core/resources/app_colors.dart';
 import '../../../components/custom_appbar.dart';
+import '../../../components/site_design.dart';
 import 'sales_ui.dart';
 import 'sales_widgets.dart';
 
@@ -31,7 +32,12 @@ class SalesClientDetailScreen extends StatelessWidget {
   final String subtitle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => SiteScope.wrap(
+    accent: salesAccentFor(business),
+    child: Builder(builder: _build),
+  );
+
+  Widget _build(BuildContext context) {
     final period = context.read<SalesPeriodController>();
     return ChangeNotifierProvider(
       create: (_) =>
@@ -202,8 +208,7 @@ class _ClientDetailBody extends StatelessWidget {
       );
     }
 
-    final rows = (controller.clientLedger?.rows ?? const <LedgerRow>[])
-        .reversed
+    final rows = (controller.clientLedger?.rows ?? const <LedgerRow>[]).reversed
         .toList();
     if (rows.isEmpty) {
       return const SalesEmptyState(
@@ -229,7 +234,11 @@ class _ClientDetailBody extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: 0.6.h),
               child: Row(
                 children: [
-                  _cell(salesMonthKeyLabel(row.period), flex: 4, align: TextAlign.left),
+                  _cell(
+                    salesMonthKeyLabel(row.period),
+                    flex: 4,
+                    align: TextAlign.left,
+                  ),
                   _cell("${row.orderCount}", flex: 2),
                   _cell(salesQty(row.salesQuantity), flex: 2),
                   _cell(

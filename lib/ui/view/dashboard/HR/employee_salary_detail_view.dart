@@ -3,11 +3,9 @@ import 'dart:math' as math;
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/HR/department_salary_cost_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/app_constants.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:intl/intl.dart';
@@ -34,8 +32,8 @@ class EmployeeSalaryDetailView extends StatefulWidget {
 class _EmployeeSalaryDetailViewState extends State<EmployeeSalaryDetailView>
     with SingleTickerProviderStateMixin {
   static const Color _salaryColor = Color(0xFF696D75);
-  static const Color _paidColor = Color(0xFFB8922A);
-  static const Color _pendingColor = Color(0xFFD9B65E);
+  Color get _paidColor => context.siteAccent;
+  Color get _pendingColor => siteShade(context.siteAccent, 0.25);
 
   AnimationController? _animController;
   Animation<double>? _anim;
@@ -116,107 +114,29 @@ class _EmployeeSalaryDetailViewState extends State<EmployeeSalaryDetailView>
 
   Widget _buildProfileHeader(SalaryCostEmployee emp) {
     final formattedMonth = DateFormat('MMMM yyyy').format(widget.reportMonth);
+    final code = emp.employeeCode?.trim() ?? '';
 
-    return Container(
-      width: double.infinity,
-      margin: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 1.5.h),
-      padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColor.appColor1, AppColor.appDarkColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return SiteReportHeader(
+      leading: Container(
+        padding: EdgeInsets.all(0.8.w),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.22),
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadow.soft,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 16.w,
-            height: 16.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColor.white, width: 2),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(50),
-              child: emp.profilePic != null && emp.profilePic!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: emp.profilePic!,
-                      fit: BoxFit.cover,
-                      placeholder: (_, _) => Center(child: CupertinoActivityIndicator(radius: 8, color: AppColor.grey)),
-                      errorWidget: (_, _, _) => _initials(emp),
-                    )
-                  : _initials(emp),
-            ),
-          ),
-          3.width,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  emp.name ?? "Employee",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColor.white,
-                    fontSize: 4.2.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                0.3.height,
-                Text(
-                  emp.designation ?? widget.deptName,
-                  style: TextStyle(
-                    color: AppColor.white.withValues(alpha: 0.85),
-                    fontSize: 3.sp,
-                  ),
-                ),
-                0.8.height,
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 2.5.w,
-                    vertical: 0.4.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColor.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    formattedMonth,
-                    style: TextStyle(
-                      color: AppColor.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 2.6.sp,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _initials(SalaryCostEmployee emp) {
-    final initials = emp.name != null && emp.name!.trim().isNotEmpty
-        ? emp.name!.trim().split(' ').take(2).map((e) => e[0]).join()
-        : '?';
-    return Container(
-      color: AppColor.white.withValues(alpha: 0.2),
-      alignment: Alignment.center,
-      child: Text(
-        initials.toUpperCase(),
-        style: TextStyle(
-          color: AppColor.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 4.sp,
+        child: SiteAvatar(
+          name: emp.name ?? '',
+          imageUrl: emp.profilePic,
+          size: 15.w,
+          color: siteShade(_paidColor, -0.08),
         ),
       ),
+      eyebrow: emp.designation ?? widget.deptName,
+      title: emp.name ?? "Employee",
+      subtitle: widget.siteName,
+      pills: [
+        if (code.isNotEmpty) SiteBannerPill(code, icon: Icons.badge_outlined),
+      ],
+      periodLabel: "Salary month: $formattedMonth",
     );
   }
 
@@ -261,15 +181,8 @@ class _EmployeeSalaryDetailViewState extends State<EmployeeSalaryDetailView>
       padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 1.5.h),
       decoration: BoxDecoration(
         color: AppColor.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,7 +191,7 @@ class _EmployeeSalaryDetailViewState extends State<EmployeeSalaryDetailView>
             padding: EdgeInsets.all(2.w),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 4.w),
           ),
@@ -335,7 +248,7 @@ class _EmployeeSalaryDetailViewState extends State<EmployeeSalaryDetailView>
         border: Border.all(
           color: AppColor.appLightColor.withValues(alpha: 0.7),
         ),
-        boxShadow: AppShadow.soft,
+        boxShadow: siteCardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

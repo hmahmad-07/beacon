@@ -1,12 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import '../../core/extensions/sizer.dart';
 import '../../core/resources/app_colors.dart';
 
-/// The one app bar for every screen. It is white with dark text and a centred
-/// title, and its back button is the iOS-style chevron.
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool hasLeading;
   final String title;
@@ -39,8 +36,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         surfaceTintColor: AppColor.transparent,
         foregroundColor: AppColor.appDarkColor,
         iconTheme: IconThemeData(color: AppColor.appDarkColor),
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: AppColor.transparent,
           statusBarIconBrightness: Brightness.dark,
           statusBarBrightness: Brightness.light,
         ),

@@ -3,12 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/controllers/sales_controller.dart';
 import '../../../../core/controllers/sales_period_controller.dart';
-import '../../../../core/extensions/routes.dart';
 import '../../../../core/extensions/sizer.dart';
 import '../../../../core/models/Sales/sales_common.dart';
 import '../../../../core/resources/app_colors.dart';
 import '../../../components/custom_appbar.dart';
 import 'sales_clients_view.dart';
+import '../../../components/site_design.dart';
 import 'sales_ui.dart';
 import 'sales_widgets.dart';
 
@@ -25,7 +25,12 @@ class SalesSalespersonsScreen extends StatelessWidget {
   final SalesFilters filters;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => SiteScope.wrap(
+    accent: salesAccentFor(business),
+    child: Builder(builder: _build),
+  );
+
+  Widget _build(BuildContext context) {
     final period = context.read<SalesPeriodController>();
     return ChangeNotifierProvider(
       create: (_) =>
@@ -148,7 +153,8 @@ class _SalespersonsBody extends StatelessWidget {
                   "${person.orderCount} orders · ${person.clientCoverage} clients",
               accent: accent,
               comparison: person.comparison,
-              onTap: () => AppRoutes.push(
+              onTap: () => pushInSite(
+                accent,
                 SalesClientsScreen(
                   business: controller.business,
                   filters: controller.filters,

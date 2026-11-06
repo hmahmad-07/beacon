@@ -12,7 +12,7 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:intl/intl.dart';
 import 'package:beacon/core/utils/utils.dart';
 import 'package:provider/provider.dart';
-import '../../../components/app_constants.dart';
+import '../../../components/site_design.dart';
 import '../../../../core/constants/constants.dart';
 
 class EmployeeRouteMapView extends StatefulWidget {
@@ -24,6 +24,8 @@ class EmployeeRouteMapView extends StatefulWidget {
 }
 
 class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
+  Color get _accent => context.siteAccent;
+
   late GoogleMapController _controller;
   final List<LatLng> _points = [];
 
@@ -116,7 +118,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                     "Visit Time: ${visit.orders.isNotEmpty && visit.orders.first.orderDate.isNotEmpty ? visit.orders.first.orderDate : visit.createdAt}",
               ),
               icon: BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueAzure,
+                HSVColor.fromColor(_accent).hue,
               ),
             ),
           );
@@ -160,7 +162,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
       Polyline(
         polylineId: const PolylineId('route_initial'),
         points: List.from(_points),
-        color: AppColor.appColor1.withValues(alpha: 0.3),
+        color: _accent.withValues(alpha: 0.3),
         width: 3,
       ),
     );
@@ -207,7 +209,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
         Polyline(
           polylineId: const PolylineId('road_journey'),
           points: roadJourneyPoints,
-          color: AppColor.appColor1,
+          color: _accent,
           width: 5,
           jointType: JointType.round,
         ),
@@ -219,8 +221,8 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
           Polygon(
             polygonId: const PolygonId('coverage'),
             points: roadJourneyPoints,
-            fillColor: AppColor.appColor1.withValues(alpha: 0.08),
-            strokeColor: AppColor.appColor1.withValues(alpha: 0.2),
+            fillColor: _accent.withValues(alpha: 0.08),
+            strokeColor: _accent.withValues(alpha: 0.2),
             strokeWidth: 1,
           ),
         );
@@ -389,7 +391,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                       decoration: BoxDecoration(
                         color: AppColor.white,
                         borderRadius: BorderRadius.circular(50),
-                        boxShadow: AppShadow.soft,
+                        boxShadow: siteCardShadow,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -397,7 +399,10 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
                           SizedBox(
                             width: 3.w,
                             height: 3.w,
-                            child: const CupertinoActivityIndicator(radius: 5),
+                            child: CupertinoActivityIndicator(
+                              radius: 5,
+                              color: _accent,
+                            ),
                           ),
                           2.width,
                           Text(
@@ -479,7 +484,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
         decoration: BoxDecoration(
           color: AppColor.white.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: AppShadow.soft,
+          boxShadow: siteCardShadow,
         ),
         child: Column(
           children: [
@@ -546,12 +551,12 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
             padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColor.appDarkColor, AppColor.appColor1],
+                colors: [_accent, siteShade(_accent, -0.12)],
               ),
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
-                  color: AppColor.appColor1.withValues(alpha: 0.3),
+                  color: _accent.withValues(alpha: 0.3),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -587,7 +592,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
     String title = "";
     String subtitle = "";
     IconData icon = Icons.location_on_rounded;
-    Color color = AppColor.appColor1;
+    Color color = _accent;
     LatLng? pos;
     String markerId = "";
 
@@ -616,7 +621,7 @@ class _EmployeeRouteMapViewState extends State<EmployeeRouteMapView> {
       subtitle =
           "Reached at: ${item.orders.isNotEmpty && item.orders.first.orderDate.isNotEmpty ? item.orders.first.orderDate : item.createdAt}";
       icon = Icons.store_rounded;
-      color = AppColor.appColor1;
+      color = _accent;
       markerId = 'visit_${item.id}';
       pos = LatLng(
         double.tryParse(item.effectiveLatitude) ?? 0.0,

@@ -1,10 +1,9 @@
-import 'package:beacon/ui/components/app_constants.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
-import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/ui/view/dashboard/HR/emp_salary_type_view.dart';
 import 'package:beacon/ui/view/dashboard/HR/salary_cost_report_view.dart';
@@ -43,6 +42,29 @@ class _HumanResourceViewState extends State<HumanResourceView> {
     "Monthly HR Report",
     "Budget vs Actual Headcount",
   ];
+  String _getReportSubtitle(String report) {
+    final r = report.toLowerCase();
+    if (r.contains("employment type")) {
+      return "Employees and salary by job type";
+    }
+    if (r.contains("salary cost")) {
+      return "Salary cost and paid salary per employee";
+    }
+    if (r.contains("budget")) {
+      return "Approved budget against actual headcount";
+    }
+    if (r.contains("headcount")) {
+      return "Active headcount across departments";
+    }
+    if (r.contains("attendance")) {
+      return "Monthly attendance of every employee";
+    }
+    if (r.contains("monthly")) {
+      return "Headcount, salary, joiners and leavers";
+    }
+    return "";
+  }
+
   IconData _getReportIcon(String report) {
     final r = report.toLowerCase();
     if (r.contains("employment type")) {
@@ -69,7 +91,8 @@ class _HumanResourceViewState extends State<HumanResourceView> {
   void _onReportTap(String report) {
     final r = report.toLowerCase();
     if (r.contains('employment type')) {
-      AppRoutes.push(
+      pushInSite(
+        widget.clr,
         EmpSalaryTypeView(
           siteName: widget.siteName,
           siteID: widget.siteID,
@@ -79,7 +102,8 @@ class _HumanResourceViewState extends State<HumanResourceView> {
         ),
       );
     } else if (r.contains('salary cost')) {
-      AppRoutes.push(
+      pushInSite(
+        widget.clr,
         SalaryCostReportView(
           siteName: widget.siteName,
           siteID: widget.siteID,
@@ -89,7 +113,8 @@ class _HumanResourceViewState extends State<HumanResourceView> {
         ),
       );
     } else if (r.contains('attendance')) {
-      AppRoutes.push(
+      pushInSite(
+        widget.clr,
         AttendanceReportView(
           siteName: widget.siteName,
           siteID: widget.siteID,
@@ -99,7 +124,8 @@ class _HumanResourceViewState extends State<HumanResourceView> {
         ),
       );
     } else if (r.contains('budget')) {
-      AppRoutes.push(
+      pushInSite(
+        widget.clr,
         BudgetHeadcountReportView(
           siteName: widget.siteName,
           siteID: widget.siteID,
@@ -109,7 +135,8 @@ class _HumanResourceViewState extends State<HumanResourceView> {
         ),
       );
     } else if (r.contains('headcount')) {
-      AppRoutes.push(
+      pushInSite(
+        widget.clr,
         HeadcountReportView(
           siteName: widget.siteName,
           siteID: widget.siteID,
@@ -119,7 +146,8 @@ class _HumanResourceViewState extends State<HumanResourceView> {
         ),
       );
     } else if (r.contains('monthly')) {
-      AppRoutes.push(
+      pushInSite(
+        widget.clr,
         MonthlyHRReportView(
           siteName: widget.siteName,
           siteID: widget.siteID,
@@ -133,134 +161,61 @@ class _HumanResourceViewState extends State<HumanResourceView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColor.scaffold,
-      appBar: CustomAppBar(title: widget.deptName),
-      body: Column(
-        children: [
-          _buildSiteHeader(),
-          Expanded(
-            child: AnimationLimiter(
-              child: ListView.separated(
-                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
-                itemCount: hrReports.length,
-                separatorBuilder: (context, index) => 1.5.height,
-                itemBuilder: (context, index) {
-                  final report = hrReports[index];
-                  return AnimationConfiguration.staggeredList(
-                    position: index,
-                    duration: const Duration(milliseconds: 500),
-                    child: SlideAnimation(
-                      horizontalOffset: 80,
-                      curve: Curves.easeOutCubic,
-                      child: FadeInAnimation(
-                        child: _reportTile(
+    return SiteScope.wrap(
+      accent: widget.clr,
+      child: Scaffold(
+        backgroundColor: AppColor.scaffold,
+        appBar: CustomAppBar(title: widget.deptName),
+        body: AnimationLimiter(
+          child: ListView(
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.only(bottom: 4.h),
+            children: [
+              siteStagger(0, _buildSiteHeader()),
+              Padding(
+                padding: EdgeInsets.fromLTRB(5.w, 2.5.h, 5.w, 0),
+                child: Column(
+                  children: [
+                    siteStagger(
+                      1,
+                      SiteSectionTitle("Reports", count: hrReports.length),
+                    ),
+                    for (final (index, report) in hrReports.indexed)
+                      siteStagger(
+                        index + 2,
+                        _reportTile(
                           report: report,
                           onTap: () => _onReportTap(report),
                         ),
                       ),
-                    ),
-                  );
-                },
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildSiteHeader() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.8.h),
-      margin: EdgeInsets.fromLTRB(6.w, 2.h, 6.w, 0.5.h),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColor.appColor1.withValues(alpha: 0.85),
-            AppColor.appDarkColor,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(3.5.r),
-        boxShadow: AppShadow.soft,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 12.w,
-            height: 12.w,
-            padding: EdgeInsets.all(1.5.w),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColor.white,
-            ),
-            child: widget.siteImage != null && widget.siteImage!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12.w),
-                    child: Image.asset(widget.siteImage!, fit: BoxFit.contain),
-                  )
-                : Icon(BoxIcons.bx_buildings, color: widget.clr, size: 6.w),
-          ),
-          3.width,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.siteName,
-                  style: TextStyle(
-                    color: AppColor.white,
-                    fontSize: 4.5.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final image = widget.siteImage;
+    return SiteHeaderCard(
+      title: widget.deptName,
+      subtitle: widget.siteName,
+      description: "Human resource reports for this department",
+      logoAsset: image != null && image.isNotEmpty ? image : null,
+      icon: BoxIcons.bx_buildings,
+      badge: "${hrReports.length} reports",
     );
   }
 
   Widget _reportTile({required String report, required VoidCallback onTap}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        borderRadius: BorderRadius.circular(3.5.r),
-        boxShadow: AppShadow.soft,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3.5.r),
-        child: Material(
-          color: AppColor.transparent,
-          child: ListTile(
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 6.w,
-              vertical: 0.6.h,
-            ),
-            leading: Icon(_getReportIcon(report), color: widget.clr, size: 8.r),
-            title: Text(
-              report,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 4.5.sp,
-                color: AppColor.black,
-                shadows: AppShadow.textShadow,
-              ),
-            ),
-            trailing: Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 4.r,
-              color: AppColor.grey,
-            ),
-            onTap: onTap,
-          ),
-        ),
-      ),
+    return SiteActionTile(
+      icon: _getReportIcon(report),
+      title: report,
+      subtitle: _getReportSubtitle(report),
+      onTap: onTap,
     );
   }
 }

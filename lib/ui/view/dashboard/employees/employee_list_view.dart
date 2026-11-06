@@ -1,13 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/models/Employees/employes_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -21,7 +20,8 @@ import 'employee_detail_view.dart';
 import 'package:intl/intl.dart';
 import 'external_orders_view.dart';
 
-class EmployeeListView extends StatefulWidget {
+/// Employees of one department of one site, in that site's colour.
+class EmployeeListView extends StatelessWidget {
   final String department;
   final int? departmentId;
   final String? shopId;
@@ -38,10 +38,42 @@ class EmployeeListView extends StatefulWidget {
   });
 
   @override
-  State<EmployeeListView> createState() => _EmployeeListViewState();
+  Widget build(BuildContext context) {
+    return SiteScope.wrap(
+      accent: siteAccentForShop(shopId),
+      child: _EmployeeListBody(
+        department: department,
+        departmentId: departmentId,
+        shopId: shopId,
+        shopName: shopName,
+        siteImage: siteImage ?? siteAssetForShop(shopId),
+      ),
+    );
+  }
 }
 
-class _EmployeeListViewState extends State<EmployeeListView> {
+class _EmployeeListBody extends StatefulWidget {
+  final String department;
+  final int? departmentId;
+  final String? shopId;
+  final String? shopName;
+  final String? siteImage;
+
+  const _EmployeeListBody({
+    required this.department,
+    this.departmentId,
+    this.shopId,
+    this.shopName,
+    this.siteImage,
+  });
+
+  @override
+  State<_EmployeeListBody> createState() => _EmployeeListViewState();
+}
+
+class _EmployeeListViewState extends State<_EmployeeListBody> {
+  bool get _isSales => widget.department.toLowerCase().contains("sales");
+
   DateTime selectedAuditDate = DateTime.now();
 
   @override
@@ -77,7 +109,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
               ),
               title: Row(
                 children: [
-                  Icon(Icons.analytics_rounded, color: AppColor.appColor1),
+                  Icon(Icons.analytics_rounded, color: context.siteAccent),
                   2.width,
                   Text(
                     "Sales Report",
@@ -125,7 +157,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                     Navigator.pop(context, true);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColor.appColor1,
+                    backgroundColor: context.siteAccent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -167,7 +199,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const AppLoadingView(label: "Preparing Report..."),
+                const SiteLoading(label: "Preparing Report..."),
 
                 1.5.height,
 
@@ -186,7 +218,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                       ? null
                       : (totalCount == 0 ? 0 : currentProgress / totalCount),
                   backgroundColor: AppColor.scaffold,
-                  color: AppColor.appColor2,
+                  color: context.siteAccent,
                   borderRadius: BorderRadius.circular(20),
                   minHeight: 7,
                 ),
@@ -238,7 +270,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
       final fileName =
           "Daily_Sales_Audit_${DateFormat('dd_MM_yy').format(selectedAuditDate)}.pdf";
 
-      AppRoutes.push(PdfPreviewView(pdfBytes: bytes, fileName: fileName));
+      context.pushSite(PdfPreviewView(pdfBytes: bytes, fileName: fileName));
     } catch (e) {
       if (Navigator.canPop(context)) Navigator.pop(context);
 
@@ -248,14 +280,16 @@ class _EmployeeListViewState extends State<EmployeeListView> {
 
   @override
   Widget build(BuildContext context) {
+    final accent = context.siteAccent;
+
     return Scaffold(
       backgroundColor: AppColor.scaffold,
       appBar: CustomAppBar(
         title: widget.department,
         actions: [
-          if (widget.department.toLowerCase().contains("sales"))
+          if (_isSales)
             IconButton(
-              icon: Icon(Icons.assessment_rounded, color: AppColor.white),
+              icon: Icon(Icons.assessment_rounded, color: accent),
               tooltip: "Generate Audit Report",
               onPressed: () {
                 final controller = Provider.of<EmployesController>(
@@ -275,7 +309,7 @@ class _EmployeeListViewState extends State<EmployeeListView> {
       body: Consumer<EmployesController>(
         builder: (context, controller, child) {
           if (controller.isDeptEmployeesLoading) {
-            return const AppLoadingView();
+            return const SiteLoading(label: "Loading team…");
           }
 
           final employees = controller.getEmployeesByDept(
@@ -283,62 +317,78 @@ class _EmployeeListViewState extends State<EmployeeListView> {
             shopId: widget.shopId,
           );
 
-          if (employees.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.person_off_rounded,
-                    size: 15.w,
-                    color: AppColor.grey,
-                  ),
-                  2.height,
-                  Text(
-                    "No members found",
-                    style: TextStyle(fontSize: 4.5.sp, color: AppColor.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              if (widget.department.toLowerCase().contains("sales"))
+          return AnimationLimiter(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(6.w, 4.w, 6.w, 0.w),
-                    child: _buildExternalClientsCard(context),
+                  child: siteStagger(
+                    0,
+                    SiteHeaderCard(
+                      title: widget.department,
+                      subtitle: widget.shopName,
+                      description: employees.isEmpty
+                          ? "No active members"
+                          : "Active team members of this department",
+                      logoAsset: widget.siteImage,
+                      icon: Icons.groups_rounded,
+                      badge:
+                          "${employees.length} ${employees.length == 1 ? 'member' : 'members'}",
+                    ),
                   ),
                 ),
-              SliverPadding(
-                padding: EdgeInsets.all(6.w),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 4.w,
-                    mainAxisSpacing: 4.w,
-                    childAspectRatio: 0.58,
+                if (_isSales)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 0),
+                      child: siteStagger(1, _buildExternalClientsCard(context)),
+                    ),
                   ),
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final user = employees[index];
-                    return AnimationConfiguration.staggeredGrid(
-                      position: index,
-                      columnCount: 2,
-                      duration: const Duration(milliseconds: 400),
-                      child: SlideAnimation(
-                        verticalOffset: 50,
-                        child: FadeInAnimation(
-                          child: _buildEmployeeCard(context, user),
+                if (employees.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: SiteEmptyState(
+                      icon: Icons.person_off_rounded,
+                      title: "No members found",
+                      message:
+                          "There are no active employees in this department yet.",
+                    ),
+                  )
+                else ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(5.w, 2.5.h, 5.w, 0),
+                      child: siteStagger(
+                        2,
+                        SiteSectionTitle(
+                          "Team members",
+                          count: employees.length,
                         ),
                       ),
-                    );
-                  }, childCount: employees.length),
-                ),
-              ),
-            ],
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(5.w, 0, 5.w, 4.h),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 3.5.w,
+                        mainAxisSpacing: 3.5.w,
+                        childAspectRatio: 0.72,
+                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final user = employees[index];
+                        return siteStaggerGrid(
+                          index,
+                          2,
+                          _buildEmployeeCard(context, user),
+                        );
+                      }, childCount: employees.length),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           );
         },
       ),
@@ -346,273 +396,164 @@ class _EmployeeListViewState extends State<EmployeeListView> {
   }
 
   Widget _buildExternalClientsCard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColor.appDarkColor, AppColor.appColor1],
+    return SiteBanner(
+      onTap: () => context.pushSite(const ExternalOrdersView()),
+      eyebrow: "Order booking",
+      title: "External Clients",
+      subtitle: "Cross-channel orders & billing details",
+      titleSize: 4.8.sp,
+      leading: Container(
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(16),
         ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColor.appColor1.withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        child: Icon(Icons.storefront_rounded, color: Colors.white, size: 7.w),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => AppRoutes.push(const ExternalOrdersView()),
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: EdgeInsets.all(6.w),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(3.w),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.storefront_rounded,
-                    color: Colors.white,
-                    size: 8.w,
-                  ),
-                ),
-                4.width,
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "EXTERNAL CLIENTS",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 4.5.sp,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      0.5.height,
-                      Text(
-                        "View cross-channel orders & billing details",
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 2.8.sp,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: Colors.white70,
-                  size: 5.w,
-                ),
-              ],
-            ),
-          ),
+      trailing: Container(
+        padding: EdgeInsets.all(2.w),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          Icons.arrow_forward_ios_rounded,
+          color: Colors.white,
+          size: 3.6.w,
         ),
       ),
     );
   }
 
   Widget _buildEmployeeCard(BuildContext context, User user) {
+    final accent = context.siteAccent;
     final bool hasMobile =
         user.mobile != null && user.mobile!.trim().isNotEmpty;
-    final bool hasShop =
-        user.shopName != null && user.shopName!.trim().isNotEmpty;
+    final name = user.userName ?? "N/A";
+    final gender = user.gender?.trim() ?? "";
+    final photo = user.profilePic?.trim() ?? "";
 
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 1.5.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () => AppRoutes.push(EmployeeDetailView(user: user)),
-        borderRadius: BorderRadius.circular(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  Container(
-                    margin: EdgeInsets.all(2.w),
-                    width: double.infinity,
+    final fallback = Center(
+      child: SiteAvatar(name: name, size: 20.w),
+    );
+
+    return SiteCard(
+      onTap: () => context.pushSite(EmployeeDetailView(user: user)),
+      padding: EdgeInsets.all(2.2.w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: AppColor.appLightColor.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [
+                          accent.withValues(alpha: 0.06),
+                          accent.withValues(alpha: 0.14),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: user.profilePic ?? "",
-                        fit: BoxFit.fill,
-                        placeholder: (context, url) => Center(child: CupertinoActivityIndicator(radius: 8, color: AppColor.grey)),
-                        errorWidget: (context, url, error) => Center(
-                          child: Icon(
-                            Icons.person_rounded,
-                            color: AppColor.grey,
-                            size: 10.w,
-                          ),
-                        ),
-                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      child: photo.isEmpty
+                          ? fallback
+                          : CachedNetworkImage(
+                              imageUrl: photo,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Center(
+                                child: CupertinoActivityIndicator(
+                                  radius: 8,
+                                  color: accent,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => fallback,
+                            ),
                     ),
                   ),
-                  if (user.gender != null && user.gender!.trim().isNotEmpty)
-                    Positioned(
-                      top: 3.w,
-                      right: 3.w,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 2.w,
-                          vertical: 0.5.w,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColor.appDarkColor.withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          user.gender == 'M'
-                              ? 'Male'
-                              : (user.gender == 'F' ? 'Female' : user.gender!),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 2.4.sp,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                ),
+                if (gender.isNotEmpty)
+                  Positioned(
+                    top: 2.w,
+                    right: 2.w,
+                    child: SitePill(
+                      gender == 'M'
+                          ? 'Male'
+                          : (gender == 'F' ? 'Female' : gender),
+                      bg: Colors.white.withValues(alpha: 0.92),
+                      fg: accent,
+                      fontSize: 2.4.sp,
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user.userName ?? "N/A",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 3.8.sp,
-                      fontWeight: FontWeight.bold,
-                      color: AppColor.appDarkColor,
-                    ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(1.5.w, 1.2.h, 1.5.w, 0.6.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 3.8.sp,
+                    fontWeight: FontWeight.w800,
+                    color: AppColor.appDarkColor,
                   ),
-                  0.4.height,
-                  Row(
-                    children: [
-                      Icon(Icons.work, size: 3.w, color: AppColor.appColor2),
-                      1.width,
-                      Expanded(
-                        child: Text(
-                          user.designation ?? "N/A",
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 2.8.sp,
-                            color: AppColor.appDarkColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  0.3.height,
-                  Row(
-                    children: [
-                      Icon(Icons.badge, size: 3.w, color: AppColor.appColor2),
-                      1.width,
-                      Text(
-                        "Code: ",
+                ),
+                0.5.height,
+                Row(
+                  children: [
+                    Icon(Icons.work_rounded, size: 3.2.w, color: accent),
+                    1.2.width,
+                    Expanded(
+                      child: Text(
+                        user.designation ?? "N/A",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 2.5.sp,
+                          fontSize: 2.9.sp,
                           color: AppColor.grey,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      Text(
-                        user.empCode ?? "N/A",
+                    ),
+                  ],
+                ),
+                0.4.height,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.phone_rounded,
+                      size: 3.2.w,
+                      color: hasMobile ? AppColor.green : AppColor.grey,
+                    ),
+                    1.2.width,
+                    Expanded(
+                      child: Text(
+                        hasMobile ? user.mobile! : "No number",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 2.5.sp,
-                          fontWeight: FontWeight.bold,
-                          color: AppColor.appColor1,
+                          fontSize: 2.8.sp,
+                          color: hasMobile ? AppColor.green : AppColor.grey,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ],
-                  ),
-                  if (hasShop) ...[
-                    0.3.height,
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.storefront_rounded,
-                          size: 3.w,
-                          color: AppColor.appColor2,
-                        ),
-                        1.width,
-                        Expanded(
-                          child: Text(
-                            user.shopName!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 2.5.sp,
-                              color: AppColor.grey,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
                   ],
-                  if (hasMobile) ...[
-                    0.3.height,
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.phone_rounded,
-                          size: 3.w,
-                          color: AppColor.green,
-                        ),
-                        1.width,
-                        Expanded(
-                          child: Text(
-                            user.mobile!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 2.5.sp,
-                              color: AppColor.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  0.5.height,
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

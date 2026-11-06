@@ -1,5 +1,6 @@
-import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
+
+import '../../../components/site_design.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/extensions/sizer.dart';
@@ -124,14 +125,14 @@ class SalesRowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColor.white,
-      borderRadius: BorderRadius.circular(3.r),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(3.r),
-        onTap: onTap,
+    return SiteCard(
+      onTap: onTap,
+      radius: 18,
+      padding: EdgeInsets.zero,
+      child: Material(
+        color: AppColor.transparent,
         child: Padding(
-          padding: EdgeInsets.all(3.w),
+          padding: EdgeInsets.all(3.4.w),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [

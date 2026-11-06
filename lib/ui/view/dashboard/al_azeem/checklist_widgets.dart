@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:beacon/core/controllers/al_azeem_checklist_period_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:beacon/ui/components/custom_date_picker.dart';
 import 'package:beacon/ui/components/custom_month_picker.dart';
 import 'package:beacon/ui/view/dashboard/sales/sales_ui.dart';
@@ -211,20 +212,11 @@ class ChecklistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColor.white,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: AppColor.appLightColor),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: padding ?? EdgeInsets.all(4.w),
-          child: child,
-        ),
-      ),
+    return SiteCard(
+      onTap: onTap,
+      radius: 18,
+      padding: padding ?? EdgeInsets.all(4.w),
+      child: child,
     );
   }
 }
