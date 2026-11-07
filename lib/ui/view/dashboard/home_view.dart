@@ -10,7 +10,6 @@ import 'package:beacon/ui/view/dashboard/site_home_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-
 import '../../../core/models/module_model.dart';
 import '../privacy/privacy_policy_view.dart';
 import '../privacy/terms_conditions_view.dart';
@@ -221,7 +220,7 @@ class _SiteDrawer extends StatelessWidget {
           appBar: const CustomAppBar(title: "Inventory"),
           body: InventoryHubView(
             siteName: "All sites",
-            accentColor: AppColor.appColor1,
+            accentColor: AppColor.inventory,
           ),
         ),
       ),
@@ -261,9 +260,9 @@ class _SiteDrawer extends StatelessWidget {
             ),
 
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4.w),
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
               child: Material(
-                color: AppColor.appColor1.withValues(alpha: 0.08),
+                color: AppColor.inventory.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(14),
@@ -275,7 +274,7 @@ class _SiteDrawer extends StatelessWidget {
                         Container(
                           padding: EdgeInsets.all(2.6.w),
                           decoration: BoxDecoration(
-                            color: AppColor.appColor1,
+                            color: AppColor.inventory,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -315,7 +314,6 @@ class _SiteDrawer extends StatelessWidget {
                 ),
               ),
             ),
-            1.5.height,
             _DrawerItem(
               icon: Icons.privacy_tip_outlined,
               label: "Privacy policy",

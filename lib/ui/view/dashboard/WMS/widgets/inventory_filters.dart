@@ -2,9 +2,8 @@ import 'package:beacon/core/controllers/wms_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_store_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
-import 'package:beacon/ui/components/custom_field.dart';
 import 'package:beacon/ui/components/custom_toggle_switch.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -84,55 +83,100 @@ class _InventorySearchBarState extends State<InventorySearchBar> {
   @override
   Widget build(BuildContext context) {
     final hasText = widget.controller.text.isNotEmpty;
+    final accent = widget.accentColor;
+    final height = 6.h;
 
-    // The filter button stretches to the field's exact height. CustomField
-    // reserves a 2.5.h gap above itself (no fieldTitle), so the button
-    // skips the same gap.
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: CustomField(
-              controller: widget.controller,
-              hintText: widget.hintText,
-              isLabel: false,
-              textInputAction: TextInputAction.search,
-              onSubmitted: widget.onSubmitted,
-              onChanged: widget.onChanged,
-              prefix: Icon(
-                Icons.search_rounded,
-                color: AppColor.grey,
-                size: 5.w,
+    return Row(
+      children: [
+        Expanded(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: height,
+            decoration: BoxDecoration(
+              color: AppColor.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: siteCardShadow,
+              border: Border.all(
+                color: hasText
+                    ? accent.withValues(alpha: 0.35)
+                    : Colors.transparent,
               ),
-              suffixIcon: hasText
-                  ? GestureDetector(
-                      onTap: _clear,
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 5.w,
+            ),
+            child: Row(
+              children: [
+                3.6.width,
+                Icon(
+                  Icons.search_rounded,
+                  color: hasText ? accent : AppColor.grey,
+                  size: 5.4.w,
+                ),
+                2.4.width,
+                Expanded(
+                  child: TextField(
+                    controller: widget.controller,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: widget.onSubmitted,
+                    onChanged: widget.onChanged,
+                    cursorColor: accent,
+                    style: TextStyle(
+                      fontSize: 3.5.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColor.appDarkColor,
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      hintText: widget.hintText,
+                      hintStyle: TextStyle(
+                        fontSize: 3.4.sp,
                         color: AppColor.grey,
                       ),
-                    )
-                  : null,
+                    ),
+                  ),
+                ),
+                if (hasText)
+                  GestureDetector(
+                    onTap: _clear,
+                    child: Container(
+                      margin: EdgeInsets.only(right: 2.6.w),
+                      padding: EdgeInsets.all(1.w),
+                      decoration: BoxDecoration(
+                        color: AppColor.scaffold,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 4.w,
+                        color: AppColor.darkGrey,
+                      ),
+                    ),
+                  )
+                else
+                  3.width,
+              ],
             ),
           ),
-          if (widget.onFilterTap != null) ...[
-            2.width,
-            Padding(
-              padding: EdgeInsets.only(top: 2.5.h),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: _FilterButton(
-                  accentColor: widget.accentColor,
-                  count: widget.activeFilterCount,
-                  onTap: widget.onFilterTap!,
-                ),
-              ),
+        ),
+        if (widget.onFilterTap != null) ...[
+          2.5.width,
+          SizedBox(
+            width: height,
+            height: height,
+            child: _FilterButton(
+              accentColor: accent,
+              count: widget.activeFilterCount,
+              onTap: widget.onFilterTap!,
             ),
-          ],
+          ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -153,58 +197,66 @@ class _FilterButton extends StatelessWidget {
     final active = count > 0;
     return Tooltip(
       message: "Filters",
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: Material(
-              color: active ? accentColor : AppColor.white,
-              borderRadius: BorderRadius.circular(3.r),
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(3.r),
+      child: SitePressable(
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: active ? null : AppColor.white,
+                  gradient: active
+                      ? LinearGradient(
+                          colors: [siteShade(accentColor, 0.08), accentColor],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: active
+                      ? [
+                          BoxShadow(
+                            color: accentColor.withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 5),
+                          ),
+                        ]
+                      : siteCardShadow,
+                ),
+                child: Icon(
+                  Icons.tune_rounded,
+                  size: 5.5.w,
+                  color: active ? AppColor.white : accentColor,
+                ),
+              ),
+            ),
+            if (active)
+              Positioned(
+                top: -0.6.h,
+                right: -1.w,
                 child: Container(
-                  alignment: Alignment.center,
-                  // Matches CustomField's enabled border.
+                  padding: EdgeInsets.all(1.w),
+                  constraints: BoxConstraints(minWidth: 4.8.w),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(3.r),
-                    border: Border.all(
-                      color: active ? accentColor : AppColor.appLightColor,
+                    color: AppColor.appDarkColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColor.white, width: 1.5),
+                  ),
+                  child: Text(
+                    "$count",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 2.4.sp,
+                      fontWeight: FontWeight.bold,
+                      color: AppColor.white,
                     ),
                   ),
-                  child: Icon(
-                    Icons.tune_rounded,
-                    size: 5.5.w,
-                    color: active ? AppColor.white : accentColor,
-                  ),
                 ),
               ),
-            ),
-          ),
-          if (active)
-            Positioned(
-              top: -0.6.h,
-              right: -1.w,
-              child: Container(
-                padding: EdgeInsets.all(1.w),
-                constraints: BoxConstraints(minWidth: 4.8.w),
-                decoration: BoxDecoration(
-                  color: AppColor.appDarkColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColor.white, width: 1.5),
-                ),
-                child: Text(
-                  "$count",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 2.4.sp,
-                    fontWeight: FontWeight.bold,
-                    color: AppColor.white,
-                  ),
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -944,57 +996,64 @@ class InventoryStoreChip extends StatelessWidget {
         kAllStoresLabel;
     final active = selectedStoreId != null;
 
-    return Material(
-      color: active ? accentColor.withValues(alpha: 0.1) : AppColor.white,
-      borderRadius: BorderRadius.circular(100),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(100),
-        onTap: () async {
-          final picked = await showInventoryStorePicker(
-            context,
-            selectedStoreId: selectedStoreId,
-            accentColor: accentColor,
-          );
-          if (picked != null && picked.storeId != selectedStoreId) {
-            onChanged(picked.storeId);
-          }
-        },
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.1.h),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(
-              color: active
-                  ? accentColor.withValues(alpha: 0.4)
-                  : AppColor.appLightColor,
-            ),
+    return SitePressable(
+      onTap: () async {
+        final picked = await showInventoryStorePicker(
+          context,
+          selectedStoreId: selectedStoreId,
+          accentColor: accentColor,
+        );
+        if (picked != null && picked.storeId != selectedStoreId) {
+          onChanged(picked.storeId);
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.fromLTRB(1.2.w, 1.2.w, 3.w, 1.2.w),
+        decoration: BoxDecoration(
+          color: AppColor.white,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: siteCardShadow,
+          border: Border.all(
+            color: active
+                ? accentColor.withValues(alpha: 0.4)
+                : Colors.transparent,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.storefront_rounded, size: 4.4.w, color: accentColor),
-              2.width,
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 55.w),
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 3.3.sp,
-                    fontWeight: FontWeight.bold,
-                    color: AppColor.appDarkColor,
-                  ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(1.6.w),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.storefront_rounded,
+                size: 4.2.w,
+                color: accentColor,
+              ),
+            ),
+            2.width,
+            Flexible(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 3.3.sp,
+                  fontWeight: FontWeight.w800,
+                  color: AppColor.appDarkColor,
                 ),
               ),
-              1.width,
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 5.w,
-                color: AppColor.grey,
-              ),
-            ],
-          ),
+            ),
+            1.width,
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 5.w,
+              color: AppColor.grey,
+            ),
+          ],
         ),
       ),
     );

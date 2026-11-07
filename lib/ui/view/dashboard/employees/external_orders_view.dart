@@ -142,6 +142,9 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
     BuildContext context,
     EmployesController controller,
   ) async {
+    final brandColor = PdfReportGenerator.brandColorFrom(
+      context.siteAccent.toARGB32(),
+    );
     DateTime selectedMonth = DateTime.now();
     DateTimeRange? customRange;
 
@@ -364,6 +367,9 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
       final bytes = await PdfReportGenerator.generateMonthlyExternalReport(
         reports: reports,
         dateRangeText: dateRangeText,
+        periodStart: startDate,
+        periodEnd: endDate,
+        brandColor: brandColor,
       );
 
       final fileName =

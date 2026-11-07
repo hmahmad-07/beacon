@@ -17,8 +17,8 @@ class AppModule {
   });
 
   static const employees = AppModule(
-    id: "employees",
-    title: "Employees",
+    id: "field_activity",
+    title: "Field Activity",
     subtitle: "General details, attendance & visits",
     icon: BoxIcons.bxs_id_card,
   );

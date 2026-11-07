@@ -95,6 +95,9 @@ class _EmployeeListViewState extends State<_EmployeeListBody> {
     EmployesController controller,
     List<User> departmentUsers,
   ) async {
+    final brandColor = PdfReportGenerator.brandColorFrom(
+      context.siteAccent.toARGB32(),
+    );
     bool? shouldGenerate = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -263,6 +266,8 @@ class _EmployeeListViewState extends State<_EmployeeListBody> {
         date: selectedAuditDate,
         department: widget.department,
         externalReport: controller.externalReport,
+        brandName: widget.shopName,
+        brandColor: brandColor,
       );
 
       if (Navigator.canPop(context)) Navigator.pop(context);

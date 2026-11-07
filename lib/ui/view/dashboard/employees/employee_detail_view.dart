@@ -357,6 +357,10 @@ class _EmployeeDetailViewState extends State<EmployeeDetailView> {
         user: widget.user,
         reports: reports,
         dateRangeText: dateRangeText,
+        periodStart: startDate,
+        periodEnd: endDate,
+        brandName: widget.user.shopName,
+        brandColor: PdfReportGenerator.brandColorFrom(_accent.toARGB32()),
       );
 
       if (Navigator.canPop(context)) Navigator.pop(context);

@@ -23,8 +23,9 @@ class AppColor {
   static Color rth = const Color(0xffD31A6E);
   static Color aa = const Color(0xffA27346);
   static Color ss = const Color(0xffF88416);
-  static Color opd = const Color(0xff164FA3);
+  static Color opd = const Color.fromARGB(255, 39, 111, 219);
   static Color amtax = const Color(0xff1E2A3A);
+  static Color inventory = const Color(0xff164FA3);
 
   static void swapColors() {
     final tempWhite = white;

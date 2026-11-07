@@ -1,5 +1,4 @@
 import 'package:beacon/core/controllers/wms_controller.dart';
-import 'package:beacon/core/extensions/routes.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_item_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
@@ -11,7 +10,9 @@ import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart'
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_ui.dart';
+import 'package:iconsx_plus/iconsx_plus.dart';
 import 'package:provider/provider.dart';
 
 /// Mirrors the "Items" page of the reference stock dashboard: store filter,
@@ -21,9 +22,17 @@ import 'package:provider/provider.dart';
 /// this view only reads them and calls controller action methods, no
 /// local setState.
 class InventoryItemsView extends StatefulWidget {
-  const InventoryItemsView({super.key, required this.accentColor});
+  const InventoryItemsView({
+    super.key,
+    required this.accentColor,
+    this.heroTag,
+  });
 
   final Color accentColor;
+
+  /// Hero tag of the tile that opened this screen; its icon flies into the
+  /// loading view.
+  final Object? heroTag;
 
   @override
   State<InventoryItemsView> createState() => _InventoryItemsViewState();
@@ -34,8 +43,9 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
   // TextField instance), not app state -- it stays local.
   final _searchController = TextEditingController();
 
-  final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
-  final _wholeFormat = NumberFormat('#,##0', 'en_US');
+  /// True once the first load has finished, so data from an earlier visit
+  /// never flashes before the fresh list.
+  bool _ready = false;
 
   @override
   void initState() {
@@ -43,9 +53,10 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     final controller = context.read<WMSController>();
     // Search persists on the controller across visits; mirror it.
     _searchController.text = controller.itemsSearch;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       controller.ensureStoresLoaded(context);
-      controller.getItems(context);
+      await controller.getItems(context);
+      if (mounted) setState(() => _ready = true);
     });
   }
 
@@ -59,59 +70,103 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColor.scaffold,
-      appBar: CustomAppBar(title: "Items"),
+      appBar: const CustomAppBar(title: "Items"),
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
           final model = controller.itemsModel;
           final items = model?.data ?? [];
           final loading = controller.isItemsLoading;
 
-          return ListView(
-            padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
-            children: [
-              InventorySearchBar(
-                controller: _searchController,
-                hintText: "Search items…",
-                accentColor: widget.accentColor,
-                onSubmitted: (q) => controller.runItemsSearch(context, q),
-                onFilterTap: () => _openFilters(controller),
-                activeFilterCount: controller.itemsActiveFilterCount,
-              ),
-              InventoryActiveFilterChips(
-                accentColor: widget.accentColor,
-                filters: _activeFilters(controller),
-                onClearAll: () => controller.applyItemsFilters(
-                  context,
-                  storeId: null,
-                  status: "",
-                  range: null,
-                ),
-              ),
-              1.8.height,
-              Text(
-                loading
-                    ? "Loading items…"
-                    : "${_wholeFormat.format(model?.meta?.total ?? 0)} items",
-                style: TextStyle(fontSize: 3.1.sp, color: AppColor.grey),
-              ),
-              1.height,
-              if (loading && model == null)
-                const AppLoadingView()
-              else if (items.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 6.h),
-                    child: Text(
-                      "No items found",
-                      style: TextStyle(fontSize: 3.8.sp, color: AppColor.grey),
+          final total = model?.meta?.total ?? items.length;
+          final busy = !_ready || (loading && model == null);
+          var i = 0;
+
+          return RefreshIndicator(
+            color: widget.accentColor,
+            onRefresh: () => controller.getItems(context),
+            child: busy
+                ? InventoryLoadingView(
+                    key: const ValueKey('items-loading'),
+                    heroTag: widget.heroTag,
+                    icon: BoxIcons.bxs_box,
+                    label: "Loading items…",
+                  )
+                : AnimationLimiter(
+                    key: const ValueKey('items-content'),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
+                      children: [
+                        invEnter(
+                          i++,
+                          InventorySearchBar(
+                            controller: _searchController,
+                            hintText: "Search items…",
+                            accentColor: widget.accentColor,
+                            onSubmitted: (q) =>
+                                controller.runItemsSearch(context, q),
+                            onFilterTap: () => _openFilters(controller),
+                            activeFilterCount:
+                                controller.itemsActiveFilterCount,
+                          ),
+                        ),
+                        1.6.height,
+                        invEnter(
+                          i++,
+                          InventoryQuickFilter<String>(
+                            options: _statusOptions,
+                            selected: controller.itemsStatus,
+                            onChanged: (v) =>
+                                controller.setItemsStatus(context, v),
+                          ),
+                        ),
+                        InventoryActiveFilterChips(
+                          accentColor: widget.accentColor,
+                          filters: _activeFilters(controller),
+                          onClearAll: () => controller.applyItemsFilters(
+                            context,
+                            storeId: null,
+                            status: controller.itemsStatus,
+                            range: null,
+                          ),
+                        ),
+                        invEnter(
+                          i++,
+                          InventoryResultLine(
+                            text:
+                                "${invWhole(total)} ${total == 1 ? 'item' : 'items'}",
+                            trailing: Text(
+                              "Latest first",
+                              style: TextStyle(
+                                fontSize: 2.8.sp,
+                                color: AppColor.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (items.isEmpty)
+                          SiteEmptyState(
+                            icon: BoxIcons.bxs_box,
+                            title: "No items found",
+                            message: controller.itemsSearch.isNotEmpty
+                                ? "Nothing matches \"${controller.itemsSearch}\"."
+                                : "Try another stock status or clear the filters.",
+                          )
+                        else
+                          ..._datedItems(controller, items, i),
+                        if (model?.meta != null)
+                          InventoryPager(
+                            current: model!.meta!.currentPage ?? 1,
+                            last: model.meta!.lastPage ?? 1,
+                            total: model.meta!.total,
+                            loading: loading,
+                            onPage: (p) => controller.goToItemsPage(context, p),
+                          ),
+                      ],
                     ),
                   ),
-                )
-              else
-                ..._datedItems(controller, items),
-              if (model?.meta != null)
-                _pager(controller, model!.meta!, loading),
-            ],
           );
         },
       ),
@@ -119,7 +174,7 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
   }
 
   static const Map<String, (String, IconData)> _statusOptions = {
-    "": ("All stock", Icons.inventory_2_outlined),
+    "": ("All items", Icons.apps_rounded),
     "in_stock": ("In stock", Icons.check_circle_outline_rounded),
     "out_of_stock": ("Out of stock", Icons.remove_shopping_cart_outlined),
   };
@@ -130,12 +185,6 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
         icon: Icons.storefront_rounded,
         label: c.storeNameById(c.itemsStoreId) ?? "Store",
         onRemove: () => c.setItemsStore(context, null),
-      ),
-    if (c.itemsStatus.isNotEmpty)
-      InventoryActiveFilter(
-        icon: _statusOptions[c.itemsStatus]?.$2 ?? Icons.inventory_2_outlined,
-        label: _statusOptions[c.itemsStatus]?.$1 ?? c.itemsStatus,
-        onRemove: () => c.setItemsStatus(context, ""),
       ),
     if (c.itemsDateRange != null)
       InventoryActiveFilter(
@@ -222,7 +271,9 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
   List<Widget> _datedItems(
     WMSController controller,
     List<InventoryItemSummary> items,
+    int startIndex,
   ) {
+    var n = startIndex;
     final sorted = InventoryDates.sortLatestFirst(
       items,
       (i) => i.modifiedDateTime,
@@ -230,211 +281,161 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
     final groups = InventoryDates.groupByDay(sorted, (i) => i.modifiedDateTime);
     return [
       for (final g in groups) ...[
-        InventoryDateHeader(
-          day: g.key,
-          count: g.value.length,
-          countLabel: g.value.length == 1 ? "item" : "items",
-          accentColor: widget.accentColor,
+        invEnter(
+          n++,
+          InventoryDateHeader(
+            day: g.key,
+            count: g.value.length,
+            countLabel: g.value.length == 1 ? "item" : "items",
+            accentColor: widget.accentColor,
+          ),
         ),
-        ...g.value.map((i) => _itemCard(controller, i)),
+        for (final item in g.value) invEnter(n++, _itemCard(controller, item)),
       ],
     ];
   }
 
   Widget _itemCard(WMSController controller, InventoryItemSummary item) {
-    final outOfStock = item.isOutOfStock;
+    final outOfStock = item.isOutOfStock || (item.stock ?? 0) <= 0;
+    final negative = (item.stock ?? 0) < 0;
+    final statusColor = outOfStock
+        ? InventoryPalette.stockOut
+        : InventoryPalette.stockIn;
     final lastDate = item.modifiedDateTime;
     final lastTime = InventoryDates.timeOf(lastDate);
-    return Container(
+    final value = (item.stock ?? 0) * (item.costPrice ?? 0);
+
+    return SiteCard(
       margin: EdgeInsets.only(bottom: 1.4.h),
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        borderRadius: BorderRadius.circular(3.5.r),
-        boxShadow: siteCardShadow,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          if (item.id == null) return;
-          final storeId = controller.itemsStoreId;
-          AppRoutes.push(
-            InventoryItemDetailView(
-              itemId: item.id!,
-              itemName: item.displayName,
-              accentColor: widget.accentColor,
-              storeId: storeId,
-              storeName: controller.storeNameById(storeId),
-            ),
-          );
-        },
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 1.1.w,
-                color: outOfStock ? AppColor.red : widget.accentColor,
-              ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.all(3.5.w),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.displayName,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 3.8.sp,
-                                fontWeight: FontWeight.bold,
-                                color: AppColor.appDarkColor,
-                              ),
-                            ),
-                            0.4.height,
-                            Text(
-                              "${item.itemClass ?? ''}"
-                              "${item.uom != null && item.uom!.isNotEmpty ? ' · ${item.uom}' : ''}",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 3.2.sp,
-                                color: AppColor.grey,
-                              ),
-                            ),
-                            if (lastDate != null) ...[
-                              0.6.height,
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.history_rounded,
-                                    size: 3.4.w,
-                                    color: AppColor.grey,
-                                  ),
-                                  1.width,
-                                  Flexible(
-                                    child: Text(
-                                      "Modified ${InventoryDates.full(lastDate)}"
-                                      "${lastTime != null ? ' · $lastTime' : ''}",
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 2.7.sp,
-                                        color: AppColor.grey,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      3.width,
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            _decimalFormat.format(item.stock ?? 0),
-                            style: TextStyle(
-                              fontSize: 3.8.sp,
-                              fontWeight: FontWeight.bold,
-                              color: outOfStock ? AppColor.red : AppColor.green,
-                            ),
-                          ),
-                          0.3.height,
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 2.w,
-                              vertical: 0.3.h,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  (outOfStock ? AppColor.red : AppColor.green)
-                                      .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(2.5.r),
-                            ),
-                            child: Text(
-                              outOfStock ? "Out of stock" : "In stock",
-                              style: TextStyle(
-                                fontSize: 2.8.sp,
-                                fontWeight: FontWeight.w600,
-                                color: outOfStock
-                                    ? AppColor.red
-                                    : AppColor.green,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+      padding: EdgeInsets.all(3.6.w),
+      onTap: item.id == null
+          ? null
+          : () {
+              final storeId = controller.itemsStoreId;
+              context.pushSite(
+                InventoryItemDetailView(
+                  itemId: item.id!,
+                  itemName: item.displayName,
+                  accentColor: widget.accentColor,
+                  storeId: storeId,
+                  storeName: controller.storeNameById(storeId),
                 ),
+              );
+            },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              invHero(
+                'inv-item-${item.id}',
+                InventoryAvatar(
+                  name: item.displayName,
+                  color: outOfStock
+                      ? InventoryPalette.stockOut
+                      : widget.accentColor,
+                ),
+              ),
+              3.width,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.displayName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 3.7.sp,
+                        fontWeight: FontWeight.w800,
+                        color: AppColor.appDarkColor,
+                        height: 1.2,
+                      ),
+                    ),
+                    0.8.height,
+                    Wrap(
+                      spacing: 1.5.w,
+                      runSpacing: 0.6.h,
+                      children: [
+                        if ((item.itemClass ?? '').isNotEmpty)
+                          InventoryTag(item.itemClass!),
+                        if ((item.type ?? '').isNotEmpty &&
+                            item.type != item.itemClass)
+                          InventoryTag(item.type!),
+                        if ((item.uom ?? '').isNotEmpty)
+                          InventoryTag(
+                            item.uom!,
+                            icon: Icons.straighten_rounded,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              2.width,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    invQty(item.stock),
+                    style: TextStyle(
+                      fontSize: 4.6.sp,
+                      fontWeight: FontWeight.w800,
+                      color: negative
+                          ? InventoryPalette.stockOut
+                          : AppColor.appDarkColor,
+                    ),
+                  ),
+                  Text(
+                    (item.uom ?? '').isEmpty
+                        ? "on hand"
+                        : "${item.uom} on hand",
+                    style: TextStyle(fontSize: 2.6.sp, color: AppColor.grey),
+                  ),
+                ],
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _pagerButton({
-    required IconData icon,
-    required bool enabled,
-    required VoidCallback onTap,
-  }) {
-    final color = enabled ? widget.accentColor : AppColor.appLightColor;
-    return Material(
-      color: enabled
-          ? widget.accentColor.withValues(alpha: 0.1)
-          : AppColor.scaffold,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: EdgeInsets.all(2.2.w),
-          child: Icon(icon, color: color, size: 5.w),
-        ),
-      ),
-    );
-  }
-
-  Widget _pager(
-    WMSController controller,
-    InventoryItemsMeta meta,
-    bool loading,
-  ) {
-    final current = meta.currentPage ?? 1;
-    final last = meta.lastPage ?? 1;
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 1.5.h),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _pagerButton(
-            icon: Icons.chevron_left_rounded,
-            enabled: current > 1 && !loading,
-            onTap: () => controller.goToItemsPage(context, current - 1),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 3.w),
-            child: Text(
-              "Page $current of $last",
-              style: TextStyle(
-                fontSize: 3.5.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColor.appDarkColor,
-              ),
+          1.4.height,
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+            decoration: BoxDecoration(
+              color: AppColor.scaffold,
+              borderRadius: BorderRadius.circular(14),
             ),
-          ),
-          _pagerButton(
-            icon: Icons.chevron_right_rounded,
-            enabled: current < last && !loading,
-            onTap: () => controller.goToItemsPage(context, current + 1),
+            child: Row(
+              children: [
+                SitePill.tint(
+                  outOfStock ? "Out of stock" : "In stock",
+                  statusColor,
+                  icon: outOfStock
+                      ? Icons.remove_shopping_cart_outlined
+                      : Icons.check_circle_rounded,
+                ),
+                2.width,
+                Expanded(
+                  child: Text(
+                    lastDate == null
+                        ? ""
+                        : "Updated ${InventoryDates.relative(lastDate)}"
+                              "${lastTime != null ? ' · $lastTime' : ''}",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 2.7.sp, color: AppColor.grey),
+                  ),
+                ),
+                if (value > 0)
+                  Text(
+                    "PKR ${invCompact(value)}",
+                    style: TextStyle(
+                      fontSize: 3.sp,
+                      fontWeight: FontWeight.w800,
+                      color: InventoryPalette.deep,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),

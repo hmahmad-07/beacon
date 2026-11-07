@@ -9,8 +9,9 @@ import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart'
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:iconsx_plus/iconsx_plus.dart';
-import 'package:intl/intl.dart';
+import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_ui.dart';
 import 'package:provider/provider.dart';
 
 /// Every filter/page/expand value here lives on WMSController
@@ -22,9 +23,14 @@ class InventoryStockReportView extends StatefulWidget {
     super.key,
     required this.accentColor,
     this.initialLowStockOnly = false,
+    this.heroTag,
   });
 
   final Color accentColor;
+
+  /// Hero tag of the tile that opened this screen; its icon flies into the
+  /// loading view.
+  final Object? heroTag;
 
   /// Forces the low-stock toggle on for this visit -- used by the
   /// Dashboard's "View all" negative-stock link, regardless of whatever
@@ -41,21 +47,23 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
   // TextField instance), not app state -- it stays local.
   final _searchController = TextEditingController();
 
-  final _wholeFormat = NumberFormat('#,##0', 'en_US');
-  final _decimalFormat = NumberFormat('#,##0.##', 'en_US');
+  /// True once the first load has finished, so data from an earlier visit
+  /// never flashes before the fresh report.
+  bool _ready = false;
 
   @override
   void initState() {
     super.initState();
     _searchController.text = context.read<WMSController>().stockReportSearch;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final controller = context.read<WMSController>();
       controller.ensureStoresLoaded(context);
       if (widget.initialLowStockOnly) {
-        controller.setStockReportLowStockOnly(context, true);
+        await controller.setStockReportLowStockOnly(context, true);
       } else {
-        controller.getStockReport(context);
+        await controller.getStockReport(context);
       }
+      if (mounted) setState(() => _ready = true);
     });
   }
 
@@ -69,54 +77,111 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColor.scaffold,
-      appBar: CustomAppBar(title: "Stock Report"),
+      appBar: const CustomAppBar(title: "Stock Report"),
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
           final model = controller.stockReportModel;
           final loading = controller.isStockReportLoading;
           final displayItems = model?.data ?? [];
+          final busy = !_ready || (loading && model == null);
+          var i = 0;
 
-          return ListView(
-            padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
-            children: [
-              InventorySearchBar(
-                controller: _searchController,
-                hintText: "Search items…",
-                accentColor: widget.accentColor,
-                onSubmitted: (q) => controller.runStockReportSearch(context, q),
-                onFilterTap: () => _openFilters(controller),
-                activeFilterCount: controller.stockReportActiveFilterCount,
-              ),
-              InventoryActiveFilterChips(
-                accentColor: widget.accentColor,
-                filters: _activeFilters(controller),
-                onClearAll: () => controller.applyStockReportFilters(
-                  context,
-                  storeId: null,
-                  lowStockOnly: false,
-                  range: null,
-                ),
-              ),
-              2.height,
-              if (model?.summary != null) _summaryCards(model!.summary!),
-              2.height,
-              if (loading && model == null)
-                const AppLoadingView()
-              else if (displayItems.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 6.h),
-                    child: Text(
-                      "No items found",
-                      style: TextStyle(fontSize: 3.8.sp, color: AppColor.grey),
+          return RefreshIndicator(
+            color: widget.accentColor,
+            onRefresh: () => controller.getStockReport(context),
+            child: busy
+                ? InventoryLoadingView(
+                    key: const ValueKey('stock-loading'),
+                    heroTag: widget.heroTag,
+                    icon: BoxIcons.bxs_bar_chart_alt_2,
+                    label: "Loading stock…",
+                  )
+                : AnimationLimiter(
+                    key: const ValueKey('stock-content'),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
+                      children: [
+                        invEnter(
+                          i++,
+                          InventorySearchBar(
+                            controller: _searchController,
+                            hintText: "Search items…",
+                            accentColor: widget.accentColor,
+                            onSubmitted: (q) =>
+                                controller.runStockReportSearch(context, q),
+                            onFilterTap: () => _openFilters(controller),
+                            activeFilterCount:
+                                controller.stockReportActiveFilterCount,
+                          ),
+                        ),
+                        1.6.height,
+                        invEnter(
+                          i++,
+                          InventoryQuickFilter<bool>(
+                            options: const {
+                              false: ("All items", Icons.apps_rounded),
+                              true: (
+                                "Zero or below",
+                                Icons.trending_down_rounded,
+                              ),
+                            },
+                            selected: controller.stockReportLowStockOnly,
+                            onChanged: (v) => controller
+                                .setStockReportLowStockOnly(context, v),
+                          ),
+                        ),
+                        InventoryActiveFilterChips(
+                          accentColor: widget.accentColor,
+                          filters: _activeFilters(controller),
+                          onClearAll: () => controller.applyStockReportFilters(
+                            context,
+                            storeId: null,
+                            lowStockOnly: controller.stockReportLowStockOnly,
+                            range: null,
+                          ),
+                        ),
+                        2.height,
+                        if (model?.summary != null)
+                          _summaryCards(model!.summary!, i++),
+                        invEnter(
+                          i++ + 2,
+                          InventoryResultLine(
+                            text:
+                                "${invWhole(model?.meta?.total ?? displayItems.length)} items",
+                            trailing: Text(
+                              "Tap a card for each store",
+                              style: TextStyle(
+                                fontSize: 2.8.sp,
+                                color: AppColor.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (displayItems.isEmpty)
+                          SiteEmptyState(
+                            icon: BoxIcons.bxs_bar_chart_alt_2,
+                            title: "No items found",
+                            message: controller.stockReportLowStockOnly
+                                ? "No item is at zero or below. Nice."
+                                : "Try another search or clear the filters.",
+                          )
+                        else
+                          ..._itemList(controller, displayItems, i + 3),
+                        if (model?.meta != null)
+                          InventoryPager(
+                            current: model!.meta!.currentPage ?? 1,
+                            last: model.meta!.lastPage ?? 1,
+                            total: model.meta!.total,
+                            loading: loading,
+                            onPage: (p) =>
+                                controller.goToStockReportPage(context, p),
+                          ),
+                      ],
                     ),
                   ),
-                )
-              else
-                _itemList(controller, displayItems),
-              if (model?.meta != null)
-                _pager(controller, model!.meta!, loading),
-            ],
           );
         },
       ),
@@ -129,12 +194,6 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
         icon: Icons.storefront_rounded,
         label: c.storeNameById(c.stockReportStoreId) ?? "Store",
         onRemove: () => c.setStockReportStore(context, null),
-      ),
-    if (c.stockReportLowStockOnly)
-      InventoryActiveFilter(
-        icon: Icons.trending_down_rounded,
-        label: "Zero / below stock",
-        onRemove: () => c.setStockReportLowStockOnly(context, false),
       ),
     if (c.stockReportDateRange != null)
       InventoryActiveFilter(
@@ -219,446 +278,328 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
     );
   }
 
-  Widget _summaryCards(InventoryStockSummary summary) {
+  Widget _summaryCards(InventoryStockSummary summary, int startIndex) {
     final tiles = [
-      ("Distinct items", _wholeFormat.format(summary.totalItems ?? 0)),
-      ("Zero/below stock", _wholeFormat.format(summary.zeroOrBelowStock ?? 0)),
-      ("Total value", _wholeFormat.format(summary.totalValue ?? 0)),
+      SiteStatTile(
+        dense: true,
+        icon: BoxIcons.bxs_box,
+        value: invWhole(summary.totalItems),
+        label: "Distinct items",
+      ),
+      SiteStatTile(
+        dense: true,
+        icon: BoxIcons.bxs_error,
+        color: InventoryPalette.stockOut,
+        value: invWhole(summary.zeroOrBelowStock),
+        label: "Zero or below",
+      ),
+      SiteStatTile(
+        dense: true,
+        icon: BoxIcons.bxs_wallet,
+        color: InventoryPalette.deep,
+        value: invCompact(summary.totalValue),
+        label: "Stock value",
+      ),
     ];
-    return Row(
-      children: tiles.map((t) {
-        return Expanded(
-          child: Container(
-            margin: EdgeInsets.only(right: 2.w),
-            padding: EdgeInsets.symmetric(vertical: 1.8.h, horizontal: 2.w),
-            decoration: BoxDecoration(
-              color: AppColor.white,
-              borderRadius: BorderRadius.circular(3.r),
-              boxShadow: siteCardShadow,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  t.$2,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 4.sp,
-                    fontWeight: FontWeight.bold,
-                    color: widget.accentColor,
-                  ),
-                ),
-                0.3.height,
-                Text(
-                  t.$1,
-                  maxLines: 2,
-                  style: TextStyle(fontSize: 3.1.sp, color: AppColor.grey),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
+    return SiteStatGrid(
+      columns: 3,
+      children: [
+        for (final (i, t) in tiles.indexed) invEnter(startIndex + i, t),
+      ],
     );
   }
 
   // Latest movement first, bucketed under a day header.
-  Widget _itemList(WMSController controller, List<StockReportItem> items) {
+  List<Widget> _itemList(
+    WMSController controller,
+    List<StockReportItem> items,
+    int startIndex,
+  ) {
     final sorted = InventoryDates.sortLatestFirst(
       items,
       (i) => i.modifiedDateTime,
     );
     final groups = InventoryDates.groupByDay(sorted, (i) => i.modifiedDateTime);
-    return Column(
-      children: [
-        for (final g in groups) ...[
+    var n = startIndex;
+    return [
+      for (final g in groups) ...[
+        invEnter(
+          n++,
           InventoryDateHeader(
             day: g.key,
             count: g.value.length,
             countLabel: g.value.length == 1 ? "item" : "items",
             accentColor: widget.accentColor,
           ),
-          ...g.value.map((item) => _itemCard(controller, item)),
-        ],
+        ),
+        for (final item in g.value) invEnter(n++, _itemCard(controller, item)),
       ],
-    );
+    ];
   }
 
   Widget _itemCard(WMSController controller, StockReportItem item) {
     final expanded = controller.stockReportExpandedIds.contains(item.id);
-    final negative = (item.balance ?? 0) < 0;
-    final hasByStore = (item.byStore ?? []).isNotEmpty;
+    final balance = item.balance ?? 0;
+    final negative = balance < 0;
+    final atZero = balance <= 0;
+    final byStore = item.byStore ?? const <StockStoreBreakdown>[];
+    final hasByStore = byStore.isNotEmpty;
     final lastDate = item.modifiedDateTime;
-    final lastTime = InventoryDates.timeOf(lastDate);
+    final totalIn = item.totalIn ?? 0;
+    final totalOut = item.totalOut ?? 0;
+    final used = totalIn <= 0 ? null : totalOut / totalIn;
 
-    return Container(
+    return SiteCard(
       margin: EdgeInsets.only(bottom: 1.4.h),
-      decoration: BoxDecoration(
-        color: AppColor.white,
-        borderRadius: BorderRadius.circular(3.5.r),
-        boxShadow: siteCardShadow,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          InkWell(
-            onTap: !hasByStore
-                ? null
-                : () => controller.toggleStockReportExpanded(item.id),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    width: 1.1.w,
-                    color: negative ? AppColor.red : widget.accentColor,
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(3.w, 1.8.h, 3.5.w, 1.8.h),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.displayName,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 3.6.sp,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColor.appDarkColor,
-                                      ),
-                                    ),
-                                    0.3.height,
-                                    Text(
-                                      "${item.itemClass ?? ''}"
-                                      "${item.uom != null && item.uom!.isNotEmpty ? ' · ${item.uom}' : ''}",
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 2.9.sp,
-                                        color: AppColor.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (hasByStore) ...[
-                                2.width,
-                                _expandBadge(expanded),
-                              ],
-                            ],
-                          ),
-                          1.4.height,
-                          Row(
-                            children: [
-                              _statCell(
-                                "Total in",
-                                _decimalFormat.format(item.totalIn ?? 0),
-                                icon: BoxIcons.bxs_up_arrow,
-                                iconColor: AppColor.green,
-                              ),
-                              _statCell(
-                                "Total out",
-                                _decimalFormat.format(item.totalOut ?? 0),
-                                icon: BoxIcons.bxs_down_arrow,
-                                iconColor: AppColor.red,
-                              ),
-                              _statCell(
-                                "Balance",
-                                _decimalFormat.format(item.balance ?? 0),
-                                valueColor: negative
-                                    ? AppColor.red
-                                    : AppColor.green,
-                              ),
-                            ],
-                          ),
-                          if (lastDate != null) ...[
-                            1.2.height,
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.history_rounded,
-                                  size: 3.4.w,
-                                  color: AppColor.grey,
-                                ),
-                                1.width,
-                                Expanded(
-                                  child: Text(
-                                    "Modified ${InventoryDates.full(lastDate)}"
-                                    "${lastTime != null ? ' · $lastTime' : ''}",
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 2.7.sp,
-                                      color: AppColor.grey,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  InventoryDates.relative(lastDate),
-                                  style: TextStyle(
-                                    fontSize: 2.7.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: widget.accentColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (expanded)
-            Padding(
-              padding: EdgeInsets.fromLTRB(3.5.w, 0, 3.5.w, 2.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Divider(color: AppColor.appLightColor, height: 2.h),
-                  _byStoreTable(item.byStore ?? []),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _expandBadge(bool expanded) {
-    return Container(
-      padding: EdgeInsets.all(1.2.w),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: widget.accentColor.withValues(alpha: 0.12),
-      ),
-      child: Icon(
-        expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-        size: 4.5.w,
-        color: widget.accentColor,
-      ),
-    );
-  }
-
-  Widget _statCell(
-    String label,
-    String value, {
-    Color? valueColor,
-    IconData? icon,
-    Color? iconColor,
-  }) {
-    return Expanded(
+      padding: EdgeInsets.zero,
+      onTap: !hasByStore
+          ? null
+          : () => controller.toggleStockReportExpanded(item.id),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 2.4.w, color: iconColor ?? AppColor.grey),
-                0.8.width,
-              ],
-              Text(
-                label,
-                style: TextStyle(fontSize: 2.6.sp, color: AppColor.grey),
-              ),
-            ],
-          ),
-          0.3.height,
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 3.4.sp,
-              fontWeight: FontWeight.bold,
-              color: valueColor ?? AppColor.appDarkColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _byStoreTable(List<StockStoreBreakdown> stores) {
-    if (stores.isEmpty) return const SizedBox.shrink();
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(2.5.r),
-      child: Table(
-        border: TableBorder.all(color: AppColor.appLightColor, width: 1),
-        columnWidths: const {
-          0: FlexColumnWidth(2.2),
-          1: FlexColumnWidth(1),
-          2: FlexColumnWidth(1),
-          3: FlexColumnWidth(1.3),
-        },
-        children: [
-          TableRow(
-            decoration: BoxDecoration(color: AppColor.darkGrey),
-            children: [
-              _tableHeaderCell("Store", labelColor: AppColor.white),
-              _tableHeaderCell(
-                "In",
-                align: TextAlign.right,
-                labelColor: AppColor.white,
-              ),
-              _tableHeaderCell(
-                "Out",
-                align: TextAlign.right,
-                labelColor: AppColor.white,
-              ),
-              _tableHeaderCell(
-                "Balance",
-                align: TextAlign.right,
-                labelColor: AppColor.white,
-              ),
-            ],
-          ),
-          for (int i = 0; i < stores.length; i++)
-            TableRow(
-              decoration: BoxDecoration(
-                color: i.isEven
-                    ? AppColor.white
-                    : AppColor.appLightColor.withValues(alpha: 0.35),
-              ),
-              children: [
-                _tableCell(stores[i].storeName ?? "", color: AppColor.darkGrey),
-                _tableCell(
-                  _decimalFormat.format(stores[i].totalIn ?? 0),
-                  align: TextAlign.right,
-                  color: AppColor.darkGrey,
-                ),
-                _tableCell(
-                  _decimalFormat.format(stores[i].totalOut ?? 0),
-                  align: TextAlign.right,
-                  color: AppColor.darkGrey,
-                ),
-                _tableCell(
-                  _decimalFormat.format(stores[i].balance ?? 0),
-                  align: TextAlign.right,
-                  bold: true,
-                  color: (stores[i].balance ?? 0) < 0
-                      ? AppColor.red
-                      : AppColor.green,
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tableHeaderCell(
-    String text, {
-    TextAlign align = TextAlign.left,
-    Color? labelColor,
-  }) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
-      child: Text(
-        text,
-        textAlign: align,
-        style: TextStyle(
-          fontSize: 2.8.sp,
-          fontWeight: FontWeight.bold,
-          color: labelColor ?? AppColor.grey,
-        ),
-      ),
-    );
-  }
-
-  Widget _tableCell(
-    String text, {
-    TextAlign align = TextAlign.left,
-    Color? color,
-    bool bold = false,
-  }) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
-      child: Text(
-        text,
-        textAlign: align,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 3.sp,
-          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-          color: color ?? AppColor.black,
-        ),
-      ),
-    );
-  }
-
-  Widget _pagerButton({
-    required IconData icon,
-    required bool enabled,
-    required VoidCallback onTap,
-  }) {
-    final color = enabled ? widget.accentColor : AppColor.appLightColor;
-    return Material(
-      color: enabled
-          ? widget.accentColor.withValues(alpha: 0.1)
-          : AppColor.scaffold,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: EdgeInsets.all(2.2.w),
-          child: Icon(icon, color: color, size: 5.w),
-        ),
-      ),
-    );
-  }
-
-  Widget _pager(
-    WMSController controller,
-    InventoryStockMeta meta,
-    bool loading,
-  ) {
-    final current = meta.currentPage ?? 1;
-    final last = meta.lastPage ?? 1;
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 1.5.h),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _pagerButton(
-            icon: Icons.chevron_left_rounded,
-            enabled: current > 1 && !loading,
-            onTap: () => controller.goToStockReportPage(context, current - 1),
-          ),
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 3.w),
-            child: Text(
-              "Page $current of $last",
-              style: TextStyle(
-                fontSize: 3.5.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColor.appDarkColor,
-              ),
+            padding: EdgeInsets.all(3.6.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InventoryAvatar(
+                      name: item.displayName,
+                      color: atZero ? InventoryPalette.stockOut : null,
+                    ),
+                    3.width,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.displayName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 3.6.sp,
+                              fontWeight: FontWeight.w800,
+                              color: AppColor.appDarkColor,
+                              height: 1.2,
+                            ),
+                          ),
+                          0.7.height,
+                          Wrap(
+                            spacing: 1.5.w,
+                            runSpacing: 0.6.h,
+                            children: [
+                              if ((item.itemClass ?? '').isNotEmpty)
+                                InventoryTag(item.itemClass!),
+                              if ((item.uom ?? '').isNotEmpty)
+                                InventoryTag(
+                                  item.uom!,
+                                  icon: Icons.straighten_rounded,
+                                ),
+                              if (lastDate != null)
+                                InventoryTag(
+                                  InventoryDates.relative(lastDate),
+                                  icon: Icons.history_rounded,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    2.width,
+                    InventoryFigure(
+                      label: "Balance",
+                      value: invQty(balance),
+                      color: negative
+                          ? InventoryPalette.stockOut
+                          : AppColor.appDarkColor,
+                      alignEnd: true,
+                      size: 4.4.sp,
+                    ),
+                  ],
+                ),
+                1.8.height,
+                InventorySplitBar(
+                  first: totalIn,
+                  second: totalOut,
+                  firstColor: InventoryPalette.received,
+                  secondColor: InventoryPalette.issued,
+                  height: 0.9.h,
+                ),
+                1.height,
+                Row(
+                  children: [
+                    Expanded(
+                      child: InventoryFigure(
+                        label: "Received",
+                        value: invQty(totalIn),
+                        icon: Icons.square_rounded,
+                        iconColor: InventoryPalette.received,
+                        size: 3.3.sp,
+                      ),
+                    ),
+                    Expanded(
+                      child: InventoryFigure(
+                        label: "Issued",
+                        value: invQty(totalOut),
+                        icon: Icons.square_rounded,
+                        iconColor: InventoryPalette.issued,
+                        size: 3.3.sp,
+                      ),
+                    ),
+                    if (used != null)
+                      SitePill.tint(
+                        "${invPercent(totalOut, totalIn)} used",
+                        used >= 1
+                            ? InventoryPalette.stockOut
+                            : InventoryPalette.deep,
+                      ),
+                  ],
+                ),
+              ],
             ),
           ),
-          _pagerButton(
-            icon: Icons.chevron_right_rounded,
-            enabled: current < last && !loading,
-            onTap: () => controller.goToStockReportPage(context, current + 1),
-          ),
+          if (hasByStore)
+            Container(
+              decoration: BoxDecoration(
+                color: AppColor.scaffold.withValues(alpha: 0.7),
+                border: Border(
+                  top: BorderSide(
+                    color: AppColor.appLightColor.withValues(alpha: 0.6),
+                  ),
+                ),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(22),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 3.6.w,
+                      vertical: 1.h,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          BoxIcons.bxs_store,
+                          size: 3.8.w,
+                          color: widget.accentColor,
+                        ),
+                        2.width,
+                        Expanded(
+                          child: Text(
+                            "${byStore.length} ${byStore.length == 1 ? 'store' : 'stores'}",
+                            style: TextStyle(
+                              fontSize: 3.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColor.darkGrey,
+                            ),
+                          ),
+                        ),
+                        AnimatedRotation(
+                          turns: expanded ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 5.4.w,
+                            color: widget.accentColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    child: expanded
+                        ? Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              3.6.w,
+                              0,
+                              3.6.w,
+                              1.6.h,
+                            ),
+                            child: _byStore(byStore),
+                          )
+                        : const SizedBox(width: double.infinity),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
+    );
+  }
+
+  Widget _byStore(List<StockStoreBreakdown> stores) {
+    return Column(
+      children: [
+        for (final (i, s) in stores.indexed) ...[
+          if (i > 0) 1.2.height,
+          Container(
+            padding: EdgeInsets.all(3.w),
+            decoration: BoxDecoration(
+              color: AppColor.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        (s.storeName ?? "").trim(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 3.2.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColor.appDarkColor,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      invQty(s.balance),
+                      style: TextStyle(
+                        fontSize: 3.4.sp,
+                        fontWeight: FontWeight.w800,
+                        color: (s.balance ?? 0) < 0
+                            ? InventoryPalette.stockOut
+                            : AppColor.appDarkColor,
+                      ),
+                    ),
+                  ],
+                ),
+                0.8.height,
+                InventorySplitBar(
+                  first: s.totalIn ?? 0,
+                  second: s.totalOut ?? 0,
+                  firstColor: InventoryPalette.received,
+                  secondColor: InventoryPalette.issued,
+                  height: 0.6.h,
+                ),
+                0.6.height,
+                Row(
+                  children: [
+                    Text(
+                      "In ${invQty(s.totalIn)}",
+                      style: TextStyle(fontSize: 2.7.sp, color: AppColor.grey),
+                    ),
+                    const Spacer(),
+                    Text(
+                      "Out ${invQty(s.totalOut)}",
+                      style: TextStyle(fontSize: 2.7.sp, color: AppColor.grey),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
