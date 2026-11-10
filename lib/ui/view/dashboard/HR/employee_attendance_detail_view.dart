@@ -43,11 +43,13 @@ class _EmployeeAttendanceDetailViewState
     with SingleTickerProviderStateMixin {
   Color get _accent => context.siteAccent;
 
-  late DateTime _selectedMonth;
+  // Month and chart tab are held in HRController.
+  DateTime get _selectedMonth =>
+      context.read<HRController>().attendanceDetailMonth;
+  int get _chartTab => context.read<HRController>().attendanceChartTab;
   AnimationController? _chartAnimController;
   Animation<double>? _chartAnim;
   String? _animationKey;
-  int _chartTab = 0;
 
   Animation<double> get _safeChartAnim =>
       _chartAnim ?? const AlwaysStoppedAnimation<double>(1);
@@ -55,9 +57,8 @@ class _EmployeeAttendanceDetailViewState
   @override
   void initState() {
     super.initState();
-    _selectedMonth = DateTime(
-      widget.initialMonth.year,
-      widget.initialMonth.month,
+    context.read<HRController>().resetAttendanceDetail(
+      DateTime(widget.initialMonth.year, widget.initialMonth.month),
     );
     _chartAnimController = AnimationController(
       vsync: this,
@@ -264,7 +265,7 @@ class _EmployeeAttendanceDetailViewState
           context: context,
           selectedMonth: _selectedMonth,
           onMonthSelected: (date) {
-            setState(() => _selectedMonth = date);
+            context.read<HRController>().setAttendanceDetailMonth(date);
             _fetchData();
           },
         );
@@ -407,7 +408,7 @@ class _EmployeeAttendanceDetailViewState
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() => _chartTab = index);
+          context.read<HRController>().setAttendanceChartTab(index);
           _replayChartAnimation();
         },
         child: AnimatedContainer(

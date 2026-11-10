@@ -9,6 +9,10 @@ import '../network/api_client.dart';
 import 'sales_period_controller.dart';
 
 /// Thrown for API-level failures (`error != 0`) and transport failures.
+/// Which client list the clients screen shows (moved here from the view so
+/// the screen's state lives in the controller).
+enum SalesClientKind { internal, external }
+
 class SalesApiException implements Exception {
   const SalesApiException(this.message);
   final String message;
@@ -64,6 +68,52 @@ class SalesController extends ChangeNotifier {
   bool dashboardLoading = false;
   String? dashboardError;
   SalesDashboard? dashboard;
+
+  // Clients-list screen state (formerly setState fields on the screen).
+  SalesClientKind clientKind = SalesClientKind.internal;
+  String? clientPickId;
+  String? clientPickName;
+  int clientPage = 1;
+  /// Lowercased, trimmed search over the rows of the current page.
+  String clientQuery = '';
+
+  /// Silent: called from the screen's initState before the first build.
+  void initClientList({
+    required SalesClientKind kind,
+    String? pickId,
+    String? pickName,
+  }) {
+    clientKind = kind;
+    clientPickId = pickId;
+    clientPickName = pickName;
+  }
+
+  /// Switching lists clears the picker, because the internal and external
+  /// filters are different fields.
+  void selectClientKind(SalesClientKind kind) {
+    clientKind = kind;
+    clientPickId = null;
+    clientPickName = null;
+    clientPage = 1;
+    notifyListeners();
+  }
+
+  void selectClientPicker(String? id, String? name) {
+    clientPickId = id;
+    clientPickName = name;
+    clientPage = 1;
+    notifyListeners();
+  }
+
+  void setClientPage(int page) {
+    clientPage = page;
+    notifyListeners();
+  }
+
+  void setClientQuery(String query) {
+    clientQuery = query;
+    notifyListeners();
+  }
 
   bool clientLoading = false;
   String? clientError;

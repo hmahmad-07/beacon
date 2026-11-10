@@ -43,20 +43,18 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
   // TextField instance), not app state -- it stays local.
   final _searchController = TextEditingController();
 
-  /// True once the first load has finished, so data from an earlier visit
-  /// never flashes before the fresh list.
-  bool _ready = false;
-
   @override
   void initState() {
     super.initState();
     final controller = context.read<WMSController>();
     // Search persists on the controller across visits; mirror it.
     _searchController.text = controller.itemsSearch;
+    // Ready flag (first load done, per visit) lives in WMSController.
+    controller.resetScreenReady('items');
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       controller.ensureStoresLoaded(context);
       await controller.getItems(context);
-      if (mounted) setState(() => _ready = true);
+      if (mounted) controller.markScreenReady('items');
     });
   }
 
@@ -78,7 +76,8 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
           final loading = controller.isItemsLoading;
 
           final total = model?.meta?.total ?? items.length;
-          final busy = !_ready || (loading && model == null);
+          final busy =
+              !controller.isScreenReady('items') || (loading && model == null);
           var i = 0;
 
           return RefreshIndicator(

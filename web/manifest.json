@@ -1,11 +1,11 @@
 {
-    "name": "CENTREX",
-    "short_name": "CENTREX",
+    "name": "PARC",
+    "short_name": "PARC",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#11131A",
     "theme_color": "#1E88E5",
-    "description": "CENTREX - Enterprise WMS & HR management.",
+    "description": "PARC - Central system for Paani, Al Azeem Foundation, Rabia Trust Hospital and Corporate Canteen.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

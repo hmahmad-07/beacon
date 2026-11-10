@@ -1,5 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'package:beacon/core/controllers/ui_controller.dart';
 
 import '../../../core/extensions/sizer.dart';
 import '../../../core/resources/app_colors.dart';
@@ -52,15 +55,31 @@ class ModuleWorkspaceView extends StatefulWidget {
 }
 
 class _ModuleWorkspaceViewState extends State<ModuleWorkspaceView> {
-  int _selected = 0;
+  // Selected project index is held in UiController, keyed by this State.
+  late final UiController _ui;
+
+  @override
+  void initState() {
+    super.initState();
+    _ui = context.read<UiController>();
+  }
+
+  @override
+  void dispose() {
+    _ui.forget(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final selected = context.select<UiController, int>(
+      (ui) => ui.valueOf<int>(this, 0),
+    );
     final count = widget.projects.length;
     // The project list can shrink between builds; keep the index in range.
     final index = count == 0
         ? 0
-        : (_selected >= count ? count - 1 : _selected);
+        : (selected >= count ? count - 1 : selected);
 
     return Scaffold(
       backgroundColor: AppColor.scaffold,
@@ -110,7 +129,7 @@ class _ModuleWorkspaceViewState extends State<ModuleWorkspaceView> {
         borderRadius: BorderRadius.horizontal(right: Radius.circular(8.r)),
         onTap: () {
           if (selected) return;
-          setState(() => _selected = i);
+          _ui.setValue(this, i);
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
@@ -192,7 +211,7 @@ class _ModuleWorkspaceViewState extends State<ModuleWorkspaceView> {
         },
         onValueChanged: (value) {
           if (value == null || value == index) return;
-          setState(() => _selected = value);
+          _ui.setValue(this, value);
         },
       ),
     );

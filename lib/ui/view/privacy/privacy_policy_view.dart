@@ -12,7 +12,7 @@ class PrivacyPolicyView extends StatelessWidget {
     _Section(
       title: "About Beacon",
       body:
-          "Beacon is an internal app used by authorised staff of CENTREX and its group sites to view employee, sales and inventory information.",
+          "PARC is an internal app used by authorised staff of the central system and its four sites to view employee, sales and inventory information.",
     ),
     _Section(
       title: "Information the app uses",

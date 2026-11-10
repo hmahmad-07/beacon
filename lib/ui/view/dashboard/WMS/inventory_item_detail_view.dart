@@ -44,22 +44,20 @@ class InventoryItemDetailView extends StatefulWidget {
 class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
   Color get _accent => widget.accentColor;
 
-  /// True once this item has loaded, so the item opened before never
-  /// flashes on screen.
-  bool _ready = false;
-
   Object get _heroTag => 'inv-item-${widget.itemId}';
 
   @override
   void initState() {
     super.initState();
+    // Ready flag (this item loaded, per visit) lives in WMSController.
+    context.read<WMSController>().resetScreenReady('itemDetail');
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<WMSController>().openItemDetail(
         context,
         widget.itemId,
         storeId: widget.storeId,
       );
-      if (mounted) setState(() => _ready = true);
+      if (mounted) context.read<WMSController>().markScreenReady('itemDetail');
     });
   }
 
@@ -70,7 +68,8 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
       appBar: const CustomAppBar(title: "Item Details"),
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
-          if (!_ready || controller.isItemDetailLoading) {
+          if (!controller.isScreenReady('itemDetail') ||
+              controller.isItemDetailLoading) {
             // The item's avatar flies here from the list while it loads.
             return InventoryLoadingView(
               key: const ValueKey('item-loading'),

@@ -47,7 +47,6 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
   Animation<double>? _chartAnim;
   PageController? _chartPageController;
   String? _animationKey;
-  int _chartPageIndex = 0;
 
   Animation<double> get _safeChartAnim =>
       _chartAnim ?? const AlwaysStoppedAnimation<double>(1);
@@ -73,6 +72,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
       curve: Curves.easeOutCubic,
     );
     _chartPageController = PageController();
+    context.read<HRController>().resetSalaryCostChartPage();
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetchReportData());
   }
 
@@ -99,7 +99,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
   }
 
   void _goToChartPage(int index) {
-    setState(() => _chartPageIndex = index);
+    context.read<HRController>().setSalaryCostChartPage(index);
     final controller = _chartPageController;
     if (controller == null || !controller.hasClients) return;
     controller.animateToPage(
@@ -432,7 +432,8 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
             child: Row(
               children: List.generate(tabs.length, (index) {
                 final tab = tabs[index];
-                final isSelected = _chartPageIndex == index;
+                final isSelected =
+                    context.read<HRController>().salaryCostChartPage == index;
                 return Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 1.w),
@@ -494,7 +495,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
               // scrolling a chart's own content, not switching tabs.
               physics: const NeverScrollableScrollPhysics(),
               onPageChanged: (index) {
-                setState(() => _chartPageIndex = index);
+                context.read<HRController>().setSalaryCostChartPage(index);
                 _replayChartAnimation();
               },
               children: [
@@ -512,7 +513,8 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(tabs.length, (index) {
-              final isActive = _chartPageIndex == index;
+              final isActive =
+                  context.read<HRController>().salaryCostChartPage == index;
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 margin: EdgeInsets.symmetric(horizontal: 1.w),

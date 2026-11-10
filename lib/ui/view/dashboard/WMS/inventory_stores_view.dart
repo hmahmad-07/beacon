@@ -38,15 +38,14 @@ class InventoryStoresView extends StatefulWidget {
 class _InventoryStoresViewState extends State<InventoryStoresView> {
   final _searchController = TextEditingController();
 
-  /// True once the stores have loaded for this visit.
-  bool _ready = false;
-
   @override
   void initState() {
     super.initState();
+    // Ready flag (per visit) lives in WMSController.
+    context.read<WMSController>().resetScreenReady('stores');
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<WMSController>().getStores(context);
-      if (mounted) setState(() => _ready = true);
+      if (mounted) context.read<WMSController>().markScreenReady('stores');
     });
   }
 
@@ -72,7 +71,7 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
             (s, e) => s + math.max(0, e.balance ?? 0),
           );
 
-          if (!_ready || controller.isStoresLoading) {
+          if (!controller.isScreenReady('stores') || controller.isStoresLoading) {
             return RefreshIndicator(
               color: widget.accentColor,
               onRefresh: () => controller.getStores(context),

@@ -59,20 +59,6 @@ class InventorySearchBar extends StatefulWidget {
 }
 
 class _InventorySearchBarState extends State<InventorySearchBar> {
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_onTextChanged);
-  }
-
-  @override
-  void dispose() {
-    widget.controller.removeListener(_onTextChanged);
-    super.dispose();
-  }
-
-  void _onTextChanged() => setState(() {});
-
   void _clear() {
     widget.controller.clear();
     widget.onChanged?.call("");
@@ -82,6 +68,14 @@ class _InventorySearchBarState extends State<InventorySearchBar> {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilds as the search text changes, through the field's own controller.
+    return ListenableBuilder(
+      listenable: widget.controller,
+      builder: (context, _) => _bar(context),
+    );
+  }
+
+  Widget _bar(BuildContext context) {
     final hasText = widget.controller.text.isNotEmpty;
     final accent = widget.accentColor;
     final height = 6.h;
@@ -780,7 +774,13 @@ class _StorePickerSheet extends StatefulWidget {
 
 class _StorePickerSheetState extends State<_StorePickerSheet> {
   final _search = TextEditingController();
-  String _query = "";
+
+  @override
+  void initState() {
+    super.initState();
+    // Query for this sheet starts empty; it lives in WMSController.
+    context.read<WMSController>().resetStorePickerQuery();
+  }
 
   @override
   void dispose() {
@@ -794,7 +794,7 @@ class _StorePickerSheetState extends State<_StorePickerSheet> {
       height: MediaQuery.of(context).size.height * 0.75,
       child: Consumer<WMSController>(
         builder: (context, controller, _) {
-          final q = _query.toLowerCase();
+          final q = controller.storePickerQuery.toLowerCase();
           final stores = controller.activeStores
               .where(
                 (s) =>
@@ -844,7 +844,7 @@ class _StorePickerSheetState extends State<_StorePickerSheet> {
                   controller: _search,
                   hintText: "Search store name or code…",
                   accentColor: widget.accentColor,
-                  onChanged: (v) => setState(() => _query = v.trim()),
+                  onChanged: (v) => controller.setStorePickerQuery(v),
                 ),
               ),
               1.2.height,
@@ -870,7 +870,7 @@ class _StorePickerSheetState extends State<_StorePickerSheet> {
                               padding: EdgeInsets.only(top: 4.h),
                               child: Center(
                                 child: Text(
-                                  "No stores match \"$_query\"",
+                                  "No stores match \"${controller.storePickerQuery}\"",
                                   style: TextStyle(
                                     fontSize: 3.3.sp,
                                     color: AppColor.grey,

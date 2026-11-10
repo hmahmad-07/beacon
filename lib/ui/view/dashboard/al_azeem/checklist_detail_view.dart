@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/AlAzeem/al_azeem_checklist_models.dart';
+import 'package:beacon/core/controllers/ui_controller.dart';
 import 'package:beacon/core/network/al_azeem_checklist_api.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
@@ -25,26 +27,37 @@ class ChecklistDetailView extends StatefulWidget {
 }
 
 class _ChecklistDetailViewState extends State<ChecklistDetailView> {
-  late Future<ChecklistDetail> _future;
+  // The request in flight is held in UiController, keyed by this State.
+  late final UiController _ui;
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _ui = context.read<UiController>();
+    _ui.initValue(this, _load());
+  }
+
+  @override
+  void dispose() {
+    _ui.forget(this);
+    super.dispose();
   }
 
   Future<ChecklistDetail> _load() =>
       AlAzeemChecklistApi.detail(widget.submissionId);
 
-  void _retry() => setState(() => _future = _load());
+  void _retry() => _ui.setValue(this, _load());
 
   @override
   Widget build(BuildContext context) {
+    final future = context.select<UiController, Future<ChecklistDetail>?>(
+      (ui) => ui.valueOf<Future<ChecklistDetail>?>(this, null),
+    );
     return Scaffold(
       backgroundColor: AppColor.scaffold,
       appBar: CustomAppBar(title: "Checklist"),
       body: FutureBuilder<ChecklistDetail>(
-        future: _future,
+        future: future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return AppLoadingView(color: widget.accentColor);

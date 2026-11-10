@@ -2,17 +2,14 @@
 
 import 'dart:async';
 import 'package:beacon/core/controllers/auth_controller.dart';
-import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
-import 'package:beacon/ui/view/auth/login_view.dart';
-import 'package:beacon/ui/components/loading_view.dart';
-import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/constants.dart';
 import '../../core/extensions/sizer.dart';
+import '../../core/utils/onboarding_store.dart';
 import '../../core/resources/app_colors.dart';
-import 'dashboard/home_view.dart';
+import 'onboarding/onboarding_view.dart';
+import 'startup_flow.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -73,20 +70,17 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     Timer(const Duration(seconds: 3), () async {
       final auth = context.read<AuthController>();
       await auth.loadUserDetail();
+      if (!context.mounted) return;
 
-      if (context.mounted) {
-        if (Constants.token.isNotEmpty) {
-          AppRoutes.pushAndRemoveAll(
-            const LoadingView(title: "Restoring Session..."),
-          );
+      // First launch on this device shows the introduction; later launches
+      // go straight to the session check.
+      final onboardingDone = await OnboardingStore.isDone();
+      if (!context.mounted) return;
 
-          if (context.mounted) {
-            await context.read<EmployesController>().getSites(context);
-            AppRoutes.pushAndRemoveAll(const HomeView());
-          }
-        } else {
-          AppRoutes.pushAndRemoveAll(const LoginView());
-        }
+      if (onboardingDone) {
+        await continueStartup(context);
+      } else {
+        AppRoutes.pushAndRemoveAll(const OnboardingView());
       }
     });
   }
@@ -197,10 +191,10 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                         ).createShader(bounds);
                       },
                       child: Text(
-                        "CENTREX",
+                        "PARC",
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 10.sp,
+                          fontSize: 14.sp,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 5,
                         ),
@@ -222,7 +216,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                         ),
                       ),
                       child: Text(
-                        "MONITORING SYSTEM",
+                        "CENTRAL SYSTEM",
                         style: TextStyle(
                           color: AppColor.appLightColor,
                           fontSize: 4.sp,
@@ -239,12 +233,29 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
 
           Positioned(
             bottom: 6.h,
-            left: 8.w,
-            right: 8.w,
-            child: AppLoadingView(
-              label: "Initializing System...",
-              color: _gold,
-              textColor: AppColor.appLightColor,
+            left: 12.w,
+            right: 12.w,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    minHeight: 3,
+                    color: _gold,
+                    backgroundColor: _gold.withValues(alpha: 0.15),
+                  ),
+                ),
+                2.height,
+                Text(
+                  "Initializing System...",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 3.4.sp,
+                    color: AppColor.appLightColor,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

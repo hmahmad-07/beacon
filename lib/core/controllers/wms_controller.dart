@@ -65,6 +65,18 @@ class WMSController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Search inside the store picker sheet (formerly a sheet-level setState field).
+  // Kept apart from storesQuery so the stores screen filter is not affected.
+  String storePickerQuery = "";
+
+  void setStorePickerQuery(String query) {
+    storePickerQuery = query.trim();
+    notifyListeners();
+  }
+
+  /// Silent: safe to call from the sheet's initState.
+  void resetStorePickerQuery() => storePickerQuery = "";
+
   Future<void> getStores(BuildContext context) async {
     try {
       isStoresLoading = true;
@@ -161,6 +173,59 @@ class WMSController extends ChangeNotifier {
       isDashboardLoading = false;
       notifyListeners();
     }
+  }
+
+  // Selections on the dashboard screen (formerly screen-level setState fields).
+  /// 0 = received vs issued, 1 = net change.
+  int dashboardMovementMode = 0;
+  /// Selected month index into the movement list; null = latest.
+  int? dashboardMonth;
+  /// Selected category index into the shown categories; null = none.
+  int? dashboardCategory;
+  bool _dashboardReady = false;
+
+  /// True once the dashboard screen has loaded, or when data is already in.
+  bool get dashboardReady =>
+      _dashboardReady || (dashboardModel?.data != null && !isDashboardLoading);
+
+  void markDashboardReady() {
+    _dashboardReady = true;
+    notifyListeners();
+  }
+
+  void setDashboardMovementMode(int mode) {
+    dashboardMovementMode = mode;
+    notifyListeners();
+  }
+
+  void setDashboardMonth(int? month) {
+    dashboardMonth = month;
+    notifyListeners();
+  }
+
+  void setDashboardCategory(int? category) {
+    dashboardCategory = category;
+    notifyListeners();
+  }
+
+  void resetDashboardSelection() {
+    dashboardMonth = null;
+    dashboardCategory = null;
+    notifyListeners();
+  }
+
+  // Per-visit "first load done" flags for WMS screens (formerly `_ready`
+  // setState fields). A screen resets its key when it opens and marks it
+  // once its first load finishes.
+  final Set<String> _readyScreens = {};
+
+  bool isScreenReady(String screen) => _readyScreens.contains(screen);
+
+  /// Silent: safe to call from initState.
+  void resetScreenReady(String screen) => _readyScreens.remove(screen);
+
+  void markScreenReady(String screen) {
+    if (_readyScreens.add(screen)) notifyListeners();
   }
 
   // ================================================== Items (paginated) ==================================================

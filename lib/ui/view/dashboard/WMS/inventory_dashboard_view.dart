@@ -31,40 +31,25 @@ class InventoryDashboardView extends StatefulWidget {
 }
 
 class _InventoryDashboardViewState extends State<InventoryDashboardView> {
-  /// 0 = received vs issued, 1 = net change.
-  int _movementMode = 0;
-
-  /// Selected month (index into the movement list); defaults to the latest.
-  int? _month;
-
-  /// Selected category (index into the shown categories), or none.
-  int? _category;
-
-  /// True once data for this screen is in. Opened from the inventory home,
-  /// the overview loaded there is shown at once (so the overview card can
-  /// fly in); otherwise the dashboard loads first.
-  late bool _ready;
-
+  // Selections and the ready flag live in WMSController.
+  // Opened from the inventory home, the overview loaded there is shown at
+  // once (so the overview card can fly in); otherwise the dashboard loads first.
   @override
   void initState() {
     super.initState();
     final c = context.read<WMSController>();
-    _ready = c.dashboardModel?.data != null && !c.isDashboardLoading;
-    if (!_ready) {
+    if (!c.dashboardReady) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
     }
   }
 
   Future<void> _fetch() async {
-    setState(() {
-      _month = null;
-      _category = null;
-    });
     final controller = context.read<WMSController>();
+    controller.resetDashboardSelection();
     // The store chip shows a name, so the store list must be loaded.
     controller.ensureStoresLoaded(context);
     await controller.getDashboard(context);
-    if (mounted && !_ready) setState(() => _ready = true);
+    controller.markDashboardReady();
   }
 
   void _openLowStock() => context.pushSite(
@@ -82,7 +67,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
       body: Consumer<WMSController>(
         builder: (context, controller, child) {
           final data = controller.dashboardModel?.data;
-          final loading = !_ready || controller.isDashboardLoading;
+          final loading = !controller.dashboardReady || controller.isDashboardLoading;
 
           return RefreshIndicator(
             color: widget.accentColor,
@@ -129,10 +114,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
             selectedStoreId: controller.dashboardStoreId,
             accentColor: widget.accentColor,
             onChanged: (id) {
-              setState(() {
-                _month = null;
-                _category = null;
-              });
+              controller.resetDashboardSelection();
               controller.setDashboardStore(context, id);
             },
           ),
@@ -256,6 +238,8 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
   }
 
   Widget _movementPanel(List<MonthlyMovement> months) {
+    final c = context.read<WMSController>();
+    final mode = c.dashboardMovementMode;
     return InventoryPanel(
       icon: Icons.stacked_bar_chart_rounded,
       title: "Stock movement",
@@ -267,15 +251,15 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
               children: [
                 SiteSegmented(
                   labels: const ["Received vs issued", "Net change"],
-                  selected: _movementMode,
-                  onChanged: (v) => setState(() => _movementMode = v),
+                  selected: mode,
+                  onChanged: (v) => c.setDashboardMovementMode(v),
                 ),
                 1.8.height,
                 _movementReadout(months),
                 2.height,
                 SizedBox(
                   height: 24.h,
-                  child: _movementMode == 0
+                  child: mode == 0
                       ? _compareChart(months)
                       : _netChart(months),
                 ),
@@ -283,7 +267,7 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
                 Wrap(
                   spacing: 4.w,
                   runSpacing: 0.8.h,
-                  children: _movementMode == 0
+                  children: mode == 0
                       ? const [
                           InventoryLegendDot(
                             color: InventoryPalette.received,
@@ -315,7 +299,8 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
   }
 
   int _selectedMonth(List<MonthlyMovement> months) =>
-      (_month ?? months.length - 1).clamp(0, months.length - 1);
+      (context.read<WMSController>().dashboardMonth ?? months.length - 1)
+          .clamp(0, months.length - 1);
 
   Widget _movementReadout(List<MonthlyMovement> months) {
     final m = months[_selectedMonth(months)];
@@ -386,8 +371,9 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
     touchCallback: (event, response) {
       final spot = response?.spot;
       if (!event.isInterestedForInteractions || spot == null) return;
-      if (spot.touchedBarGroupIndex != _month) {
-        setState(() => _month = spot.touchedBarGroupIndex);
+      final c = context.read<WMSController>();
+      if (spot.touchedBarGroupIndex != c.dashboardMonth) {
+        c.setDashboardMonth(spot.touchedBarGroupIndex);
       }
     },
   );
@@ -646,8 +632,10 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
     final negativeTotal = negatives.fold<double>(0, (s, c) => s + c.$2);
     // The total is every category added up, negative ones included.
     final total = positiveTotal + negativeTotal;
-    final sel = _category != null && _category! < cats.length
-        ? _category
+    final categoryController = context.read<WMSController>();
+    final pickedCategory = categoryController.dashboardCategory;
+    final sel = pickedCategory != null && pickedCategory < cats.length
+        ? pickedCategory
         : null;
 
     return InventoryPanel(
@@ -681,8 +669,8 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
                                       ?.touchedSection
                                       ?.touchedSectionIndex;
                                   if (idx == null || idx < 0) return;
-                                  setState(
-                                    () => _category = _category == idx
+                                  categoryController.setDashboardCategory(
+                                    categoryController.dashboardCategory == idx
                                         ? null
                                         : idx,
                                   );
@@ -799,7 +787,9 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
     final selected = sel == index;
     final share = total <= 0 ? 0.0 : cat.$2 / total;
     return SitePressable(
-      onTap: () => setState(() => _category = selected ? null : index),
+      onTap: () => context.read<WMSController>().setDashboardCategory(
+        selected ? null : index,
+      ),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: EdgeInsets.only(bottom: 0.6.h),

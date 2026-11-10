@@ -47,14 +47,12 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
   // TextField instance), not app state -- it stays local.
   final _searchController = TextEditingController();
 
-  /// True once the first load has finished, so data from an earlier visit
-  /// never flashes before the fresh report.
-  bool _ready = false;
-
   @override
   void initState() {
     super.initState();
     _searchController.text = context.read<WMSController>().stockReportSearch;
+    // Ready flag (first load done, per visit) lives in WMSController.
+    context.read<WMSController>().resetScreenReady('stockReport');
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final controller = context.read<WMSController>();
       controller.ensureStoresLoaded(context);
@@ -63,7 +61,7 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
       } else {
         await controller.getStockReport(context);
       }
-      if (mounted) setState(() => _ready = true);
+      if (mounted) controller.markScreenReady('stockReport');
     });
   }
 
@@ -83,7 +81,9 @@ class _InventoryStockReportViewState extends State<InventoryStockReportView> {
           final model = controller.stockReportModel;
           final loading = controller.isStockReportLoading;
           final displayItems = model?.data ?? [];
-          final busy = !_ready || (loading && model == null);
+          final busy =
+              !controller.isScreenReady('stockReport') ||
+              (loading && model == null);
           var i = 0;
 
           return RefreshIndicator(

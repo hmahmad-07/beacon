@@ -3,12 +3,14 @@ import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/Employees/employes_model.dart';
 import 'package:beacon/core/models/module_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/core/controllers/ui_controller.dart';
 import 'package:beacon/core/utils/department_icons.dart';
 import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:beacon/ui/view/dashboard/HR/hr_view.dart';
 import 'package:beacon/ui/view/dashboard/employees/employee_list_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:provider/provider.dart';
 
 class DepartmentGrid extends StatelessWidget {
   const DepartmentGrid({
@@ -261,11 +263,22 @@ class _DepartmentCard extends StatefulWidget {
 }
 
 class _DepartmentCardState extends State<_DepartmentCard> {
-  bool _pressed = false;
+  // Pressed flag is held in UiController, keyed by this State.
+  late final UiController _ui;
 
-  void _setPressed(bool value) {
-    if (_pressed != value) setState(() => _pressed = value);
+  @override
+  void initState() {
+    super.initState();
+    _ui = context.read<UiController>();
   }
+
+  @override
+  void dispose() {
+    _ui.forget(this);
+    super.dispose();
+  }
+
+  void _setPressed(bool value) => _ui.setValue(this, value);
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +297,11 @@ class _DepartmentCardState extends State<_DepartmentCard> {
       onTapUp: (_) => _setPressed(false),
       onTap: widget.onTap,
       child: AnimatedScale(
-        scale: _pressed ? 0.94 : 1.0,
+        scale: context.select<UiController, bool>(
+          (ui) => ui.valueOf<bool>(this, false),
+        )
+            ? 0.94
+            : 1.0,
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
         child: Container(

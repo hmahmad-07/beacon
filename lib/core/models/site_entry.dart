@@ -26,14 +26,41 @@ class SiteEntry {
 
   /// Open sites first. Permanently closed sites come last.
   static List<SiteEntry> fromShops(List<Shop> shops) {
+    // PARC shows only the central sites, in the order of AppProject.central.
     final all = [
       for (var i = 0; i < shops.length; i++) _fromShop(shops[i], i),
-    ];
+    ].where((s) => s.isCentral).toList()..sort((a, b) => a.centralOrder.compareTo(b.centralOrder));
     return [
       ...all.where((s) => !s.isClosed),
       ...all.where((s) => s.isClosed),
     ];
   }
+
+  /// Every matched site, for Field Activity. The four central sites come
+  /// first, in AppProject.central order. Then OPD, AMTEX and Snack Shack.
+  /// Shops that match no known project are left out.
+  static List<SiteEntry> allFromShops(List<Shop> shops) {
+    final all = [
+      for (var i = 0; i < shops.length; i++) _fromShop(shops[i], i),
+    ].where((s) => s.project != null).toList();
+
+    int rank(SiteEntry s) {
+      final p = s.project!;
+      final c = AppProject.central.indexWhere((x) => x.id == p.id);
+      if (c >= 0) return c;
+      final e = _extraOrder.indexWhere((x) => x.id == p.id);
+      return e >= 0 ? 10 + e : 1 << 20;
+    }
+
+    all.sort((a, b) => rank(a).compareTo(rank(b)));
+    return all;
+  }
+
+  static final List<AppProject> _extraOrder = [
+    AppProject.opd,
+    AppProject.amtax,
+    AppProject.snackShack,
+  ];
 
   static SiteEntry _fromShop(Shop shop, int index) {
     final project = AppProject.matchShop(shop);
@@ -46,6 +73,19 @@ class SiteEntry {
       project: project,
     );
   }
+
+  static const int _notCentral = 1 << 20;
+
+  /// Position in AppProject.central, or a large number for other sites.
+  int get centralOrder {
+    final p = project;
+    if (p == null) return _notCentral;
+    final i = AppProject.central.indexWhere((c) => c.id == p.id);
+    return i < 0 ? _notCentral : i;
+  }
+
+  /// True for the four sites PARC shows.
+  bool get isCentral => centralOrder != _notCentral;
 
   /// Snack Shack has closed permanently.
   bool get isClosed => project?.id == AppProject.snackShack.id;

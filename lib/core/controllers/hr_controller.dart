@@ -226,6 +226,43 @@ class HRController extends ChangeNotifier {
     notifyListeners();
   }
 
+  int salaryCostChartPage = 0;
+
+  void setSalaryCostChartPage(int page) {
+    salaryCostChartPage = page;
+    notifyListeners();
+  }
+
+  void resetSalaryCostChartPage() => salaryCostChartPage = 0;
+
+  int salaryTypeGraphPage = 0;
+
+  void setSalaryTypeGraphPage(int page) {
+    salaryTypeGraphPage = page;
+    notifyListeners();
+  }
+
+  void resetSalaryTypeGraphPage() => salaryTypeGraphPage = 0;
+
+  DateTime attendanceDetailMonth = DateTime.now();
+
+  int attendanceChartTab = 0;
+
+  void setAttendanceDetailMonth(DateTime month) {
+    attendanceDetailMonth = month;
+    notifyListeners();
+  }
+
+  void setAttendanceChartTab(int tab) {
+    attendanceChartTab = tab;
+    notifyListeners();
+  }
+
+  void resetAttendanceDetail(DateTime month) {
+    attendanceDetailMonth = month;
+    attendanceChartTab = 0;
+  }
+
   Future<void> getAttendanceReport(
     BuildContext context, {
     required String month,

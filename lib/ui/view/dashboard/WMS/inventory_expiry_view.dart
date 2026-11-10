@@ -44,18 +44,17 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
     false: ("Expiring soonest", Icons.hourglass_bottom_rounded),
   };
 
-  /// True once the first load has finished.
-  bool _ready = false;
-
   @override
   void initState() {
     super.initState();
     _searchController.text = context.read<WMSController>().expiryQuery;
+    // Ready flag (first load done, per visit) lives in WMSController.
+    context.read<WMSController>().resetScreenReady('expiry');
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final controller = context.read<WMSController>();
       controller.ensureStoresLoaded(context);
       await controller.getExpiryReport(context);
-      if (mounted) setState(() => _ready = true);
+      if (mounted) controller.markScreenReady('expiry');
     });
   }
 
@@ -194,7 +193,7 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
           return RefreshIndicator(
             color: widget.accentColor,
             onRefresh: () => controller.getExpiryReport(context),
-            child: !_ready || loading
+            child: !controller.isScreenReady('expiry') || loading
                 ? InventoryLoadingView(
                     key: const ValueKey('expiry-loading'),
                     heroTag: widget.heroTag,

@@ -64,12 +64,12 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
       _chartAnim ?? const AlwaysStoppedAnimation<double>(1);
 
   late final PageController _graphPageController;
-  int _graphPageIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _graphPageController = PageController();
+    context.read<HRController>().resetSalaryTypeGraphPage();
     _chartAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1600),
@@ -1598,7 +1598,7 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
             // a chart's own content (e.g. many bars), not switching tabs.
             physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (index) {
-              setState(() => _graphPageIndex = index);
+              context.read<HRController>().setSalaryTypeGraphPage(index);
               _replayChartAnimation();
             },
             children: [
@@ -1615,7 +1615,8 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(2, (index) {
-            final isActive = _graphPageIndex == index;
+            final isActive =
+                context.read<HRController>().salaryTypeGraphPage == index;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 250),
               margin: EdgeInsets.symmetric(horizontal: 1.w),
@@ -1640,11 +1641,12 @@ class _EmpSalaryTypeViewState extends State<EmpSalaryTypeView>
   }
 
   Widget _graphTabChip(int index, String label, IconData icon) {
-    final selected = _graphPageIndex == index;
+    final selected =
+        context.read<HRController>().salaryTypeGraphPage == index;
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() => _graphPageIndex = index);
+          context.read<HRController>().setSalaryTypeGraphPage(index);
           _graphPageController.animateToPage(
             index,
             duration: const Duration(milliseconds: 250),

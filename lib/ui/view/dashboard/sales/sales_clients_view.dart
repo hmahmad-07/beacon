@@ -14,8 +14,6 @@ import '../../../components/site_design.dart';
 import 'sales_ui.dart';
 import 'sales_widgets.dart';
 
-enum SalesClientKind { internal, external }
-
 /// Internal and external clients for one business and period.
 ///
 /// Two different relationships:
@@ -87,24 +85,29 @@ class _ClientsBody extends StatefulWidget {
 class _ClientsBodyState extends State<_ClientsBody> {
   static const _perPage = 50;
 
-  late SalesClientKind _kind;
-  String? _pickId;
-  String? _pickName;
   final _search = TextEditingController();
-  String _query = '';
-  int _page = 1;
+
+  // Screen state lives in SalesController (clientKind, clientPickId, ...).
+  SalesController get _c => context.read<SalesController>();
+  SalesClientKind get _kind => _c.clientKind;
+  String? get _pickId => _c.clientPickId;
+  String? get _pickName => _c.clientPickName;
+  int get _page => _c.clientPage;
+  String get _query => _c.clientQuery;
 
   @override
   void initState() {
     super.initState();
-    _kind = widget.kind;
-    _pickId = widget.initialPickId;
-    _pickName = widget.initialName;
-
     final controller = context.read<SalesController>();
+    controller.initClientList(
+      kind: widget.kind,
+      pickId: widget.initialPickId,
+      pickName: widget.initialName,
+    );
+
     // A period chosen anywhere in Sales reloads this list from page 1.
     controller.bindPeriod(context.read<SalesPeriodController>(), (_) async {
-      if (mounted) setState(() => _page = 1);
+      if (mounted) controller.setClientPage(1);
       _load();
       controller.loadPickerOptions();
     });
@@ -139,12 +142,7 @@ class _ClientsBodyState extends State<_ClientsBody> {
   /// and external filters are different fields.
   void _setKind(SalesController controller, SalesClientKind kind) {
     if (kind == _kind) return;
-    setState(() {
-      _kind = kind;
-      _pickId = null;
-      _pickName = null;
-      _page = 1;
-    });
+    controller.selectClientKind(kind);
     controller.setFilters(
       controller.filters.copyWith(salespersonId: '', orderbookerId: ''),
     );
@@ -174,11 +172,7 @@ class _ClientsBodyState extends State<_ClientsBody> {
     );
     if (choice == null || !mounted) return;
     final option = choice.option;
-    setState(() {
-      _pickId = option?.id;
-      _pickName = option?.name;
-      _page = 1;
-    });
+    controller.selectClientPicker(option?.id, option?.name);
     controller.setFilters(_withPick(controller.filters, option?.id));
     _load();
   }
@@ -349,7 +343,8 @@ class _ClientsBodyState extends State<_ClientsBody> {
   Widget _searchField() {
     return TextField(
       controller: _search,
-      onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+      onChanged: (value) =>
+          _c.setClientQuery(value.trim().toLowerCase()),
       decoration: InputDecoration(
         hintText: "Search name or ID on this page",
         prefixIcon: const Icon(Icons.search_rounded),
@@ -463,7 +458,7 @@ class _ClientsBodyState extends State<_ClientsBody> {
     return SalesPaginationBar(
       meta: meta,
       onPage: (next) {
-        setState(() => _page = next);
+        controller.setClientPage(next);
         _load();
       },
     );

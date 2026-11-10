@@ -16,7 +16,7 @@ class AlAzeemChecklistApiException implements Exception {
 }
 
 /// Read-only calls to the Al-Azeem checklist admin endpoints. Every call uses
-/// the Centrex bearer token, the same as the other modules.
+/// the PARC bearer token, the same as the other modules.
 class AlAzeemChecklistApi {
   AlAzeemChecklistApi._();
 

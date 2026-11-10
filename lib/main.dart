@@ -19,6 +19,7 @@ import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/ui/components/responsive_web_shell.dart';
 import 'package:beacon/core/controllers/connectivity_controller.dart';
 import 'package:beacon/core/controllers/sales_period_controller.dart';
+import 'package:beacon/core/controllers/ui_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,13 +61,14 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WMSController()),
         ChangeNotifierProvider(create: (_) => ConnectivityController()),
         ChangeNotifierProvider(create: (_) => SalesPeriodController()),
+        ChangeNotifierProvider(create: (_) => UiController()),
       ],
       child: Consumer<ThemeManager>(
         builder: (context, themeManager, _) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             navigatorKey: AppRoutes.navigatorKey,
-            title: 'CENTREX',
+            title: 'PARC',
             theme: AppTheme.lightTheme.copyWith(
               textTheme: GoogleFonts.interTextTheme(
                 AppTheme.lightTheme.textTheme,

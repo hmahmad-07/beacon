@@ -12,7 +12,7 @@ class TermsConditionsView extends StatelessWidget {
     _Section(
       title: "Acceptance of these terms",
       body:
-          "By signing in to Beacon you agree to these terms. Beacon is for authorised staff of CENTREX and its group sites. If you do not agree, do not use the app.",
+          "By signing in to PARC you agree to these terms. PARC is for authorised staff of the central system and its four sites. If you do not agree, do not use the app.",
     ),
     _Section(
       title: "Your account",

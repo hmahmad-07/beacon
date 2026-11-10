@@ -87,6 +87,14 @@ class AppProject {
   /// Businesses that have a dedicated Sales section (Sales API scope).
   static final List<AppProject> salesBusinesses = [paani, corporateCanteen];
 
+  /// The four sites the PARC central system shows, in display order.
+  static final List<AppProject> central = [
+    paani,
+    alAzeem,
+    rabiaTrust,
+    corporateCanteen,
+  ];
+
   static String _normalize(String value) =>
       value.toLowerCase().replaceAll(" ", "").replaceAll(".", "");
 

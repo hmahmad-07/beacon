@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:beacon/ui/components/loading_view.dart';
 import 'package:beacon/core/controllers/employes_controller.dart';
 import 'package:beacon/core/extensions/routes.dart';
@@ -9,6 +11,12 @@ import '../../../core/extensions/sizer.dart';
 import '../../../core/resources/app_colors.dart';
 import '../../components/custom_button.dart';
 import '../../components/custom_field.dart';
+
+// The same dark ground and gold accent as the splash and onboarding.
+const _ink = Color(0xFF0B0E14);
+const _slate = Color(0xFF1F2A37);
+const _gold = Color(0xFFE0A447);
+const _sapphire = Color(0xFF3B82F6);
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -45,7 +53,7 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
       curve: Curves.easeInOut,
     );
 
-    _floatingAnimation = Tween<double>(begin: -8, end: 8).animate(
+    _floatingAnimation = Tween<double>(begin: -6, end: 6).animate(
       CurvedAnimation(parent: _floatingController, curve: Curves.easeInOut),
     );
 
@@ -65,52 +73,50 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<void> _signIn() async {
+    if (authVC.employeeCodeController.text.isEmpty ||
+        authVC.passwordController.text.isEmpty) {
+      Utils.showSnackBar(context, "Please enter credentials");
+      return;
+    }
+
+    AppRoutes.push(const LoadingView(title: "Authenticating..."));
+
+    final success = await authVC.login(context);
+
+    if (!success && context.mounted) {
+      Navigator.pop(context);
+    }
+
+    if (success && context.mounted) {
+      final empController = context.read<EmployesController>();
+      await empController.getSites(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F9),
+      backgroundColor: _ink,
       body: Stack(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColor.appLightColor,
-                  AppColor.scaffold,
-                  AppColor.scaffold,
-                  AppColor.white,
-                ],
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [_ink, _ink, _slate],
+                ),
               ),
             ),
           ),
+          Positioned(top: -10.h, right: -14.w, child: _orb(40.h, _gold, 0.08)),
           Positioned(
-            top: -10.h,
-            right: -15.w,
-            child: Container(
-              height: 35.h,
-              width: 35.h,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColor.appColor1.withValues(alpha: 0.1),
-              ),
-            ),
+            bottom: -14.h,
+            left: -16.w,
+            child: _orb(44.h, _sapphire, 0.08),
           ),
-
-          Positioned(
-            bottom: -12.h,
-            left: -15.w,
-            child: Container(
-              height: 38.h,
-              width: 38.h,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColor.appColor2.withValues(alpha: 0.1),
-              ),
-            ),
-          ),
-
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -128,207 +134,19 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
                       child: Column(
                         children: [
                           8.height,
-
-                          AnimatedBuilder(
-                            animation: _floatingAnimation,
-                            builder: (context, child) {
-                              return Transform.translate(
-                                offset: Offset(0, _floatingAnimation.value),
-                                child: child,
-                              );
-                            },
-                            child: Column(
-                              children: [
-                                Container(
-                                  height: 24.w,
-                                  width: 24.w,
-                                  padding: EdgeInsets.all(1.5.w),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: AppColor.appColor1.withValues(
-                                        alpha: 0.15,
-                                      ),
-                                      width: .5.w,
-                                    ),
-                                  ),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          AppColor.appColor1,
-                                          AppColor.appColor2,
-                                        ],
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppColor.appColor1.withValues(
-                                            alpha: 0.25,
-                                          ),
-                                          blurRadius: 25,
-                                          spreadRadius: 2,
-                                        ),
-                                      ],
-                                    ),
-                                    child: Icon(
-                                      Icons.admin_panel_settings_rounded,
-                                      color: Colors.white,
-                                      size: 10.w,
-                                    ),
-                                  ),
-                                ),
-
-                                4.height,
-
-                                ShaderMask(
-                                  shaderCallback: (bounds) {
-                                    return LinearGradient(
-                                      colors: [
-                                        AppColor.appColor1,
-                                        AppColor.appColor2,
-                                      ],
-                                    ).createShader(bounds);
-                                  },
-                                  child: Text(
-                                    "CENTREX",
-                                    style: TextStyle(
-                                      color: AppColor.white,
-                                      fontSize: 10.sp,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 5,
-                                    ),
-                                  ),
-                                ),
-                                1.height,
-                                Text(
-                                  "MONITORING SYSTEM",
-                                  style: TextStyle(
-                                    color: AppColor.appDarkColor,
-                                    fontSize: 3.8.sp,
-                                    letterSpacing: 2.w,
-                                    fontWeight: FontWeight.normal,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          _brand(),
                           const Spacer(),
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8.w,
-                              vertical: 4.h,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColor.white,
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColor.black.withValues(alpha: 0.06),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Welcome Back",
-                                  style: TextStyle(
-                                    color: AppColor.appDarkColor,
-                                    fontSize: 8.sp,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-
-                                1.height,
-
-                                Text(
-                                  "Login with your credentials to continue.",
-                                  style: TextStyle(
-                                    color: AppColor.appColor1,
-                                    fontSize: 3.8.sp,
-                                    height: 1.5,
-                                  ),
-                                ),
-                                4.height,
-                                CustomField(
-                                  controller: authVC.employeeCodeController,
-                                  fieldTitle: 'Employee Code',
-                                  isLabel: false,
-                                  hintText: "Enter Employee Code",
-                                  keyType: TextInputType.number,
-                                ),
-                                CustomField(
-                                  controller: authVC.passwordController,
-                                  fieldTitle: 'Password',
-                                  isLabel: false,
-                                  hintText: "Enter Password",
-                                  obscureText: true,
-                                  keyType: TextInputType.visiblePassword,
-                                ),
-                                10.height,
-                                RoundButton(
-                                  width: double.infinity,
-                                  height: 7.h,
-                                  title: "SIGN IN",
-                                  isLoading: authVC.isLoading,
-                                  buttonColor: AppColor.appColor1,
-
-                                  onPress: () async {
-                                    if (authVC
-                                            .employeeCodeController
-                                            .text
-                                            .isEmpty ||
-                                        authVC
-                                            .passwordController
-                                            .text
-                                            .isEmpty) {
-                                      Utils.showSnackBar(
-                                        context,
-                                        "Please enter credentials",
-                                      );
-                                      return;
-                                    }
-
-                                    AppRoutes.push(
-                                      const LoadingView(
-                                        title: "Authenticating...",
-                                      ),
-                                    );
-
-                                    final success = await authVC.login(context);
-
-                                    if (!success && context.mounted) {
-                                      Navigator.pop(context);
-                                    }
-
-                                    if (success && context.mounted) {
-                                      final empController = context
-                                          .read<EmployesController>();
-                                      await empController.getSites(context);
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
+                          _card(),
                           const Spacer(),
                           Padding(
                             padding: EdgeInsets.only(bottom: 3.h),
-                            child: Column(
-                              children: [
-                                Text(
-                                  "Secure Enterprise Access",
-                                  style: TextStyle(
-                                    color: AppColor.appDarkColor,
-                                    fontSize: 3.5.sp,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              "Secure Enterprise Access",
+                              style: TextStyle(
+                                color: AppColor.appLightColor,
+                                fontSize: 3.5.sp,
+                                letterSpacing: 1,
+                              ),
                             ),
                           ),
                         ],
@@ -343,4 +161,110 @@ class _LoginViewState extends State<LoginView> with TickerProviderStateMixin {
       ),
     );
   }
+
+  /// The real PARC lockup from the app icon: monogram, wordmark, IMPACT and
+  /// the tagline. It floats gently.
+  Widget _brand() {
+    return AnimatedBuilder(
+      animation: _floatingAnimation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _floatingAnimation.value * 0.5),
+          child: child,
+        );
+      },
+      child: Image.asset(
+        "assets/parc-logo.png",
+        width: 62.w,
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+
+  /// The sign-in card: a white panel with a gold accent, holding the form.
+  Widget _card() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: AppColor.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 40,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 10.w,
+            height: 0.5.h,
+            decoration: BoxDecoration(
+              color: _gold,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          2.height,
+          Text(
+            "Welcome Back",
+            style: TextStyle(
+              color: AppColor.appDarkColor,
+              fontSize: 8.sp,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          1.height,
+          Text(
+            "Login with your credentials to continue.",
+            style: TextStyle(
+              color: AppColor.grey,
+              fontSize: 3.8.sp,
+              height: 1.5,
+            ),
+          ),
+          4.height,
+          CustomField(
+            controller: authVC.employeeCodeController,
+            fieldTitle: 'Code',
+            isLabel: false,
+            hintText: "Enter Code",
+            keyType: TextInputType.number,
+          ),
+          CustomField(
+            controller: authVC.passwordController,
+            fieldTitle: 'Password',
+            isLabel: false,
+            hintText: "Enter Password",
+            obscureText: true,
+            keyType: TextInputType.visiblePassword,
+          ),
+          10.height,
+          RoundButton(
+            width: double.infinity,
+            height: 7.h,
+            title: "SIGN IN",
+            isLoading: authVC.isLoading,
+            buttonColor: _gold,
+            textColor: _ink,
+            onPress: _signIn,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _orb(double size, Color color, double alpha) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: color.withValues(alpha: alpha),
+    ),
+  );
 }

@@ -51,5 +51,13 @@ class AppModule {
     icon: Icons.checklist_rounded,
   );
 
+  static const finance = AppModule(
+    id: "finance",
+    title: "Finance",
+    subtitle: "Accounts, cash & budgets",
+    icon: BoxIcons.bx_wallet,
+    comingSoon: true,
+  );
+
   static const List<AppModule> all = [employees, hr, inventory, sales];
 }

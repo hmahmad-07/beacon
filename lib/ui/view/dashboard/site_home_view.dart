@@ -9,8 +9,10 @@ import 'package:beacon/ui/components/site_widgets.dart';
 import 'package:beacon/ui/view/dashboard/al_azeem/checklist_hub_view.dart';
 import 'package:beacon/ui/view/dashboard/department_picker_view.dart';
 import 'package:beacon/ui/view/dashboard/sales/sales_hub_view.dart';
+import 'package:beacon/core/controllers/ui_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:provider/provider.dart';
 
 class SiteHomeView extends StatelessWidget {
   const SiteHomeView({super.key, required this.site, required this.clr});
@@ -78,38 +80,44 @@ class SiteHomeView extends StatelessWidget {
     ),
   );
 
-  void _open(BuildContext context, AppModule m) {
-    if (!site.supports(m)) {
-      Utils.showSnackBar(context, "${m.title} is not set up for ${site.name}.");
-      return;
-    }
+  void _open(BuildContext context, AppModule m) =>
+      openSiteModule(context, site, m);
+}
 
-    final shop = site.shop, project = site.project;
-    final Widget? body = m.id == AppModule.checklists.id
-        ? ChecklistHubView(accentColor: site.accent)
-        : m.id == AppModule.sales.id
-        ? (project == null ? null : SalesHubView(business: project))
-        : (shop == null
-              ? null
-              : DepartmentGrid(
-                  module: m,
-                  shop: shop,
-                  accentColor: site.accent,
-                  siteImage: site.asset,
-                  siteName: site.name,
-                  description: m.subtitle,
-                  heroTag: _heroTag,
-                ));
-    if (body == null) return;
-
-    AppRoutes.push(
-      Scaffold(
-        backgroundColor: AppColor.scaffold,
-        appBar: CustomAppBar(title: m.title),
-        body: body,
-      ),
-    );
+/// Opens one module for one site. The site screen and the home module picker
+/// both call this, so they reach the same screens with the same behaviour.
+void openSiteModule(BuildContext context, SiteEntry site, AppModule m) {
+  if (!site.supports(m)) {
+    Utils.showSnackBar(context, "${m.title} is not set up for ${site.name}.");
+    return;
   }
+
+  final shop = site.shop, project = site.project;
+  final heroTag = 'site-logo-${site.name}';
+  final Widget? body = m.id == AppModule.checklists.id
+      ? ChecklistHubView(accentColor: site.accent)
+      : m.id == AppModule.sales.id
+      ? (project == null ? null : SalesHubView(business: project))
+      : (shop == null
+            ? null
+            : DepartmentGrid(
+                module: m,
+                shop: shop,
+                accentColor: site.accent,
+                siteImage: site.asset,
+                siteName: site.name,
+                description: m.subtitle,
+                heroTag: heroTag,
+              ));
+  if (body == null) return;
+
+  AppRoutes.push(
+    Scaffold(
+      backgroundColor: AppColor.scaffold,
+      appBar: CustomAppBar(title: m.title),
+      body: body,
+    ),
+  );
 }
 
 // ───────────────────────── Shared helpers ─────────────────────────
@@ -156,9 +164,22 @@ class _Pressable extends StatefulWidget {
 }
 
 class _PressableState extends State<_Pressable> {
-  bool _down = false;
+  // Pressed flag is held in UiController, keyed by this State.
+  late final UiController _ui;
 
-  void _set(bool v) => setState(() => _down = v);
+  @override
+  void initState() {
+    super.initState();
+    _ui = context.read<UiController>();
+  }
+
+  @override
+  void dispose() {
+    _ui.forget(this);
+    super.dispose();
+  }
+
+  void _set(bool v) => _ui.setValue(this, v);
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -168,7 +189,11 @@ class _PressableState extends State<_Pressable> {
     onTapUp: (_) => _set(false),
     onTap: widget.onTap,
     child: AnimatedScale(
-      scale: _down ? 0.97 : 1,
+      scale: context.select<UiController, bool>(
+            (ui) => ui.valueOf<bool>(this, false),
+          )
+          ? 0.97
+          : 1,
       duration: const Duration(milliseconds: 120),
       curve: Curves.easeOut,
       child: widget.child,

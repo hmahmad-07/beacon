@@ -39,13 +39,12 @@ class InventoryHubView extends StatefulWidget {
 class _InventoryHubViewState extends State<InventoryHubView> {
   Color get _accent => widget.accentColor;
 
-  /// True once the first load has finished; until then the whole screen
-  /// shows one loader instead of half-filled cards.
-  bool _ready = false;
-
   @override
   void initState() {
     super.initState();
+    // Ready flag (first load done; until then the screen shows one loader
+    // instead of half-filled cards) lives in WMSController.
+    context.read<WMSController>().resetScreenReady('hub');
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -60,7 +59,7 @@ class _InventoryHubViewState extends State<InventoryHubView> {
           : c.getDashboard(context),
       c.getExpiryReport(context),
     ]);
-    if (mounted && !_ready) setState(() => _ready = true);
+    if (mounted) c.markScreenReady('hub');
   }
 
   /// Opens [page]; when the dashboard was switched to one store meanwhile,
@@ -80,7 +79,7 @@ class _InventoryHubViewState extends State<InventoryHubView> {
         builder: (context) => Consumer<WMSController>(
           builder: (context, c, _) {
             final loading =
-                !_ready ||
+                !c.isScreenReady('hub') ||
                 c.isDashboardLoading ||
                 c.isExpiryLoading ||
                 (c.isStoresLoading && c.activeStores.isEmpty);

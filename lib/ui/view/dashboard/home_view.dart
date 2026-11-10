@@ -1,14 +1,17 @@
 import 'package:beacon/core/constants/constants.dart';
 import 'package:beacon/core/controllers/employes_controller.dart';
-import 'package:beacon/core/extensions/routes.dart';
+import 'package:beacon/core/controllers/ui_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/site_entry.dart';
 import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/core/utils/utils.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/site_widgets.dart';
+import 'package:beacon/ui/view/dashboard/field_activity_view.dart';
 import 'package:beacon/ui/view/dashboard/site_home_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/module_model.dart';
 import '../privacy/privacy_policy_view.dart';
@@ -82,27 +85,153 @@ class _HomeViewState extends State<HomeView> {
       );
     }
 
+    final salesSites = sites.where((s) => s.hasSales).toList();
+    final hrSites = sites.where((s) => s.hasModules).toList();
+
+    final tiles = [
+      _ModuleTile(
+        module: AppModule.inventory,
+        count: sites.length,
+        total: sites.length,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const _AllInventoryPage()),
+        ),
+      ),
+      _ModuleTile(
+        module: AppModule.sales,
+        count: salesSites.length,
+        total: sites.length,
+        onTap: () =>
+            _pickSite(context, module: AppModule.sales, sites: salesSites),
+      ),
+      _ModuleTile(
+        module: AppModule.hr,
+        count: hrSites.length,
+        total: sites.length,
+        onTap: () => _pickSite(context, module: AppModule.hr, sites: hrSites),
+      ),
+      _ModuleTile(
+        module: AppModule.finance,
+        count: 0,
+        total: sites.length,
+        comingSoon: true,
+        onTap: () => Utils.showSnackBar(context, "Finance is coming soon."),
+      ),
+    ];
+
     return RefreshIndicator(
       color: AppColor.appColor1,
       onRefresh: () => emp.getSites(context),
-      child: GridView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 3.w,
-          crossAxisSpacing: 3.w,
-          childAspectRatio: 0.9,
+      child: AnimationLimiter(
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 0),
+              sliver: SliverToBoxAdapter(
+                child: _ModulesHeader(siteCount: sites.length),
+              ),
+            ),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 4.h),
+              sliver: SliverGrid.count(
+                crossAxisCount: 2,
+                mainAxisSpacing: 3.w,
+                crossAxisSpacing: 3.w,
+                childAspectRatio: 0.82,
+                children: [
+                  for (final (i, tile) in tiles.indexed)
+                    AnimationConfiguration.staggeredGrid(
+                      position: i,
+                      columnCount: 2,
+                      duration: const Duration(milliseconds: 500),
+                      child: ScaleAnimation(
+                        scale: 0.9,
+                        child: FadeInAnimation(child: tile),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
-        itemCount: sites.length,
-        itemBuilder: (context, index) {
-          final site = sites[index];
-          return _SiteCard(
-            site: site,
-            onTap: () =>
-                AppRoutes.push(SiteHomeView(site: site, clr: site.accent)),
-          );
-        },
+      ),
+    );
+  }
+}
+
+/// Lists the sites for one module. The chosen site opens through the same
+/// function as the site screen, so the screens are identical.
+void _pickSite(
+  BuildContext context, {
+  required AppModule module,
+  required List<SiteEntry> sites,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColor.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 3.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              module.title,
+              style: TextStyle(
+                fontSize: 4.8.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColor.appDarkColor,
+              ),
+            ),
+            0.4.height,
+            Text(
+              "Choose a site",
+              style: TextStyle(fontSize: 3.3.sp, color: AppColor.grey),
+            ),
+            2.height,
+            if (sites.isEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 2.h),
+                child: Text(
+                  "No sites are set up for ${module.title} yet.",
+                  style: TextStyle(fontSize: 3.4.sp, color: AppColor.grey),
+                ),
+              )
+            else
+              for (final site in sites)
+                Padding(
+                  padding: EdgeInsets.only(bottom: 1.2.h),
+                  child: _SitePickTile(
+                    site: site,
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      openSiteModule(context, site, module);
+                    },
+                  ),
+                ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _AllInventoryPage extends StatelessWidget {
+  const _AllInventoryPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColor.scaffold,
+      appBar: const CustomAppBar(title: "Inventory"),
+      body: InventoryHubView(
+        siteName: "All sites",
+        accentColor: AppColor.inventory,
       ),
     );
   }
@@ -177,7 +306,7 @@ class _Header extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "CENTREX",
+                      "PARC",
                       style: TextStyle(
                         color: AppColor.appColor1,
                         fontSize: 6.sp,
@@ -210,21 +339,18 @@ class _Header extends StatelessWidget {
 class _SiteDrawer extends StatelessWidget {
   const _SiteDrawer();
 
-  void _openInventory(BuildContext context) {
+  void _openFieldActivity(BuildContext context, List<SiteEntry> sites) {
     final navigator = Navigator.of(context);
     navigator.pop();
     navigator.push(
-      MaterialPageRoute<void>(
-        builder: (_) => Scaffold(
-          backgroundColor: AppColor.scaffold,
-          appBar: const CustomAppBar(title: "Inventory"),
-          body: InventoryHubView(
-            siteName: "All sites",
-            accentColor: AppColor.inventory,
-          ),
-        ),
-      ),
+      MaterialPageRoute<void>(builder: (_) => FieldActivityView(sites: sites)),
     );
+  }
+
+  void _openChecklists(BuildContext context, SiteEntry site) {
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    openSiteModule(navigator.context, site, AppModule.checklists);
   }
 
   void _openPrivacy(BuildContext context) {
@@ -245,6 +371,12 @@ class _SiteDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sites = SiteEntry.allFromShops(
+      context.watch<EmployesController>().shops,
+    );
+    final fieldSites = sites.where((s) => s.hasEmployees).toList();
+    final checklistSites = sites.where((s) => s.hasChecklists).toList();
+
     return Drawer(
       width: MediaQuery.sizeOf(context).width * 0.7,
       backgroundColor: AppColor.white,
@@ -258,80 +390,45 @@ class _SiteDrawer extends StatelessWidget {
               name: Constants.name.trim(),
               role: Constants.type.trim(),
             ),
-
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-              child: Material(
-                color: AppColor.inventory.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => _openInventory(context),
-                  child: Padding(
-                    padding: EdgeInsets.all(3.5.w),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(2.6.w),
-                          decoration: BoxDecoration(
-                            color: AppColor.inventory,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            AppModule.inventory.icon,
-                            size: 5.w,
-                            color: AppColor.white,
-                          ),
-                        ),
-                        3.width,
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                AppModule.inventory.title,
-                                style: TextStyle(
-                                  fontSize: 4.0.sp,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColor.appDarkColor,
-                                ),
-                              ),
-                              0.3.height,
-                              Text(
-                                "Stock of every site's store",
-                                style: TextStyle(
-                                  fontSize: 3.0.sp,
-                                  color: AppColor.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.chevron_right_rounded, color: AppColor.grey),
-                      ],
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.symmetric(vertical: 1.h),
+                children: [
+                  if (fieldSites.isNotEmpty)
+                    _DrawerModuleCard(
+                      module: AppModule.employees,
+                      color: AppColor.appColor1,
+                      subtitle: "Field staff activities",
+                      onTap: () => _openFieldActivity(context, fieldSites),
                     ),
+                  if (checklistSites.isNotEmpty)
+                    _DrawerModuleCard(
+                      module: AppModule.checklists,
+                      color: checklistSites.first.accent,
+                      subtitle: "Al-Azeem Staff Activities",
+                      onTap: () =>
+                          _openChecklists(context, checklistSites.first),
+                    ),
+                  _DrawerItem(
+                    icon: Icons.privacy_tip_outlined,
+                    label: "Privacy policy",
+                    subtitle: "How your information is handled",
+                    onTap: () => _openPrivacy(context),
                   ),
-                ),
+                  _DrawerItem(
+                    icon: Icons.gavel_rounded,
+                    label: "Terms & conditions",
+                    subtitle: "Rules for using PARC",
+                    onTap: () => _openTerms(context),
+                  ),
+                ],
               ),
             ),
-            _DrawerItem(
-              icon: Icons.privacy_tip_outlined,
-              label: "Privacy policy",
-              subtitle: "How your information is handled",
-              onTap: () => _openPrivacy(context),
-            ),
-            _DrawerItem(
-              icon: Icons.gavel_rounded,
-              label: "Terms & conditions",
-              subtitle: "Rules for using Beacon",
-              onTap: () => _openTerms(context),
-            ),
-            const Spacer(),
             const Divider(height: 1),
             _DrawerItem(
               icon: Icons.logout_rounded,
               label: "Logout",
-              subtitle: "Sign out of CENTREX",
+              subtitle: "Sign out of PARC",
               color: AppColor.red,
               onTap: () {
                 final navigator = Navigator.of(context);
@@ -377,7 +474,7 @@ class _DrawerHeader extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            "CENTREX",
+            "PARC",
             style: TextStyle(
               color: AppColor.appColor2,
               fontSize: 7.sp,
@@ -464,6 +561,76 @@ class _DrawerHeader extends StatelessWidget {
   }
 }
 
+/// Drawer card for a module, styled the same as the Inventory card.
+class _DrawerModuleCard extends StatelessWidget {
+  const _DrawerModuleCard({
+    required this.module,
+    required this.color,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final AppModule module;
+  final Color color;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+      child: Material(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.all(3.5.w),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(2.6.w),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(module.icon, size: 5.w, color: AppColor.white),
+                ),
+                3.width,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        module.title,
+                        style: TextStyle(
+                          fontSize: 4.0.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColor.appDarkColor,
+                        ),
+                      ),
+                      0.3.height,
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 3.0.sp,
+                          color: AppColor.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: AppColor.grey),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DrawerItem extends StatelessWidget {
   const _DrawerItem({
     required this.icon,
@@ -529,91 +696,269 @@ class _DrawerItem extends StatelessWidget {
   }
 }
 
-class _SiteCard extends StatelessWidget {
-  const _SiteCard({required this.site, required this.onTap});
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 4.6.sp,
+        fontWeight: FontWeight.w800,
+        color: AppColor.appDarkColor,
+      ),
+    );
+  }
+}
+
+/// Header above the module tiles, with an animated site count.
+class _ModulesHeader extends StatelessWidget {
+  const _ModulesHeader({required this.siteCount});
+
+  final int siteCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [const _SectionLabel("Modules")]);
+  }
+}
+
+/// Dashboard-style tile for a major module. The count and the coverage bar
+/// animate in. Press feedback is held in UiController, like the other tiles.
+class _ModuleTile extends StatefulWidget {
+  const _ModuleTile({
+    required this.module,
+    required this.count,
+    required this.total,
+    required this.onTap,
+    this.comingSoon = false,
+  });
+
+  final AppModule module;
+  final int count;
+  final int total;
+  final VoidCallback onTap;
+  final bool comingSoon;
+
+  @override
+  State<_ModuleTile> createState() => _ModuleTileState();
+}
+
+class _ModuleTileState extends State<_ModuleTile> {
+  // Pressed flag is held in UiController, keyed by this State.
+  late final UiController _ui;
+
+  @override
+  void initState() {
+    super.initState();
+    _ui = context.read<UiController>();
+  }
+
+  @override
+  void dispose() {
+    _ui.forget(this);
+    super.dispose();
+  }
+
+  void _setPressed(bool value) => _ui.setValue(this, value);
+
+  @override
+  Widget build(BuildContext context) {
+    // Dark and gold, to match the app icon. The same for every module.
+    const top = Color(0xFF1F2A37);
+    const bottom = Color(0xFF0B0E14);
+    const gold = Color(0xFFE0A447);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _setPressed(true),
+      onTapCancel: () => _setPressed(false),
+      onTapUp: (_) => _setPressed(false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale:
+            context.select<UiController, bool>(
+              (ui) => ui.valueOf<bool>(this, false),
+            )
+            ? 0.95
+            : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: gold.withValues(alpha: 0.28),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [top, bottom],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned(
+                    right: -8.w,
+                    top: -8.w,
+                    child: Container(
+                      width: 28.w,
+                      height: 28.w,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColor.white.withValues(alpha: 0.10),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.all(4.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            const Spacer(),
+                            if (widget.comingSoon)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 2.5.w,
+                                  vertical: 0.6.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: gold,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  "SOON",
+                                  style: TextStyle(
+                                    fontSize: 2.6.sp,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1,
+                                    color: bottom,
+                                  ),
+                                ),
+                              )
+                            else
+                              Container(
+                                padding: EdgeInsets.all(1.6.w),
+                                decoration: BoxDecoration(
+                                  color: gold.withValues(alpha: 0.16),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  size: 3.2.w,
+                                  color: gold,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: EdgeInsets.all(4.5.w),
+                          decoration: BoxDecoration(
+                            color: gold.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(26),
+                            border: Border.all(
+                              color: gold.withValues(alpha: 0.45),
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            widget.module.icon,
+                            size: 10.w,
+                            color: gold,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          widget.module.title,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 4.8.sp,
+                            fontWeight: FontWeight.w800,
+                            color: AppColor.white,
+                          ),
+                        ),
+                        0.3.height,
+                        Text(
+                          widget.module.subtitle,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 2.8.sp,
+                            height: 1.2,
+                            color: AppColor.white.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Row in the Sales / HR site picker sheet.
+class _SitePickTile extends StatelessWidget {
+  const _SitePickTile({required this.site, required this.onTap});
 
   final SiteEntry site;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Material(
-        color: AppColor.white,
-        borderRadius: BorderRadius.circular(4.r),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: EdgeInsets.all(4.w),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: site.accent.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: Hero(
-                        tag: 'site-logo-${site.name}',
-                        child: SiteLogo(
-                          asset: site.asset,
-                          accent: site.accent,
-                          size: 24.w,
-                        ),
-                      ),
-                    ),
+    return Material(
+      color: site.accent.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.all(3.w),
+          child: Row(
+            children: [
+              SiteLogo(asset: site.asset, accent: site.accent, size: 12.w),
+              3.width,
+              Expanded(
+                child: Text(
+                  site.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 4.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColor.appDarkColor,
                   ),
                 ),
-                1.2.height,
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            site.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 3.8.sp,
-                              fontWeight: FontWeight.w700,
-                              color: AppColor.appDarkColor,
-                            ),
-                          ),
-                          0.2.height,
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.all(1.6.w),
-                      decoration: BoxDecoration(
-                        color: site.accent.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 3.2.w,
-                        color: site.accent,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 3.6.w,
+                color: site.accent,
+              ),
+            ],
           ),
         ),
       ),
