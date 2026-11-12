@@ -4,7 +4,6 @@ import 'package:beacon/core/models/WMS/inventory_item_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/WMS/inventory_item_detail_view.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
@@ -86,8 +85,6 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
             child: busy
                 ? InventoryLoadingView(
                     key: const ValueKey('items-loading'),
-                    heroTag: widget.heroTag,
-                    icon: BoxIcons.bxs_box,
                     label: "Loading items…",
                   )
                 : AnimationLimiter(
@@ -248,18 +245,13 @@ class _InventoryItemsViewState extends State<InventoryItemsView> {
             placeholder: "Any date",
             value: range == null ? null : formatRangeLabel(range!),
             accentColor: widget.accentColor,
-            onTap: () async {
-              final r = await CustomDateRangePicker.show(
-                sheetContext,
-                initialRange: range,
-              );
-              if (r.range != null) {
-                setSheet(() => range = r.range);
-              } else if (r.cancelled) {
-                setSheet(() => range = null);
-              }
-            },
+            onTap: () => pickInventoryDateRange(
+              sheetContext,
+              current: range,
+              onChanged: (r) => setSheet(() => range = r),
+            ),
             onClear: () => setSheet(() => range = null),
+            clearLabel: "Reset",
           ),
         ),
       ],

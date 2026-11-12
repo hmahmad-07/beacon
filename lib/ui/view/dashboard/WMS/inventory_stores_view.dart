@@ -77,8 +77,6 @@ class _InventoryStoresViewState extends State<InventoryStoresView> {
               onRefresh: () => controller.getStores(context),
               child: InventoryLoadingView(
                 key: const ValueKey('stores-loading'),
-                heroTag: widget.heroTag,
-                icon: BoxIcons.bxs_store,
                 label: "Loading stores…",
               ),
             );

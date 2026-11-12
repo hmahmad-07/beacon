@@ -6,7 +6,6 @@ import 'package:beacon/core/models/WMS/inventory_item_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_ui.dart';
 import 'package:beacon/ui/components/site_design.dart';
@@ -73,13 +72,6 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
             // The item's avatar flies here from the list while it loads.
             return InventoryLoadingView(
               key: const ValueKey('item-loading'),
-              heroTag: _heroTag,
-              leading: InventoryAvatar(
-                name: widget.itemName,
-                size: 17.w,
-                color: _accent,
-              ),
-              title: widget.itemName,
               label: "Loading item…",
             );
           }
@@ -302,17 +294,11 @@ class _InventoryItemDetailViewState extends State<InventoryItemDetailView> {
           icon: Icons.event_rounded,
           label: range == null ? "All dates" : formatRangeLabel(range),
           active: range != null,
-          onTap: () async {
-            final r = await CustomDateRangePicker.show(
-              context,
-              initialRange: range,
-            );
-            if (r.range != null) {
-              setRange(r.range);
-            } else if (r.cancelled && range != null) {
-              setRange(null);
-            }
-          },
+          onTap: () => pickInventoryDateRange(
+            context,
+            current: range,
+            onChanged: setRange,
+          ),
           onClear: range == null ? null : () => setRange(null),
         ),
         if (widget.storeId != null)

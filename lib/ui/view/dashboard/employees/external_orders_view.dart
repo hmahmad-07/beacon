@@ -52,14 +52,14 @@ class _ExternalOrdersViewState extends State<ExternalOrdersView> {
       ),
       body: Consumer<EmployesController>(
         builder: (context, controller, child) {
+          // Only the loader under the app bar until the orders are in.
+          if (controller.isExternalReportLoading) {
+            return const SiteLoading(label: "Loading orders…");
+          }
           return Column(
             children: [
               _buildModernDateSelector(controller),
-              Expanded(
-                child: controller.isExternalReportLoading
-                    ? const SiteLoading(label: "Loading orders…")
-                    : _buildReportContent(controller),
-              ),
+              Expanded(child: _buildReportContent(controller)),
             ],
           );
         },

@@ -43,6 +43,11 @@ class SalesHubView extends StatelessWidget {
           builder: (context, controller, _) {
             final accent = business.accent;
 
+            // Only the loader until the overview is ready.
+            if (controller.dashboardLoading && controller.dashboard == null) {
+              return SalesLoadingState(color: accent);
+            }
+
             return RefreshIndicator(
               onRefresh: controller.loadDashboard,
               child: ListView(
@@ -146,12 +151,6 @@ class SalesHubView extends StatelessWidget {
   }
 
   Widget _overview(SalesController controller, Color accent) {
-    if (controller.dashboardLoading && controller.dashboard == null) {
-      return SizedBox(
-        height: 30.h,
-        child: SalesLoadingState(color: accent),
-      );
-    }
     if (controller.dashboardError != null && controller.dashboard == null) {
       return SalesErrorState(
         message: controller.dashboardError!,

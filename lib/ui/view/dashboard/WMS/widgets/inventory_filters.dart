@@ -2,6 +2,7 @@ import 'package:beacon/core/controllers/wms_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/WMS/inventory_store_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/components/custom_toggle_switch.dart';
 import 'package:beacon/ui/components/site_design.dart';
 import 'package:flutter/material.dart';
@@ -20,9 +21,33 @@ const kAllStoresLabel = "All stores";
 
 String formatRangeLabel(DateTimeRange r) {
   final f = DateFormat('d MMM');
+  // A one-day filter reads as just that day.
+  if (DateUtils.isSameDay(r.start, r.end)) return f.format(r.start);
   final sameYear = r.start.year == r.end.year;
   final end = DateFormat(sameYear ? 'd MMM' : 'd MMM yy').format(r.end);
   return "${f.format(r.start)} – $end";
+}
+
+/// Calendar for every inventory date filter. One tapped date is applied
+/// as a one-day range (From = To) until a second date is picked, and RESET
+/// clears a range that is already set. [onChanged] gets the new range, or
+/// null on reset; closing the calendar any other way changes nothing.
+Future<void> pickInventoryDateRange(
+  BuildContext context, {
+  required DateTimeRange? current,
+  required ValueChanged<DateTimeRange?> onChanged,
+}) async {
+  final r = await CustomDateRangePicker.show(
+    context,
+    initialRange: current,
+    allowSingleDay: true,
+    showReset: true,
+  );
+  if (r.range != null) {
+    onChanged(r.range);
+  } else if (r.cleared) {
+    onChanged(null);
+  }
 }
 
 // ------------------------------------------------------------ Search bar
@@ -515,7 +540,8 @@ class InventoryFilterSection extends StatelessWidget {
 }
 
 /// Tappable row: leading icon, current value (or placeholder), and either
-/// a chevron or -- when a value is set and [onClear] given -- a clear ✕.
+/// a chevron or -- when a value is set and [onClear] given -- a clear ✕,
+/// or a "Reset" button when [clearLabel] is given.
 class InventoryFilterTile extends StatelessWidget {
   const InventoryFilterTile({
     super.key,
@@ -525,6 +551,7 @@ class InventoryFilterTile extends StatelessWidget {
     required this.onTap,
     this.value,
     this.onClear,
+    this.clearLabel,
   });
 
   final IconData icon;
@@ -533,6 +560,7 @@ class InventoryFilterTile extends StatelessWidget {
   final Color accentColor;
   final VoidCallback onTap;
   final VoidCallback? onClear;
+  final String? clearLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -576,7 +604,41 @@ class InventoryFilterTile extends StatelessWidget {
                   ),
                 ),
               ),
-              if (hasValue && onClear != null)
+              if (hasValue && onClear != null && clearLabel != null)
+                InkWell(
+                  onTap: onClear,
+                  borderRadius: BorderRadius.circular(100),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 2.6.w,
+                      vertical: 0.6.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColor.red.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.restart_alt_rounded,
+                          size: 3.8.w,
+                          color: AppColor.red,
+                        ),
+                        1.width,
+                        Text(
+                          clearLabel!,
+                          style: TextStyle(
+                            fontSize: 2.9.sp,
+                            fontWeight: FontWeight.bold,
+                            color: AppColor.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (hasValue && onClear != null)
                 InkWell(
                   onTap: onClear,
                   customBorder: const CircleBorder(),

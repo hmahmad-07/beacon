@@ -54,6 +54,12 @@ class _ChecklistHubViewState extends State<ChecklistHubView> {
     return AnimatedBuilder(
       animation: Listenable.merge([_period, _controller]),
       builder: (context, _) {
+        // Only the loader until the figures are in. Errors still show the
+        // period button with a retry.
+        if (_controller.dashboard == null &&
+            _controller.dashboardError == null) {
+          return AppLoadingView(color: accent);
+        }
         return RefreshIndicator(
           color: accent,
           onRefresh: _controller.loadDashboard,
@@ -90,21 +96,18 @@ class _ChecklistHubViewState extends State<ChecklistHubView> {
     );
   }
 
-  /// One loader while the figures load. Errors show a retry, never a second
-  /// loader.
+  /// The figures. While they load the whole body is the loader (see
+  /// [_buildContent]); errors show a retry here.
   Widget _figures() {
     final c = _controller;
     final s = c.dashboard;
     final accent = widget.accentColor;
 
     if (s == null) {
-      if (c.dashboardError != null) {
-        return AppErrorView(
-          message: c.dashboardError!,
-          onRetry: c.loadDashboard,
-        );
-      }
-      return SizedBox(height: 60.h, child: AppLoadingView(color: accent));
+      return AppErrorView(
+        message: c.dashboardError ?? "Could not load the figures.",
+        onRetry: c.loadDashboard,
+      );
     }
 
     return Column(

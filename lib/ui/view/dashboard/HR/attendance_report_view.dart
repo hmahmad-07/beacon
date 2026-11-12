@@ -132,6 +132,9 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
             });
           }
 
+          // Only the loader under the app bar until the data is in.
+          if (isLoading) return const AppLoadingView();
+
           return RefreshIndicator(
             color: _accent,
             onRefresh: () async => _fetchReportData(),
@@ -143,9 +146,7 @@ class _AttendanceReportViewState extends State<AttendanceReportView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeaderBanner(controller),
-                  if (isLoading)
-                    const AppLoadingView()
-                  else if (employees.isEmpty)
+                  if (employees.isEmpty)
                     _buildEmptyState(controller)
                   else ...[
                     _buildMetricsRow(model!, employees),

@@ -29,17 +29,29 @@ class CustomDateRangePicker extends StatelessWidget {
   /// Opens the calendar on its own (for filter sheets that don't embed
   /// the field). `cancelled` is true only for the CANCEL button, not for a
   /// tap outside the dialog.
-  static Future<({DateTimeRange? range, bool cancelled})> show(
+  ///
+  /// [allowSingleDay]: one tapped date can be confirmed on its own and is
+  /// returned as a one-day range (From = To) until a second date is picked.
+  /// [showReset]: when [initialRange] is set, a RESET button clears it
+  /// (`cleared` is true).
+  static Future<({DateTimeRange? range, bool cancelled, bool cleared})> show(
     BuildContext context, {
     DateTimeRange? initialRange,
+    bool allowSingleDay = false,
+    bool showReset = false,
   }) async {
     final result = await showDialog<Object>(
       context: context,
-      builder: (context) => _CustomCalendarDialog(initialRange: initialRange),
+      builder: (context) => _CustomCalendarDialog(
+        initialRange: initialRange,
+        allowSingleDay: allowSingleDay,
+        showReset: showReset,
+      ),
     );
     return (
       range: result is DateTimeRange ? result : null,
       cancelled: identical(result, _cancelled),
+      cleared: identical(result, _cleared),
     );
   }
 
@@ -124,13 +136,29 @@ class CustomDateRangePicker extends StatelessWidget {
   }
 }
 
-// Popped by the CANCEL button, so it can be told apart from a barrier
-// dismiss (which pops null).
-const Object _cancelled = Object();
+// Results popped by the buttons, so they can be told apart from a barrier
+// dismiss (which pops null). Each needs its own value: two `const Object()`
+// would be one and the same object.
+class _DialogResult {
+  const _DialogResult(this.name);
+  final String name;
+}
+
+// Popped by the CANCEL button.
+const _cancelled = _DialogResult('cancel');
+
+// Popped by the RESET button.
+const _cleared = _DialogResult('reset');
 
 class _CustomCalendarDialog extends StatefulWidget {
   final DateTimeRange? initialRange;
-  const _CustomCalendarDialog({this.initialRange});
+  final bool allowSingleDay;
+  final bool showReset;
+  const _CustomCalendarDialog({
+    this.initialRange,
+    this.allowSingleDay = false,
+    this.showReset = false,
+  });
 
   @override
   State<_CustomCalendarDialog> createState() => _CustomCalendarDialogState();
@@ -227,6 +255,7 @@ class _CustomCalendarDialogState extends State<_CustomCalendarDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (widget.allowSingleDay) ...[_fromToSummary(), 2.height],
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -338,36 +367,147 @@ class _CustomCalendarDialogState extends State<_CustomCalendarDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, _cancelled),
-          child: Text(
-            "CANCEL",
-            style: TextStyle(
-              color: AppColor.grey,
-              fontWeight: FontWeight.bold,
-              fontSize: 4.sp,
+        Row(
+          children: [
+            if (widget.showReset && widget.initialRange != null)
+              TextButton(
+                onPressed: () => Navigator.pop(context, _cleared),
+                child: Text(
+                  "RESET",
+                  style: TextStyle(
+                    color: AppColor.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 4.sp,
+                  ),
+                ),
+              ),
+            const Spacer(),
+            TextButton(
+              onPressed: () => Navigator.pop(context, _cancelled),
+              child: Text(
+                "CANCEL",
+                style: TextStyle(
+                  color: AppColor.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 4.sp,
+                ),
+              ),
             ),
+            TextButton(
+              onPressed: _canConfirm
+                  ? () {
+                      Navigator.pop(
+                        context,
+                        // One date on its own is a one-day range.
+                        DateTimeRange(
+                          start: startDate!,
+                          end: endDate ?? startDate!,
+                        ),
+                      );
+                    }
+                  : null,
+              child: Text(
+                "CONFIRM",
+                style: TextStyle(
+                  color: _canConfirm
+                      ? AppColor.appColor1
+                      : AppColor.grey.withValues(alpha: 0.5),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 4.sp,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  bool get _canConfirm =>
+      startDate != null && (endDate != null || widget.allowSingleDay);
+
+  /// FROM / TO boxes above the calendar. Until a second date is picked, TO
+  /// shows the same day as FROM.
+  Widget _fromToSummary() {
+    final f = DateFormat('d MMM yyyy');
+    final sameDay = startDate != null && endDate == null;
+    return Row(
+      children: [
+        Expanded(
+          child: _dateBox(
+            "FROM",
+            startDate == null ? "Select date" : f.format(startDate!),
+            active: startDate != null,
           ),
         ),
-        TextButton(
-          onPressed: (startDate != null && endDate != null)
-              ? () {
-                  Navigator.pop(
-                    context,
-                    DateTimeRange(start: startDate!, end: endDate!),
-                  );
-                }
-              : null,
-          child: Text(
-            "CONFIRM",
-            style: TextStyle(
-              color: AppColor.appColor1,
-              fontWeight: FontWeight.bold,
-              fontSize: 4.sp,
-            ),
+        2.width,
+        Expanded(
+          child: _dateBox(
+            "TO",
+            startDate == null ? "Select date" : f.format(endDate ?? startDate!),
+            active: startDate != null,
+            note: sameDay ? "Same day" : null,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _dateBox(
+    String label,
+    String value, {
+    required bool active,
+    String? note,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+      decoration: BoxDecoration(
+        color: active
+            ? AppColor.appColor1.withValues(alpha: 0.06)
+            : AppColor.scaffold,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: active
+              ? AppColor.appColor1.withValues(alpha: 0.25)
+              : AppColor.appLightColor,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 2.6.sp,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                  color: AppColor.grey,
+                ),
+              ),
+              if (note != null) ...[
+                const Spacer(),
+                Text(
+                  note,
+                  style: TextStyle(fontSize: 2.5.sp, color: AppColor.grey),
+                ),
+              ],
+            ],
+          ),
+          0.3.height,
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 3.4.sp,
+              fontWeight: active ? FontWeight.bold : FontWeight.w500,
+              color: active ? AppColor.appDarkColor : AppColor.grey,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

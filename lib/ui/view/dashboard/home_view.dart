@@ -4,6 +4,7 @@ import 'package:beacon/core/controllers/ui_controller.dart';
 import 'package:beacon/core/extensions/sizer.dart';
 import 'package:beacon/core/models/site_entry.dart';
 import 'package:beacon/core/resources/app_colors.dart';
+import 'package:beacon/core/utils/day_phase.dart';
 import 'package:beacon/core/utils/utils.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
 import 'package:beacon/ui/components/site_widgets.dart';
@@ -12,6 +13,7 @@ import 'package:beacon/ui/view/dashboard/site_home_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/module_model.dart';
 import '../privacy/privacy_policy_view.dart';
@@ -29,6 +31,7 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
+    context.read<UiController>().startClock();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final emp = context.read<EmployesController>();
@@ -36,6 +39,12 @@ class _HomeViewState extends State<HomeView> {
         emp.getSites(context);
       }
     });
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    context.read<UiController>().startClock();
   }
 
   @override
@@ -68,20 +77,32 @@ class _HomeViewState extends State<HomeView> {
     EmployesController emp,
     List<SiteEntry> sites,
   ) {
+    final greeting = Padding(
+      padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 0),
+      child: const _GreetingCard(),
+    );
+
     final notLoadedYet = emp.sitesDetailModel == null && !emp.sitesLoadFailed;
     if (notLoadedYet || (emp.isLoading && sites.isEmpty)) {
-      return const SizedBox.shrink();
+      return Column(children: [greeting]);
     }
 
     if (sites.isEmpty) {
-      return AppErrorView(
-        icon: emp.sitesLoadFailed
-            ? Icons.cloud_off_rounded
-            : Icons.store_mall_directory_outlined,
-        message: emp.sitesLoadFailed
-            ? "Could not load your sites. Check your connection and try again."
-            : "No sites are assigned to this account.",
-        onRetry: () => emp.getSites(context),
+      return Column(
+        children: [
+          greeting,
+          Expanded(
+            child: AppErrorView(
+              icon: emp.sitesLoadFailed
+                  ? Icons.cloud_off_rounded
+                  : Icons.store_mall_directory_outlined,
+              message: emp.sitesLoadFailed
+                  ? "Could not load your sites. Check your connection and try again."
+                  : "No sites are assigned to this account.",
+              onRetry: () => emp.getSites(context),
+            ),
+          ),
+        ],
       );
     }
 
@@ -126,8 +147,9 @@ class _HomeViewState extends State<HomeView> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
+            SliverToBoxAdapter(child: greeting),
             SliverPadding(
-              padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 0),
+              padding: EdgeInsets.fromLTRB(5.w, 3.h, 5.w, 0),
               sliver: SliverToBoxAdapter(
                 child: _ModulesHeader(siteCount: sites.length),
               ),
@@ -138,7 +160,7 @@ class _HomeViewState extends State<HomeView> {
                 crossAxisCount: 2,
                 mainAxisSpacing: 3.w,
                 crossAxisSpacing: 3.w,
-                childAspectRatio: 0.82,
+                childAspectRatio: 0.86,
                 children: [
                   for (final (i, tile) in tiles.indexed)
                     AnimationConfiguration.staggeredGrid(
@@ -160,8 +182,6 @@ class _HomeViewState extends State<HomeView> {
   }
 }
 
-/// Lists the sites for one module. The chosen site opens through the same
-/// function as the site screen, so the screens are identical.
 void _pickSite(
   BuildContext context, {
   required AppModule module,
@@ -270,9 +290,6 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = Constants.name.trim();
-    final greeting = name.isEmpty ? "Hello" : "Hello, $name";
-
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -289,15 +306,13 @@ class _Header extends StatelessWidget {
                 style: ButtonStyle(
                   shape: WidgetStatePropertyAll(
                     RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(2.r),
+                      borderRadius: BorderRadius.circular(3.r),
                     ),
                   ),
-                  backgroundColor: WidgetStatePropertyAll(
-                    AppColor.appLightColor,
-                  ),
+                  backgroundColor: WidgetStatePropertyAll(AppColor.appColor1),
                 ),
                 tooltip: "Menu",
-                icon: const Icon(Icons.menu_rounded),
+                icon: Icon(Icons.menu_rounded, color: AppColor.white),
                 onPressed: () => openSiteMenu(context),
               ),
               2.width,
@@ -308,20 +323,19 @@ class _Header extends StatelessWidget {
                     Text(
                       "PARC",
                       style: TextStyle(
-                        color: AppColor.appColor1,
-                        fontSize: 6.sp,
+                        color: AppColor.appColor2,
+                        fontSize: 7.sp,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 2,
                       ),
                     ),
-                    0.5.height,
                     Text(
-                      greeting,
+                      'Central Monitoring System',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppColor.appDarkColor,
-                        fontSize: 4.sp,
+                        color: AppColor.appColor1,
+                        fontSize: 3.5.sp,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -561,7 +575,6 @@ class _DrawerHeader extends StatelessWidget {
   }
 }
 
-/// Drawer card for a module, styled the same as the Inventory card.
 class _DrawerModuleCard extends StatelessWidget {
   const _DrawerModuleCard({
     required this.module,
@@ -714,7 +727,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// Header above the module tiles, with an animated site count.
 class _ModulesHeader extends StatelessWidget {
   const _ModulesHeader({required this.siteCount});
 
@@ -726,8 +738,225 @@ class _ModulesHeader extends StatelessWidget {
   }
 }
 
-/// Dashboard-style tile for a major module. The count and the coverage bar
-/// animate in. Press feedback is held in UiController, like the other tiles.
+/// Dark greeting at the top of home: time-of-day wish, user's name, live
+/// time and date.
+class _GreetingCard extends StatelessWidget {
+  const _GreetingCard();
+
+  static final _timeFormat = DateFormat('hh:mm');
+  static final _amPmFormat = DateFormat('a');
+  static final _dateFormat = DateFormat('EEEE, d MMMM yyyy');
+
+  /// "RAMISH MUNEER" / "ramish muneer" -> "Ramish Muneer".
+  static String _displayName() {
+    return Constants.name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .join(' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = context.read<UiController>();
+    final name = _displayName();
+
+    // Only this card listens to the clock, so a tick rebuilds nothing else.
+    return ValueListenableBuilder<DateTime>(
+      valueListenable: ui.clock,
+      builder: (context, now, _) =>
+          _card(now: now, phase: DayPhase.of(now), name: name),
+    );
+  }
+
+  Widget _card({
+    required DateTime now,
+    required DayPhase phase,
+    required String name,
+  }) {
+    final gold = AppColor.appColor2;
+    final white = AppColor.white;
+
+    final bgStart = AppColor.appColor1;
+    final bgEnd = AppColor.appDarkColor;
+    final border = white.withValues(alpha: 0.08);
+    final shadow = AppColor.appColor1.withValues(alpha: 0.30);
+    final primary = white;
+    final secondary = white.withValues(alpha: 0.72);
+    final divider = white.withValues(alpha: 0.10);
+    final decor = white.withValues(alpha: 0.07);
+    final chipText = gold;
+    final showStars = phase == DayPhase.evening || phase == DayPhase.night;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: [bgStart, bgEnd],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: border),
+        boxShadow: [
+          BoxShadow(color: shadow, blurRadius: 24, offset: const Offset(0, 10)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(23),
+        child: Stack(
+          children: [
+            // Faded sun / moon in the corner.
+            Positioned(
+              right: -5.w,
+              bottom: -7.w,
+              child: Icon(phase.icon, size: 34.w, color: decor),
+            ),
+            // A few small stars in the evening and at night.
+            if (showStars) ..._stars(white.withValues(alpha: 0.45)),
+            Padding(
+              padding: EdgeInsets.fromLTRB(5.w, 2.2.h, 5.w, 2.2.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 2.8.w,
+                          vertical: 0.6.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: gold.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: gold.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(phase.icon, size: 3.6.sp, color: gold),
+                            1.5.width,
+                            Text(
+                              phase.greeting,
+                              style: TextStyle(
+                                fontSize: 3.1.sp,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                                color: chipText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            _timeFormat.format(now),
+                            style: TextStyle(
+                              fontSize: 6.4.sp,
+                              fontWeight: FontWeight.w800,
+                              height: 1,
+                              letterSpacing: 0.5,
+                              color: primary,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
+                          1.width,
+                          Text(
+                            _amPmFormat.format(now),
+                            style: TextStyle(
+                              fontSize: 3.sp,
+                              fontWeight: FontWeight.w800,
+                              color: gold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  1.8.height,
+                  Text(
+                    name.isEmpty ? "Hello there" : "Hello, $name",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 5.8.sp,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                      color: primary,
+                    ),
+                  ),
+                  0.5.height,
+                  Text(
+                    phase.message,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 3.3.sp, color: secondary),
+                  ),
+                  1.8.height,
+                  Container(height: 1, color: divider),
+                  1.4.height,
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 3.4.sp,
+                        color: gold,
+                      ),
+                      2.width,
+                      Expanded(
+                        child: Text(
+                          _dateFormat.format(now),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 3.3.sp,
+                            fontWeight: FontWeight.w600,
+                            color: secondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _stars(Color color) {
+    Widget star(double right, double bottom, double size) => Positioned(
+      right: right,
+      bottom: bottom,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+    );
+
+    return [
+      star(30.w, 9.h, 1.2.w),
+      star(22.w, 13.h, 0.8.w),
+      star(38.w, 4.h, 0.9.w),
+      star(12.w, 17.h, 0.7.w),
+    ];
+  }
+}
+
 class _ModuleTile extends StatefulWidget {
   const _ModuleTile({
     required this.module,
@@ -767,10 +996,13 @@ class _ModuleTileState extends State<_ModuleTile> {
 
   @override
   Widget build(BuildContext context) {
-    // Dark and gold, to match the app icon. The same for every module.
-    const top = Color(0xFF1F2A37);
-    const bottom = Color(0xFF0B0E14);
-    const gold = Color(0xFFE0A447);
+    final pressed = context.select<UiController, bool>(
+      (ui) => ui.valueOf<bool>(this, false),
+    );
+
+    final c1 = AppColor.appColor1;
+    final gold = AppColor.appColor2;
+    final white = AppColor.white;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -779,31 +1011,28 @@ class _ModuleTileState extends State<_ModuleTile> {
       onTapUp: (_) => _setPressed(false),
       onTap: widget.onTap,
       child: AnimatedScale(
-        scale:
-            context.select<UiController, bool>(
-              (ui) => ui.valueOf<bool>(this, false),
-            )
-            ? 0.95
-            : 1.0,
+        scale: pressed ? 0.95 : 1.0,
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: gold.withValues(alpha: 0.28),
+                color: c1.withValues(alpha: 0.10),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(22),
             child: DecoratedBox(
               decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: c1.withValues(alpha: 0.10)),
                 gradient: LinearGradient(
-                  colors: [top, bottom],
+                  colors: [white, Color.lerp(white, c1, 0.05)!],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -815,63 +1044,60 @@ class _ModuleTileState extends State<_ModuleTile> {
                     right: -8.w,
                     top: -8.w,
                     child: Container(
-                      width: 28.w,
-                      height: 28.w,
+                      width: 24.w,
+                      height: 24.w,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColor.white.withValues(alpha: 0.10),
+                        color: c1.withValues(alpha: 0.04),
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: EdgeInsets.all(4.w),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Row(
-                          children: [
-                            const Spacer(),
-                            if (widget.comingSoon)
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 2.5.w,
-                                  vertical: 0.6.h,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: gold,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  "SOON",
-                                  style: TextStyle(
-                                    fontSize: 2.6.sp,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1,
-                                    color: bottom,
-                                  ),
-                                ),
-                              )
-                            else
-                              Container(
-                                padding: EdgeInsets.all(1.6.w),
-                                decoration: BoxDecoration(
-                                  color: gold.withValues(alpha: 0.16),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 3.2.w,
-                                  color: gold,
-                                ),
+                  Positioned(
+                    top: 3.w,
+                    right: 3.w,
+                    child: widget.comingSoon
+                        ? Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 2.5.w,
+                              vertical: 0.6.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: gold,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              "SOON",
+                              style: TextStyle(
+                                fontSize: 2.6.sp,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1,
+                                color: c1,
                               ),
-                          ],
-                        ),
-                        const Spacer(),
+                            ),
+                          )
+                        : Container(
+                            padding: EdgeInsets.all(1.6.w),
+                            decoration: BoxDecoration(
+                              color: c1.withValues(alpha: 0.06),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 3.2.w,
+                              color: c1,
+                            ),
+                          ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.all(3.w),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         Container(
-                          padding: EdgeInsets.all(4.5.w),
+                          padding: EdgeInsets.all(4.w),
                           decoration: BoxDecoration(
                             color: gold.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(26),
+                            borderRadius: BorderRadius.circular(22),
                             border: Border.all(
                               color: gold.withValues(alpha: 0.45),
                               width: 1,
@@ -883,7 +1109,7 @@ class _ModuleTileState extends State<_ModuleTile> {
                             color: gold,
                           ),
                         ),
-                        const Spacer(),
+                        1.8.height,
                         Text(
                           widget.module.title,
                           textAlign: TextAlign.center,
@@ -892,7 +1118,7 @@ class _ModuleTileState extends State<_ModuleTile> {
                           style: TextStyle(
                             fontSize: 4.8.sp,
                             fontWeight: FontWeight.w800,
-                            color: AppColor.white,
+                            color: AppColor.appDarkColor,
                           ),
                         ),
                         0.3.height,
@@ -902,9 +1128,9 @@ class _ModuleTileState extends State<_ModuleTile> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 2.8.sp,
+                            fontSize: 3.sp,
                             height: 1.2,
-                            color: AppColor.white.withValues(alpha: 0.85),
+                            color: AppColor.grey,
                           ),
                         ),
                       ],

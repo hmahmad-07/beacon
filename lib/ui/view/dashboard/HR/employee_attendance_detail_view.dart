@@ -194,6 +194,9 @@ class _EmployeeAttendanceDetailViewState
             });
           }
 
+          // Only the loader under the app bar until the data is in.
+          if (isLoading) return const AppLoadingView();
+
           return RefreshIndicator(
             color: _accent,
             onRefresh: () async => _fetchData(),
@@ -205,9 +208,7 @@ class _EmployeeAttendanceDetailViewState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildProfileHeader(employee),
-                  if (isLoading)
-                    const AppLoadingView()
-                  else if (model == null ||
+                  if (model == null ||
                       (counts.isEmpty &&
                           (employee?.dailyAttendance ?? []).isEmpty))
                     _buildEmpty()

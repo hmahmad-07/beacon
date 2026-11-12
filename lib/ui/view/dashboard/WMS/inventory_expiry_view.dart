@@ -4,7 +4,6 @@ import 'package:beacon/core/models/WMS/inventory_expiry_model.dart';
 import 'package:beacon/core/resources/app_colors.dart';
 import 'package:beacon/core/utils/inventory_dates.dart';
 import 'package:beacon/ui/components/custom_appbar.dart';
-import 'package:beacon/ui/components/custom_date_range_picker.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_date_header.dart';
 import 'package:beacon/ui/view/dashboard/WMS/widgets/inventory_filters.dart';
 import 'package:beacon/ui/components/site_design.dart';
@@ -134,18 +133,13 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
             placeholder: "Any date",
             value: range == null ? null : formatRangeLabel(range!),
             accentColor: widget.accentColor,
-            onTap: () async {
-              final r = await CustomDateRangePicker.show(
-                sheetContext,
-                initialRange: range,
-              );
-              if (r.range != null) {
-                setSheet(() => range = r.range);
-              } else if (r.cancelled) {
-                setSheet(() => range = null);
-              }
-            },
+            onTap: () => pickInventoryDateRange(
+              sheetContext,
+              current: range,
+              onChanged: (r) => setSheet(() => range = r),
+            ),
             onClear: () => setSheet(() => range = null),
+            clearLabel: "Reset",
           ),
         ),
       ],
@@ -196,8 +190,6 @@ class _InventoryExpiryViewState extends State<InventoryExpiryView> {
             child: !controller.isScreenReady('expiry') || loading
                 ? InventoryLoadingView(
                     key: const ValueKey('expiry-loading'),
-                    heroTag: widget.heroTag,
-                    icon: BoxIcons.bxs_calendar_x,
                     label: "Loading batches…",
                   )
                 : AnimationLimiter(

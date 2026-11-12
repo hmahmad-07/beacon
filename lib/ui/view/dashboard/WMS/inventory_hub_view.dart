@@ -90,7 +90,6 @@ class _InventoryHubViewState extends State<InventoryHubView> {
               child: loading
                   ? const InventoryLoadingView(
                       key: ValueKey('hub-loading'),
-                      icon: BoxIcons.bx_package,
                       label: "Loading inventory…",
                     )
                   : AnimationLimiter(

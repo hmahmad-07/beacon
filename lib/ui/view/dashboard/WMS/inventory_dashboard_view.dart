@@ -75,7 +75,6 @@ class _InventoryDashboardViewState extends State<InventoryDashboardView> {
             child: loading
                 ? const InventoryLoadingView(
                     key: ValueKey('dash-loading'),
-                    icon: BoxIcons.bxs_dashboard,
                     label: "Loading dashboard…",
                   )
                 : AnimationLimiter(

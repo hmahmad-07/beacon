@@ -212,61 +212,84 @@ class _ClientsBodyState extends State<_ClientsBody> {
         return Scaffold(
           backgroundColor: AppColor.scaffold,
           appBar: CustomAppBar(title: title),
-          body: RefreshIndicator(
-            onRefresh: () async => _load(),
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
-              children: [
-                SalesSegmentedControl<SalesClientKind>(
-                  value: _kind,
-                  options: {
-                    SalesClientKind.internal: "Internal clients",
-                    SalesClientKind.external: "External clients",
-                  },
-                  onChanged: (kind) => _setKind(controller, kind),
-                ),
-                2.height,
-                Row(
-                  children: [
-                    Expanded(
-                      child: SalesPillButton(
-                        icon: Icons.calendar_month_rounded,
-                        label: salesPeriodLabel(controller.filters),
-                        accent: accent,
-                        onTap: () => _changePeriod(controller),
+          // Only the loader under the app bar until the list (and the
+          // order booker's trend, when one is picked) is in.
+          body: _listLoading(controller) || _trendLoading(controller)
+              ? const SalesLoadingState()
+              : RefreshIndicator(
+                  onRefresh: () async => _load(),
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
+                    children: [
+                      SalesSegmentedControl<SalesClientKind>(
+                        value: _kind,
+                        options: {
+                          SalesClientKind.internal: "Internal clients",
+                          SalesClientKind.external: "External clients",
+                        },
+                        onChanged: (kind) => _setKind(controller, kind),
                       ),
-                    ),
-                    2.width,
-                    Expanded(
-                      child: SalesPillButton(
-                        icon: Icons.person_search_rounded,
-                        label: _pickName ??
-                            (_kind == SalesClientKind.internal
-                                ? "All salespersons"
-                                : "All order bookers"),
-                        accent: accent,
-                        onTap: () => _changeSalesperson(controller),
+                      2.height,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SalesPillButton(
+                              icon: Icons.calendar_month_rounded,
+                              label: salesPeriodLabel(controller.filters),
+                              accent: accent,
+                              onTap: () => _changePeriod(controller),
+                            ),
+                          ),
+                          2.width,
+                          Expanded(
+                            child: SalesPillButton(
+                              icon: Icons.person_search_rounded,
+                              label: _pickName ??
+                                  (_kind == SalesClientKind.internal
+                                      ? "All salespersons"
+                                      : "All order bookers"),
+                              accent: accent,
+                              onTap: () => _changeSalesperson(controller),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      2.height,
+                      _summary(controller, accent),
+                      if (_kind == SalesClientKind.external && _pickId != null) ...[
+                        2.height,
+                        _bookerTrendCard(controller, accent),
+                      ],
+                      2.height,
+                      _searchField(),
+                      2.height,
+                      _list(controller, accent),
+                      _pagination(controller),
+                    ],
+                  ),
                 ),
-                2.height,
-                _summary(controller, accent),
-                if (_kind == SalesClientKind.external && _pickId != null) ...[
-                  2.height,
-                  _bookerTrendCard(controller, accent),
-                ],
-                2.height,
-                _searchField(),
-                2.height,
-                _list(controller, accent),
-                _pagination(controller),
-              ],
-            ),
-          ),
         );
       },
     );
+  }
+
+  bool _listLoading(SalesController controller) {
+    final internal = _kind == SalesClientKind.internal;
+    final loading = internal
+        ? controller.internalLoading
+        : controller.externalLoading;
+    final hasPage = internal
+        ? controller.internalClients != null
+        : controller.externalBookers != null;
+    return loading && !hasPage;
+  }
+
+  bool _trendLoading(SalesController controller) {
+    final bookerId = _pickId;
+    if (_kind != SalesClientKind.external || bookerId == null) return false;
+    final loaded = controller.bookerTrendId == bookerId;
+    final d = loaded ? controller.bookerDashboard : null;
+    return controller.bookerLoading && (!loaded || d == null);
   }
 
   Widget _summary(SalesController controller, Color accent) {
@@ -313,9 +336,6 @@ class _ClientsBodyState extends State<_ClientsBody> {
     final loaded = controller.bookerTrendId == bookerId;
     final d = loaded ? controller.bookerDashboard : null;
 
-    if (controller.bookerLoading && (!loaded || d == null)) {
-      return SizedBox(height: 24.h, child: const SalesLoadingState());
-    }
     if (controller.bookerError != null && (!loaded || d == null)) {
       return SalesErrorState(
         message: controller.bookerError!,
@@ -361,17 +381,11 @@ class _ClientsBodyState extends State<_ClientsBody> {
 
   Widget _list(SalesController controller, Color accent) {
     final internal = _kind == SalesClientKind.internal;
-    final loading = internal
-        ? controller.internalLoading
-        : controller.externalLoading;
     final error = internal ? controller.internalError : controller.externalError;
     final hasPage = internal
         ? controller.internalClients != null
         : controller.externalBookers != null;
 
-    if (loading && !hasPage) {
-      return SizedBox(height: 30.h, child: const SalesLoadingState());
-    }
     if (error != null && !hasPage) {
       return SalesErrorState(message: error, onRetry: _load);
     }

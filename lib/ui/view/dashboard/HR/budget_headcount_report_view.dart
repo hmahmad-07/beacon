@@ -122,6 +122,9 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
             });
           }
 
+          // Only the loader under the app bar until the data is in.
+          if (isLoading) return const AppLoadingView();
+
           return RefreshIndicator(
             color: _accent,
             onRefresh: () async => _fetchReportData(),
@@ -133,9 +136,7 @@ class _BudgetHeadcountReportViewState extends State<BudgetHeadcountReportView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeaderBanner(controller, model),
-                  if (isLoading)
-                    const AppLoadingView()
-                  else if (rows.isEmpty)
+                  if (rows.isEmpty)
                     _buildEmptyState()
                   else ...[
                     _buildMetricsRow(rows),

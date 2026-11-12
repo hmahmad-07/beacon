@@ -65,6 +65,12 @@ class _ChecklistSubmissionsScreenState
     final accent = widget.accent;
     final p = c.page;
 
+    // Only the loader under the app bar until the page is in. Errors still
+    // show the period and role buttons with a retry.
+    if (p == null && c.listError == null) {
+      return AppLoadingView(color: accent);
+    }
+
     return RefreshIndicator(
       color: accent,
       onRefresh: c.loadList,
@@ -111,17 +117,19 @@ class _ChecklistSubmissionsScreenState
     );
   }
 
-  /// One loader stands in for the list while a page loads. Errors show a
-  /// retry instead.
+  /// The rows. While a page loads the whole body is the loader (see
+  /// [_body]); errors show a retry here.
   List<Widget> _rows(BuildContext context, ChecklistPage? p) {
     final c = _controller;
     final accent = widget.accent;
 
     if (p == null) {
-      if (c.listError != null) {
-        return [AppErrorView(message: c.listError!, onRetry: c.loadList)];
-      }
-      return [SizedBox(height: 50.h, child: AppLoadingView(color: accent))];
+      return [
+        AppErrorView(
+          message: c.listError ?? "Could not load the checklists.",
+          onRetry: c.loadList,
+        ),
+      ];
     }
 
     if (p.items.isEmpty) {

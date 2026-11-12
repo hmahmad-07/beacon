@@ -53,25 +53,28 @@ class _SalespersonsBody extends StatelessWidget {
         return Scaffold(
           backgroundColor: AppColor.scaffold,
           appBar: CustomAppBar(title: "Salespersons"),
-          body: RefreshIndicator(
-            onRefresh: () => controller.loadSalespersons(perPage: 100),
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: SalesPillButton(
-                    icon: Icons.calendar_month_rounded,
-                    label: salesPeriodLabel(controller.filters),
-                    accent: accent,
-                    onTap: () => _changePeriod(context, controller),
+          // Only the loader under the app bar until the list is in.
+          body: controller.salespersonLoading && controller.salespersons == null
+              ? const SalesLoadingState()
+              : RefreshIndicator(
+                  onRefresh: () => controller.loadSalespersons(perPage: 100),
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
+                    children: [
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: SalesPillButton(
+                          icon: Icons.calendar_month_rounded,
+                          label: salesPeriodLabel(controller.filters),
+                          accent: accent,
+                          onTap: () => _changePeriod(context, controller),
+                        ),
+                      ),
+                      2.height,
+                      _body(controller, accent),
+                    ],
                   ),
                 ),
-                2.height,
-                _body(controller, accent),
-              ],
-            ),
-          ),
         );
       },
     );
@@ -89,9 +92,6 @@ class _SalespersonsBody extends StatelessWidget {
   Widget _body(SalesController controller, Color accent) {
     final page = controller.salespersons;
 
-    if (controller.salespersonLoading && page == null) {
-      return SizedBox(height: 40.h, child: const SalesLoadingState());
-    }
     if (controller.salespersonError != null && page == null) {
       return SalesErrorState(
         message: controller.salespersonError!,

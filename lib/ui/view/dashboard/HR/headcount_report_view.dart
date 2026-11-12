@@ -132,6 +132,9 @@ class _HeadcountReportViewState extends State<HeadcountReportView>
             });
           }
 
+          // Only the loader under the app bar until the data is in.
+          if (isLoading) return const AppLoadingView();
+
           return RefreshIndicator(
             color: _accent,
             onRefresh: () async => _fetchReportData(),
@@ -143,9 +146,7 @@ class _HeadcountReportViewState extends State<HeadcountReportView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeaderBanner(controller),
-                  if (isLoading)
-                    const AppLoadingView()
-                  else if (rows.isEmpty)
+                  if (rows.isEmpty)
                     _buildEmptyState(controller)
                   else ...[
                     _buildMetricsRow(rows, employees.length),

@@ -72,38 +72,42 @@ class _ClientDetailBody extends StatelessWidget {
         return Scaffold(
           backgroundColor: AppColor.scaffold,
           appBar: CustomAppBar(title: clientName),
-          body: RefreshIndicator(
-            onRefresh: () => controller.loadClientDetail(clientId: clientId),
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 3.1.sp,
-                          color: AppColor.grey,
-                        ),
+          // Only the loader under the app bar until the client is in.
+          body: controller.clientLoading && controller.clientDashboard == null
+              ? const SalesLoadingState()
+              : RefreshIndicator(
+                  onRefresh: () =>
+                      controller.loadClientDetail(clientId: clientId),
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 3.1.sp,
+                                color: AppColor.grey,
+                              ),
+                            ),
+                          ),
+                          2.width,
+                          SalesPillButton(
+                            icon: Icons.calendar_month_rounded,
+                            label: salesPeriodLabel(controller.filters),
+                            accent: accent,
+                            onTap: () => _changePeriod(context, controller),
+                          ),
+                        ],
                       ),
-                    ),
-                    2.width,
-                    SalesPillButton(
-                      icon: Icons.calendar_month_rounded,
-                      label: salesPeriodLabel(controller.filters),
-                      accent: accent,
-                      onTap: () => _changePeriod(context, controller),
-                    ),
-                  ],
+                      2.height,
+                      _content(controller, accent),
+                    ],
+                  ),
                 ),
-                2.height,
-                _content(controller, accent),
-              ],
-            ),
-          ),
         );
       },
     );
@@ -121,9 +125,6 @@ class _ClientDetailBody extends StatelessWidget {
   Widget _content(SalesController controller, Color accent) {
     final d = controller.clientDashboard;
 
-    if (controller.clientLoading && d == null) {
-      return SizedBox(height: 40.h, child: const SalesLoadingState());
-    }
     if (controller.clientError != null && d == null) {
       return SalesErrorState(
         message: controller.clientError!,

@@ -179,6 +179,9 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
             });
           }
 
+          // Only the loader under the app bar until the data is in.
+          if (isLoading) return const AppLoadingView();
+
           return RefreshIndicator(
             color: _accentBlue,
             onRefresh: () async => _fetchReportData(),
@@ -190,9 +193,7 @@ class _SalaryCostReportViewState extends State<SalaryCostReportView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeaderBanner(controller),
-                  if (isLoading)
-                    const AppLoadingView()
-                  else if (model == null ||
+                  if (model == null ||
                       model.departmentEmployees == null ||
                       model.departmentEmployees!.isEmpty)
                     _buildEmptyState(controller)

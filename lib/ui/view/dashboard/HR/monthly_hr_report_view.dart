@@ -125,6 +125,9 @@ class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
           final isLoading = controller.isHrSummaryLoading;
           final kpis = model?.data?.kpiCards;
 
+          // Only the loader under the app bar until the data is in.
+          if (isLoading) return const AppLoadingView();
+
           return RefreshIndicator(
             color: _accent,
             onRefresh: () async => _fetchReportData(),
@@ -136,9 +139,7 @@ class _MonthlyHRReportViewState extends State<MonthlyHRReportView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeaderBanner(controller),
-                  if (isLoading)
-                    const AppLoadingView()
-                  else if (kpis == null)
+                  if (kpis == null)
                     _buildEmptyState(controller)
                   else ...[
                     _buildKpiGrid(kpis),

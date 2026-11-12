@@ -91,35 +91,17 @@ Widget invHero(Object tag, Widget child) => Hero(
   child: Material(type: MaterialType.transparency, child: child),
 );
 
-/// Full-screen loading state: the screen's icon (the Hero target when the
-/// screen is opened from a tile), an optional title, and the app's loader.
-/// Scrollable, so pull-to-refresh keeps working while it shows.
+/// Full-screen loading state: just the app's loader and a short label,
+/// nothing above it. Scrollable, so pull-to-refresh keeps working while it
+/// shows.
 class InventoryLoadingView extends StatelessWidget {
-  const InventoryLoadingView({
-    super.key,
-    required this.label,
-    this.icon,
-    this.leading,
-    this.heroTag,
-    this.title,
-  });
+  const InventoryLoadingView({super.key, required this.label});
 
   final String label;
-  final IconData? icon;
-  final Widget? leading;
-  final Object? heroTag;
-  final String? title;
 
   @override
   Widget build(BuildContext context) {
     final accent = context.siteAccent;
-    Widget? top =
-        leading ??
-        (icon == null
-            ? null
-            : SiteIconBadge(icon!, size: 17.w, radius: 22, color: accent));
-    if (top != null && heroTag != null) top = invHero(heroTag!, top);
-
     return LayoutBuilder(
       builder: (context, box) => ListView(
         physics: const AlwaysScrollableScrollPhysics(
@@ -128,30 +110,7 @@ class InventoryLoadingView extends StatelessWidget {
         children: [
           SizedBox(
             height: box.maxHeight.isFinite ? box.maxHeight * 0.92 : 70.h,
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10.w),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (top != null) ...[top, 2.2.height],
-                    if (title != null)
-                      Text(
-                        title!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 4.2.sp,
-                          fontWeight: FontWeight.w800,
-                          color: AppColor.appDarkColor,
-                        ),
-                      ),
-                    AppLoadingView(color: accent, label: label),
-                  ],
-                ),
-              ),
-            ),
+            child: AppLoadingView(color: accent, label: label),
           ),
         ],
       ),
